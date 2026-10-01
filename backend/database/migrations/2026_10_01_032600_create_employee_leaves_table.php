@@ -8,10 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('student_leaves', function (Blueprint $table) {
+        Schema::create('employee_leaves', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('student_id')->constrained('users')->cascadeOnDelete();
-            $table->string('type'); // 'DISPENSASI', 'IZIN', 'SAKIT'
+            $table->foreignUuid('employee_id')->constrained('users')->cascadeOnDelete();
+            $table->string('type'); // 'SAKIT', 'CUTI', 'DINAS_LUAR', 'IZIN'
             $table->text('reason');
             $table->date('start_date');
             $table->date('end_date');
@@ -20,7 +20,7 @@ return new class extends Migration
             
             $table->foreignUuid('approved_by')->nullable()->constrained('users')->nullOnDelete();
             
-            // Biometric & Geofencing khusus Izin/Sakit
+            // Biometric & Geofencing khusus Sakit/Izin
             $table->text('face_snapshot_url')->nullable();
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
@@ -31,6 +31,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('student_leaves');
+        Schema::dropIfExists('employee_leaves');
     }
 };
