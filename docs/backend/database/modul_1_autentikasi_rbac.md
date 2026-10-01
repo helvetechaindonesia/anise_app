@@ -71,6 +71,7 @@ Tabel ini khusus untuk siswa.
 - `nis` & `nisn`: Nomor Induk Siswa.
 - `academic_year_id` (FK): Menyimpan data "Tahun Angkatan Masuk" si siswa.
 - `parent_name`: Nama Wali Murid untuk keperluan kontak darurat BK.
+- `student_status` (Enum): `ACTIVE` (Masih sekolah), `GRADUATED` (Lulus/Alumni), `TRANSFERRED` (Pindah Sekolah), `DROPOUT` (Dikeluarkan). Berfungsi agar akun alumni tidak perlu di-SoftDelete sehingga mereka tetap bisa *login* untuk melihat nilai masa lalu.
 - `deleted_at`: *SoftDelete*.
 
 ---
