@@ -3,19 +3,22 @@
 **Status:** Finalized (MVP 1.A)
 **Terakhir Diperbarui:** 01 Oktober 2026
 
-Modul ini dirancang khusus untuk memfasilitasi ujian-ujian besar yang bersifat sumatif atau normatif (seperti Ulangan Harian, Ujian Tengah Semester, hingga Ujian Akhir Semester). 
+Modul ini dirancang khusus untuk memfasilitasi ujian-ujian besar yang bersifat sumatif (UTS/UAS) maupun ujian formatif dadakan (Ulangan Harian/Kuis).
 
 > [!NOTE]
 > Modul ini **hanya** menyimpan data kalender, jadwal detail ujian, dan nilai angka mentah siswa. Pengolahan sistem Raport (dengan rumus pembobotan kompleks dan penilaian kelakuan subjektif Kurikulum Merdeka) tidak disertakan di MVP tahap ini.
 
 ---
 
-## 🏗️ 1. Filosofi Dua Lapis Master Data (⚠️ PENTING!)
+## 🏗️ 1. Filosofi Dua Alam Penilaian (⚠️ PENTING!)
 
-Untuk menjaga kerapian struktur data sekolah, pengisian jadwal ujian di sistem ini menerapkan konsep **2 Lapis Data Master**. Artinya, Admin/Kurikulum wajib mengisi data berurutan:
+Tabel `assessments` di modul ini didesain fleksibel untuk melayani 2 "hajat" yang berbeda:
 
-1. **Lapis 1 (Kalender General):** Sekolah membuat agenda besar terlebih dahulu (Misal: "Pelaksanaan UTS Ganjil"). Agenda ini memiliki rentang waktu secara keseluruhan (Misal: 1 September - 14 September).
-2. **Lapis 2 (Jadwal Detail per Mapel):** Setelah Lapis 1 dibuat, barulah Admin/Guru memecah jadwal ujian tersebut secara rinci per mata pelajaran dan kelas (Misal: Ujian Matematika Kelas 10A dilaksanakan pada 2 September jam 08:00).
+1. **Hajat Sekolah (Ujian Sumatif):**
+   Ujian besar (seperti UTS atau UAS) yang dibuat oleh Admin/Kurikulum. Ujian ini **WAJIB** terikat pada `academic_calendar_id` (Lapis Master 1) karena harus tunduk pada rentang waktu kalender pendidikan sekolah. Karena judulnya sudah pasti (menarik dari nama kalender), maka kolom `title` pada tabel `assessments` dibiarkan **kosong/null**.
+
+2. **Hajat Guru (Ujian Formatif):**
+   Ujian dadakan atau ulangan harian yang dibuat oleh Guru Mata Pelajaran. Guru bisa membuat ini kapan saja tanpa terikat kalender pendidikan. Maka untuk ujian jenis ini, `academic_calendar_id` **dibiarkan kosong/null**, namun kolom `title` **WAJIB DIISI** oleh guru (Misal: "Ulangan Bab 1: Aljabar").
 
 ---
 
@@ -23,7 +26,7 @@ Untuk menjaga kerapian struktur data sekolah, pengisian jadwal ujian di sistem i
 
 Total terdapat 3 tabel utama yang saling berelasi.
 
-### A. Lapis 1: Master Kalender
+### A. Lapis 1: Master Kalender (Hanya Untuk Sumatif)
 
 #### 1. Tabel `academic_calendars` (Kalender Pendidikan)
 Tabel ini digunakan untuk mencatat agenda besar sekolah secara general.
@@ -31,33 +34,36 @@ Tabel ini digunakan untuk mencatat agenda besar sekolah secara general.
 - `academic_year_id` (FK): Tahun ajaran saat ini.
 - `name` (String): Nama agenda besar (Misal: "Pelaksanaan UTS", "Pekan Porseni", "Libur Idul Fitri").
 - `start_date` & `end_date` (Date): Rentang waktu kegiatan tersebut berlangsung.
-- `is_holiday` (Boolean): Jika bernilai `True`, maka sistem *cron job* presensi akan membaca hari tersebut sebagai hari libur, sehingga tidak ada siswa yang dihitung Alpha/Terlambat, dan fitur *Tap-In* Jurnal mengajar dinonaktifkan.
+- `is_holiday` (Boolean): Jika bernilai `True`, maka sistem *cron job* presensi akan membaca hari tersebut sebagai hari libur.
 
 ---
 
 ### B. Lapis 2: Pelaksanaan & Penilaian
 
-#### 2. Tabel `assessments` (Cangkang Jadwal Ujian)
-Tabel ini adalah turunan (detail) dari kalender akademik. Digunakan untuk merinci ujian apa saja yang ada di dalam agenda tersebut.
+#### 2. Tabel `assessments` (Cangkang Jadwal Ujian Dua Alam)
+Tabel fleksibel penampung detail ujian.
 - `id` (UUID).
-- `academic_calendar_id` (FK): Terhubung ke agenda kalender (Misal: Nempel ke event "UTS Ganjil").
-- `class_id` & `subject_id` (FK): Kelas dan mata pelajaran yang diujikan (Misal: Kelas 10A, Matematika).
+- `academic_calendar_id` (FK, Nullable): Terhubung ke agenda kalender JIKA ini ujian Sumatif. Kosong jika ujian Formatif.
+- `title` (String, Nullable): Nama spesifik ujian JIKA ini ujian Formatif. Kosong jika ujian Sumatif (karena ditarik dari kalender).
+- `class_id` & `subject_id` (FK): Kelas dan mata pelajaran yang diujikan.
 - `teacher_id` (FK): Guru pengawas atau pembuat soal ujian.
 - `assessment_type` (String/Enum): Tipe ujian (Misal: `UH`, `UTS`, `UAS`, `PRAKTIK`).
-- `date` (Date): Tanggal pasti ujian tersebut dieksekusi.
-- `start_time` & `end_time` (Time, Nullable): Rentang waktu ujian (Misal: 07:00 - 08:30).
+- `date` (Date): Tanggal eksekusi ujian.
+- `start_time` & `end_time` (Time, Nullable): Rentang jam pelaksanaan.
 
 #### 3. Tabel `assessment_grades` (Input Nilai Ujian)
 Tabel untuk menampung hasil ujian (nilai mentah) siswa.
 - `id` (UUID).
-- `assessment_id` (FK): Terhubung ke jadwal ujian.
+- `assessment_id` (FK): Terhubung ke cangkang ujian.
 - `student_id` (FK): Siswa yang mendapatkan nilai.
 - `score` (Decimal 5,2, Nullable): Nilai murni ujian (Misal: 85.50).
-- `remedial_score` (Decimal 5,2, Nullable): Jika siswa mengikuti perbaikan (*remedial*), nilai perbaikannya dimasukkan ke sini tanpa menghapus jejak nilai asli (`score`).
-- `notes` (Text, Nullable): Catatan evaluasi dari guru untuk ujian siswa tersebut.
+- `remedial_score` (Decimal 5,2, Nullable): Nilai perbaikan. Jika siswa mengikuti perbaikan (*remedial*), nilainya masuk sini tanpa menghapus jejak nilai asli (`score`).
+- `notes` (Text, Nullable): Catatan evaluasi dari guru.
 
 ---
 
 ## 🔑 Aturan Emas Pengembangan (Modul 6)
-1. **Pemisahan Logika Absensi:** Karena ujian (Tabel `assessments`) berjalan secara mandiri dan tidak terhubung dengan `schedules` harian Modul 4, maka jika ada siswa yang absen saat ujian, status absennya tetap mengacu pada Modul 2 (Presensi Gerbang/Harian).
-2. **Prioritas Remedial:** Jika API mengkalkulasi nilai akhir siswa, sistem harus memprioritaskan pengecekan kolom `remedial_score`. Jika `remedial_score` tidak *null*, maka nilai itulah yang dianggap sebagai nilai akhir ujian tersebut.
+1. **Validasi Formatif vs Sumatif:** *Backend Controller* harus mengunci logika validasi ini: 
+   - Jika `assessment_type` adalah `UTS` atau `UAS`, maka payload *request* harus menyertakan `academic_calendar_id`. 
+   - Jika `assessment_type` adalah `UH` (Ulangan Harian), maka payload *request* harus menyertakan `title`.
+2. **Prioritas Remedial:** Jika API mengkalkulasi nilai akhir siswa, sistem harus memprioritaskan pengecekan kolom `remedial_score`. Jika `remedial_score` tidak *null*, maka nilai itulah yang dianggap sebagai nilai akhir (tapi `score` asli tetap dirender ke *frontend* dengan coretan visual).
