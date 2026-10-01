@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('disiplin_reports', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('siswa_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('reporter_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('siswa_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('reporter_id')->constrained('users')->onDelete('cascade');
             $table->string('category');
             $table->text('notes')->nullable();
             $table->enum('status', ['LAPORAN', 'INPUT'])->default('LAPORAN');

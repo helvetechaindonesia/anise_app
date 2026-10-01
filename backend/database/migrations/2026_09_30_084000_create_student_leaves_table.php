@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('student_leaves', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('student_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('student_id')->constrained('users')->onDelete('cascade');
             $table->enum('type', ['DISPENSASI', 'IZIN']);
             $table->text('reason');
             $table->date('start_date');

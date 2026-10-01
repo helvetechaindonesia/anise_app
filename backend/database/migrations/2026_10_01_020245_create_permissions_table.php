@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_files', function (Blueprint $table) {
-            $table->id();
-            $table->foreignUuid('user_id')->constrained()->onDelete('cascade');
-            $table->string('title');
-            $table->string('type');
-            $table->string('size');
-            $table->string('path');
+        Schema::create('permissions', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name')->unique(); // e.g. 'create-journal', 'approve-leave'
+            $table->string('description')->nullable();
             $table->timestamps();
         });
     }
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_files');
+        Schema::dropIfExists('permissions');
     }
 };
