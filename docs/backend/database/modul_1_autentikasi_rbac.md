@@ -28,6 +28,7 @@ Merupakan tabel pusat dari seluruh nyawa di dalam sistem.
 - `full_name`, `username`, `email`: Identitas dasar.
 - `nik` (String): Nomor Induk Kependudukan (Universal untuk semua).
 - `gender` (Enum: L/P): Jenis kelamin, dipusatkan di sini agar tidak *redundant* di profil.
+- `religion` (String, Nullable): Agama pengguna. Berfungsi vital sebagai "Mata Katin" sistem untuk mendeteksi *trigger* fitur-fitur spesifik agama (Contoh: Menampilkan fitur ibadah Islam di Modul G-7 KAIH).
 - `password_hash`: *Password* terenkripsi (Bcrypt).
 - `face_biometric` (Text): Menyimpan enkripsi pemetaan geometri wajah hasil pindaian AI, digunakan untuk verifikasi absen.
 - `phone`, `address`: Data kontak dasar.
