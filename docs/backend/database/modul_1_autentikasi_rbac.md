@@ -26,11 +26,15 @@ Pada awal pengembangan, aplikasi menggunakan sistem yang kaku (misal: penentuan 
 Merupakan tabel pusat dari seluruh nyawa di dalam sistem.
 - `id` (UUID): Kunci utama yang panjang dan tidak bisa ditebak.
 - `full_name`, `username`, `email`: Identitas dasar.
+- `avatar` (String, Nullable): Menyimpan *URL* atau nama *file* foto profil *user*.
 - `nik` (String): Nomor Induk Kependudukan (Universal untuk semua).
 - `gender` (Enum: L/P): Jenis kelamin, dipusatkan di sini agar tidak *redundant* di profil.
-- `religion` (String, Nullable): Agama pengguna. Berfungsi vital sebagai "Mata Katin" sistem untuk mendeteksi *trigger* fitur-fitur spesifik agama (Contoh: Menampilkan fitur ibadah Islam di Modul G-7 KAIH).
+- `religion` (String, Nullable): Agama pengguna. Berfungsi vital sebagai "Mata Katin" sistem untuk mendeteksi *trigger* fitur-fitur spesifik agama.
+- `birth_place` (String, Nullable): Tempat lahir.
+- `birth_date` (Date, Nullable): Tanggal lahir.
 - `password_hash`: *Password* terenkripsi (Bcrypt).
-- `face_biometric` (Text): Menyimpan enkripsi pemetaan geometri wajah hasil pindaian AI, digunakan untuk verifikasi absen.
+- `has_registered_biometric` (Boolean): Menandai apakah *user* ini sudah pernah mendaftarkan wajahnya.
+- `face_embedding` & `face_biometric` (Text, Nullable): Menyimpan enkripsi pemetaan geometri wajah hasil pindaian AI, digunakan untuk verifikasi absen.
 - `phone`, `address`: Data kontak dasar.
 - `role_id` (UUID): Kunci tamu (FK) yang mengarah ke tabel `roles`.
 - `is_active` (Boolean): *Switch* untuk mematikan akun tanpa harus menghapus datanya.
@@ -52,16 +56,18 @@ Infrastruktur *Push Notification* otomatis.
 
 ---
 
-### B. Core Profiles (Data Fisik Akademis)
+### B. Core Profiles (Data Fisik Pegawai & Murid)
 
-Untuk mencegah tabel `users` membengkak ratusan kolom, data akademis dipecah ke dua tabel ekstensi. Keduanya menggunakan `user_id` sebagai *Primary Key* sekaligus *Foreign Key* (relasi 1-to-1 mutlak).
+Untuk mencegah tabel `users` membengkak ratusan kolom, data akademis dan kepegawaian dipecah ke dua tabel ekstensi. Keduanya menggunakan `user_id` sebagai *Primary Key* sekaligus *Foreign Key* (relasi 1-to-1 mutlak). Seluruh *Role* terbagi ke dalam 2 "Spesies" besar di bawah ini.
 
-#### 1. Tabel `guru_profiles`
+#### 1. Tabel `staff_profiles` (Spesies Pegawai)
+Tabel ini mencakup seluruh orang dewasa yang bekerja di sekolah (Guru Mapel, Guru BK, Tata Usaha, Kepala Sekolah).
 - `nip_nuptk` (String): Nomor Induk Pegawai.
 - `employment_status`: Status kepegawaian (PNS / Honorer / GTY).
 - `deleted_at`: *SoftDelete*.
 
-#### 2. Tabel `siswa_profiles`
+#### 2. Tabel `student_profiles` (Spesies Murid)
+Tabel ini khusus untuk siswa.
 - `nis` & `nisn`: Nomor Induk Siswa.
 - `academic_year_id` (FK): Menyimpan data "Tahun Angkatan Masuk" si siswa.
 - `parent_name`: Nama Wali Murid untuk keperluan kontak darurat BK.
