@@ -1,6 +1,8 @@
 # 🗺️ Anise App - Engineering Roadmap & Todo
+**Versi Target:** MVP 1.A (Efisiensi, Skalabilitas, dan Stabilitas)
+**Mulai Dikerjakan:** Kamis, 01/10/2026
 
-Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar efisien, tangguh, dan berskala tinggi (Enterprise-ready).
+Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar efisien, tangguh, dan berskala tinggi (Enterprise-ready). Tujuan utama iterasi ini adalah menyelesaikan **MVP 1.A** sebelum beralih ke penambahan fitur raksasa lainnya.
 
 ---
 
@@ -20,7 +22,8 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 
 - [ ] **2a.** Membuat dasar kerangka pemetaan folder dan file berdasarkan efisiensi dan skalabilitas.
 - [ ] **2b.** Me-refactor seluruh file berdasarkan fungsi dan ekosistem berdasarkan efisiensi dan skalabilitas.
-- [ ] **2c.** Memindahkan dan merapihkan seluruh file sesuai kerangka yang telah dibuat.
+- [ ] **2c.** Menghapus seluruh folder, file, dan cache yang tidak digunakan.
+- [ ] **2d.** Memindahkan dan merapihkan seluruh file sesuai kerangka yang telah dibuat.
 
 ---
 
