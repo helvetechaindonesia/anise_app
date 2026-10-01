@@ -62,6 +62,12 @@ Tempat masuknya laporan keterlambatan dari Guru Piket.
 - `status` (String): Tahapan *approval* (PENDING, ACC_GURU_WALI, dll).
 - `approved_by` (FK ke users): Siapa yang mengeksekusi ACC terakhir.
 
+#### 3. Tabel `holidays` (Kalender Hari Libur)
+Mencegah *Cron Job* mencatat "Hadir" di tanggal merah atau hari libur nasional.
+- `id` (UUID).
+- `tanggal` (Date): Tanggal libur (Unik).
+- `keterangan` (String): Nama libur (Misal: "Idul Fitri", "Tahun Baru").
+
 ---
 
 ## 🔑 Aturan Emas Pengembangan (Modul 2)
