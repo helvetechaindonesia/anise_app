@@ -36,4 +36,5 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 
 ## 📌 Catatan Penting (Golden Rules)
 - **Dokumentasi Kerangka Produksi:** Setiap kali kita membuat atau merombak kerangka (*framework* folder/arsitektur), **WAJIB** ada file fondasi panduan (dokumentasi penuh) yang menyertainya. Pola-pola produksi harus dituliskan secara jelas agar programmer/tim yang baru masuk bisa langsung paham tanpa tersesat.
+- **Ritme Git Push:** Proses `git push` (lempar kode ke GitHub) HANYA dilakukan setiap kali satu sub-poin selesai (misal: selesai 1a, baru push). Ini bertujuan agar log GitHub tetap rapi, punya *checkpoint* yang jelas, dan tidak *spamming* push untuk perubahan kecil.
 
