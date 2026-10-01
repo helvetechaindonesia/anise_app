@@ -36,9 +36,8 @@ return new class extends Migration
             // Kategori barangnya apa?
             $table->foreignUuid('category_id')->nullable()->constrained('inventory_categories')->nullOnDelete();
             
-            $table->string('item_code')->unique(); // Barcode / Nomor Seri
+            $table->string('item_code')->unique(); // Barcode / Nomor Seri (Satu barang satu kode fisik)
             $table->string('name'); // Misal: Proyektor Epson, Bola Basket Spalding
-            $table->integer('quantity')->default(1);
             $table->string('condition')->default('GOOD'); // GOOD, FAIR, BROKEN
             $table->date('purchase_date')->nullable();
             $table->timestamps();

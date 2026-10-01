@@ -26,15 +26,14 @@ Agar barang-barang mudah disaring (*filter*) saat direkapitulasi.
 - `description` (Text, Nullable).
 
 ### C. Tabel `inventory_items` (Buku Induk Inventaris / Barang)
-Tabel ini khusus mencatat benda-benda atau aset bergerak milik sekolah.
+Tabel ini khusus mencatat benda-benda atau aset bergerak milik sekolah dengan prinsip **SATU KODE UNTUK SATU BARANG FISIK**.
 - `id` (UUID).
 - `facility_id` (FK ke `facilities`, Nullable): Menandakan lokasi barang saat ini (Barang ini lagi ditaruh di ruangan mana?).
 - `category_id` (FK ke `inventory_categories`, Nullable).
-- `item_code` (String, *Unique*): Nomor Seri atau Barcode dari barang tersebut (Misal: `INV-26-001`).
+- `item_code` (String, *Unique*): Nomor Seri atau Barcode dari barang tersebut (Misal: `INV-26-001`). Karena bersifat unik, tidak ada kolom *quantity*. Jika sekolah membeli 10 kursi, maka akan ada 10 baris data dengan kode unik yang berbeda.
 - `name` (String): Nama spesifik barang (Misal: *Proyektor Epson X-11*, *Meja Guru Jati*).
-- `quantity` (Integer): Jumlah stok barang.
 - `condition` (String): Status kelayakan barang (`GOOD`, `FAIR`, `BROKEN`).
-- `purchase_date` (Date, Nullable): Tanggal pembelian (Berfungsi jika ke depan sistem ingin mengembangkan fitur kalkulasi depresiasi/penyusutan aset).
+- `purchase_date` (Date, Nullable): Tanggal pembelian.
 
 ---
 
