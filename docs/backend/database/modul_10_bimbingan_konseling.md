@@ -46,13 +46,19 @@ Bagaimana jika Guru BK ingin masuk ke sebuah kelas untuk melakukan Sosialisasi (
 **Solusinya: BUKAN MEMBUAT TABEL BARU.**
 Kita menggunakan teknik *"Classroom Hijacking"* atau pembajakan jadwal yang secara arsitektur sama persis dengan fitur **Guru Inval/Pengganti** di Modul 4 (Jurnal).
 
-**Alur Kerja (Sistem Input Sosialisasi):**
-1. Guru BK membuka menu "Sosialisasi / Masuk Kelas".
-2. Guru BK memilih Tingkat dan Kelas. API *Backend* akan memberikan respon jadwal pelajaran apa saja yang ada di kelas tersebut pada hari H (termasuk nama guru mapel aslinya).
-3. Guru BK memilih salah satu slot mapel (Misal: Pelajaran IPS milik Pak A di jam ke-3).
-4. Saat di-klik simpan, *Backend* akan menerbitkan sebaris data baru di tabel `journals` (Modul 4) dengan struktur:
-   - `schedule_id` = ID Jadwal IPS Pak A.
-   - `teacher_id` = **ID Guru BK** (Bukan ID Pak A).
-   - `topic_material` = "Bimbingan Karir / Sosialisasi".
-   - `is_bk_sosialisasi` = `true` (Penanda khusus bahwa ini jurnal bajakan BK).
-5. **Dampak Otomatis:** Karena jadwal IPS Pak A sudah diterbitkan jurnalnya oleh Guru BK, maka sistem tidak akan meneror/menagih Pak A untuk mengisi jurnal di jam tersebut. KBM dianggap sudah berjalan namun diambil alih oleh BK.
+**Alur Kerja & Desain API (Sistem Input Sosialisasi):**
+1. **Intai Jadwal:** Guru BK memilih Tingkat dan Kelas. API *Backend* (`GET /api/schedules?class_id=XYZ&date=...`) akan membalas daftar jadwal mapel asli di kelas tersebut pada hari H.
+2. **Pilih Target:** Guru BK memilih salah satu slot mapel (Misal: Pelajaran IPS milik Pak A di jam ke-3).
+3. **Eksekusi Bajak:** Saat Guru BK menekan "Simpan Jurnal", *Frontend* menembak `POST /api/journals` dengan payload:
+   ```json
+   {
+       "schedule_id": "<UUID Jadwal IPS Pak A>",
+       "class_id": "<UUID Kelas>",
+       "subject_id": "<UUID Mapel IPS>",
+       "teaching_date": "2026-10-05",
+       "topic_material": "Bimbingan Karir / Sosialisasi",
+       "is_bk_sosialisasi": true
+   }
+   ```
+4. **Sihir Controller:** *Backend* menyimpan data tersebut ke tabel `journals`. `teacher_id` akan otomatis diisi dengan ID Guru BK yang sedang login `Auth::id()`, BUKAN ID Pak A.
+5. **Dampak Otomatis:** Karena jadwal IPS Pak A sudah memiliki data di tabel `journals` (walaupun diisi BK), maka di layar dasbor Pak A status kelasnya akan berubah menjadi `COMPLETED / DIAMBIL ALIH BK`. Sistem tidak akan meneror Pak A untuk mengisi absen KBM tersebut.
