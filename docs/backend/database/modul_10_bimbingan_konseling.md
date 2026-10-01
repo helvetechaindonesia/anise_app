@@ -62,3 +62,16 @@ Kita menggunakan teknik *"Classroom Hijacking"* atau pembajakan jadwal yang seca
    ```
 4. **Sihir Controller:** *Backend* menyimpan data tersebut ke tabel `journals`. `teacher_id` akan otomatis diisi dengan ID Guru BK yang sedang login `Auth::id()`, BUKAN ID Pak A.
 5. **Dampak Otomatis:** Karena jadwal IPS Pak A sudah memiliki data di tabel `journals` (walaupun diisi BK), maka di layar dasbor Pak A status kelasnya akan berubah menjadi `COMPLETED / DIAMBIL ALIH BK`. Sistem tidak akan meneror Pak A untuk mengisi absen KBM tersebut.
+
+---
+
+## 🖨️ 3. Pabrik Surat Panggilan (Menu "Sanksi")
+
+Sesuai dengan prinsip *Paperless* dan Anti-Birokrasi, aplikasi ini memangkas kewajiban Guru BK untuk meminta Nomor Surat dari Tata Usaha (TU) tiap kali memanggil siswa.
+
+> [!IMPORTANT]
+> **Catatan Krusial untuk UI/UX Frontend & Backend (Modul BK):**
+> 1. **Perubahan Nama Menu:** Menu yang sebelumnya bernama "Surat" di *dashboard* Guru BK **wajib diganti namanya menjadi "Sanksi"**. Jangan tertukar dengan menu "Surat" milik Tata Usaha.
+> 2. **Isi Halaman Sanksi:** Halaman ini berisi *log/riwayat* dari semua panggilan paksa yang dilakukan oleh Guru BK (Menembak API `counseling_requests` dengan filter `initiator = GURU_BK`).
+> 3. **Export PDF Otomatis:** Di setiap baris riwayat panggilan, wajib ada tombol **"Cetak / Export PDF"**. Tombol ini akan men- *trigger* *Backend* untuk me- *render* PDF Surat Panggilan secara *on-the-fly* tanpa perlu menyimpan *file* fisiknya di *database*.
+> 4. **Bebas Tabel Baru:** Tidak ada tabel *database* baru untuk fitur ini. *Template* HTML, kop surat, dan penomoran adalah murni urusan *logic/state* di level *Backend Controller* (Misal menggunakan *library* `dompdf`).
