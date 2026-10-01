@@ -62,6 +62,7 @@ Digunakan saat guru mengisi Jurnal di fase akhir.
   - `VIOLATION`: Siswa melakukan pelanggaran di kelas (Nanti di-copy oleh *Observer* ke Modul Disiplin).
   - `ACHIEVEMENT`: Keaktifan ekstra di kelas.
 - `keterangan` (Text): Penjelasan rinci kejadian.
+- `attachment_url` (String, Nullable): Bukti foto/media jika diperlukan (Sangat krusial untuk kasus pelanggaran di dalam kelas agar diteruskan ke Modul Disiplin).
 
 ---
 
@@ -86,4 +87,4 @@ Berfungsi sebagai wadah tanya jawab (forum) mini khusus untuk materi hari itu.
 
 ## 🔑 Aturan Emas Pengembangan (Modul 4)
 1. **Toleransi Tap-In:** Validasi di *Backend Controller* harus mengizinkan guru melakukan `check_in_time` maksimal dengan toleransi keterlambatan (Misal: 20 menit) dari `start_time` yang tercatat di `schedules`. Di luar itu, KBM dianggap batal atau digantikan/diinval.
-2. **Sinkronisasi Disiplin:** Saat ada rekaman bertipe `VIOLATION` masuk ke `journal_student_records`, *Event Listener* di Laravel wajib membuat salinan (*copy*) laporan tersebut ke tabel `disiplin_reports` (Modul 2) secara diam-diam (*background job*) agar Guru Wali dapat menindaklanjutinya.
+2. **Sinkronisasi Disiplin:** Saat ada rekaman bertipe `VIOLATION` masuk ke `journal_student_records`, *Event Listener* di Laravel wajib membuat salinan (*copy*) laporan tersebut ke tabel `discipline_reports` (Modul 9) secara diam-diam (*background job*) agar Guru Wali dapat menindaklanjutinya.
