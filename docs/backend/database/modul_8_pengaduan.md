@@ -41,6 +41,11 @@ Kolom `category` pada tabel `complaints` memegang peranan vital untuk mendistrib
 1. **Kategori `FASILITAS`:**
    *Query* data ini wajib diarahkan ke **Dashboard Wakasek Sarana & Prasarana (Sarpras)**. *(Catatan: Halaman ini berbeda dengan halaman Inventaris Barang).*
 2. **Kategori `BULLYING` & `ASPIRASI`:**
-   *Query* data ini diarahkan langsung ke **Dashboard Wakasek Kesiswaan**.
+   *Query* data ini diarahkan langsung ke **Dashboard Kesiswaan**.
+
+> [!IMPORTANT]
+> **Catatan Untuk UI/UX (Frontend):** 
+> - Menu utama yang dulunya bernama "Fitur Kesiswaan" **WAJIB DIGANTI** menjadi **"Pengaduan"** atau "Helpdesk" untuk menghindari kebingungan.
+> - Data kategori `FASILITAS` hanya boleh diakses oleh *user* yang menduduki jabatan struktural `WAKASEK_SARPRAS`.
 
 Tanggapan (`response_note`) dan perubahan `status` hanya boleh dilakukan oleh *user* yang memiliki *Role/Permission* yang berwenang di masing-masing *dashboard* tersebut.
