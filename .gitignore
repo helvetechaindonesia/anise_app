@@ -1,0 +1,7 @@
+.agents/
+.codegraph/
+scratch/
+scratch_excel/
+*.xlsx
+*.csv
+.DS_Store
