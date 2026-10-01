@@ -25,6 +25,7 @@ Tabel sentral untuk mencatat seluruh daftar dosa kedisiplinan siswa.
 - `student_id` (FK ke `users`): Tersangka / Siswa yang melanggar.
 - `reporter_id` (FK ke `users`): Pelapor (Guru / Tendik / Satpam). **Siswa dilarang keras melaporkan di menu ini.**
 - `category` (String): Terdiri dari `TERLAMBAT`, `KENAKALAN`, `SERAGAM`, `BOLOS`.
+- `point_rule_id` (FK ke `point_rules`, Nullable): Jembatan penghubung ke Modul Poin. Berfungsi untuk mendeteksi "Aturan/Pasal" apa yang dilanggar sehingga sistem bisa otomatis memotong poin siswa saat di-ACC.
 - `description` (Text): Alasan telat atau deskripsi kronologi kenakalan.
 - `violation_time` (Timestamp): Waktu presisi kejadian (Sangat krusial untuk mencatat jam berapa anak telat masuk gerbang).
 - `status` (String): `PENDING`, `APPROVED` (Valid), `REJECTED`.

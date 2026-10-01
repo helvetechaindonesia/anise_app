@@ -22,6 +22,10 @@ return new class extends Migration
             
             // Kategori: TERLAMBAT, KENAKALAN, SERAGAM, BOLOS
             $table->string('category');
+            
+            // Jembatan ke Sistem Poin (Berapa bobot dosa pelanggarannya)
+            $table->foreignUuid('point_rule_id')->nullable()->constrained('point_rules')->nullOnDelete();
+            
             $table->text('description');
             
             // Waktu spesifik pelanggaran (krusial buat telat / bolos)
