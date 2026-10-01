@@ -38,3 +38,21 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 - **Dokumentasi Kerangka Produksi:** Setiap kali kita membuat atau merombak kerangka (*framework* folder/arsitektur), **WAJIB** ada file fondasi panduan (dokumentasi penuh) yang menyertainya. Pola-pola produksi harus dituliskan secara jelas agar programmer/tim yang baru masuk bisa langsung paham tanpa tersesat.
 - **Ritme Git Push:** Proses `git push` (lempar kode ke GitHub) HANYA dilakukan setiap kali satu sub-poin selesai (misal: selesai 1a, baru push). Ini bertujuan agar log GitHub tetap rapi, punya *checkpoint* yang jelas, dan tidak *spamming* push untuk perubahan kecil.
 
+---
+
+## 🗂️ Daftar Pemetaan Modul (Fase 1)
+Berikut adalah daftar modul yang dibedah dalam Fase 1 (Scrapping Database):
+- **Kuartal 1:** Modul 1 (User & Auth), Modul 2 (Presensi), Modul 3 (Perizinan).
+- **Kuartal 2:** Modul 4 (Jurnal), Modul 5 (Tugas), Modul 6 (Raport).
+- **Kuartal 3:** Modul 7 (Gerakan 7 KAIH), Modul 8 (Helpdesk/Pengaduan), Modul 9 (Disiplin).
+- **Kuartal 4:** Modul 10 (BK), Modul 11 (Surat Menyurat), Modul 12 (Sarpras).
+- **Kuartal 5:** Modul 13 (Kurikulum), Modul 14 (User UI/UX), Modul 15 (Manajemen Sekolah).
+- **Kuartal 6 (Next):**
+  - Modul 16: Humas dan Pengumuman
+  - Modul 17: Poin dan KPI
+  - Modul 18: Notifikasi
+- **Kuartal 7 (Final):**
+  - Modul 19: Privacy and Legal
+  - Modul 20: Bantuan dan Keamanan
+  - Modul 21: Developer Mode
+
