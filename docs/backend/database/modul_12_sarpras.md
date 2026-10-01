@@ -42,11 +42,11 @@ Tabel ini khusus mencatat benda-benda atau aset bergerak milik sekolah.
 
 Mengingat volume data inventaris bisa mencapai ribuan *item*, *Frontend* **WAJIB** memisahkan Modul 12 menjadi 2 sub-menu/halaman utama:
 
-### 1. Halaman "Fasilitas"
-- Halaman ini hanya menampilkan data dari tabel `facilities` (Daftar Ruangan).
-- **Integrasi dengan Modul 8 (Helpdesk):** Di halaman ini, *Frontend* wajib menyediakan satu *Tab/Sub-menu* tambahan yang bertugas menarik data dari API `complaints` (Modul 8) dengan filter khusus `category = FASILITAS`. 
-- **Tujuan:** Agar Wakasek Sarpras bisa melihat daftar aduan kerusakan (seperti genteng bocor atau AC mati) langsung dari menu Fasilitas miliknya tanpa harus membuka *dashboard* Kesiswaan.
+### 1. Halaman "Fasilitas" (Menu Ruangan & Aduan)
+- Halaman ini difokuskan untuk mengelola tabel `facilities`.
+- **Integrasi dengan Modul 8 (Helpdesk):** Di halaman ini, *Frontend* wajib menyediakan satu *Tab* khusus bernama "Aduan Fasilitas". Tab ini akan menarik data dari API `GET /api/complaints?category=FASILITAS`.
+- **Tujuan:** Agar Wakasek Sarpras bisa melihat dan memproses aduan kerusakan (seperti genteng bocor atau AC mati) secara mandiri dari satu halaman, tanpa perlu mengakses halaman Modul Kesiswaan/Helpdesk.
 
-### 2. Halaman "Inventaris"
-- Halaman ini didedikasikan murni untuk CRUD tabel `inventory_items`.
-- Fitur pencarian dan filter (berdasarkan Ruangan `facility_id` atau Kategori `category_id`) harus dibuat sekomprehensif mungkin di halaman ini.
+### 2. Halaman "Inventaris" (Menu Barang)
+- Halaman ini difokuskan murni untuk manajemen aset bergerak (CRUD tabel `inventory_items` dan `inventory_categories`).
+- **Fitur API Pencarian:** *Backend* wajib menyediakan API pencarian yang kuat, misal `GET /api/inventory?facility_id=XYZ&condition=BROKEN` agar *Frontend* bisa membuat filter untuk mencari "Barang apa saja yang rusak di Lab Komputer 1".
