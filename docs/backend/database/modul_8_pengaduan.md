@@ -28,6 +28,7 @@ Tabel ini merupakan hasil *refactor* dari tabel `student_reports` versi lama. Di
 - `category` (String): Menggunakan *keyword* spesifik (`FASILITAS`, `BULLYING`, `ASPIRASI`).
 - `title` (String): Judul singkat laporan.
 - `description` (Text): Kronologi lengkap atau detail usulan.
+- `is_anonymous` (Boolean): *Flag Whistleblower Protection*. Jika `true`, UI Frontend wajib menyembunyikan identitas pelapor dari publik/tersangka, namun Admin Kesiswaan tetap bisa melihatnya di *database*.
 - `attachment_url` (String, Nullable): Wajib disediakan *Frontend* untuk melampirkan bukti foto (Misal: Foto bangku rusak, *screenshot chat bullying*).
 - `status` (String): Status penanganan tiket (`PENDING`, `ON_PROGRESS`, `RESOLVED`, `REJECTED`).
 - `response_note` (Text, Nullable): Pesan tanggapan resmi dari pihak sekolah yang menangani tiket tersebut.
