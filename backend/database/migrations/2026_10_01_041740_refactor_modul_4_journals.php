@@ -33,6 +33,7 @@ return new class extends Migration
             $table->foreignUuid('student_id')->constrained('users')->cascadeOnDelete();
             $table->string('record_type'); // ABSENCE, VIOLATION, ACHIEVEMENT
             $table->text('keterangan');
+            $table->string('attachment_url')->nullable(); // Bukti foto (Misal: Anak tidur di kelas)
             $table->timestamps();
         });
 

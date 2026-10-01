@@ -28,6 +28,9 @@ return new class extends Migration
             
             $table->text('description');
             
+            // Bukti foto sangat vital buat kasus kenakalan / seragam
+            $table->string('attachment_url')->nullable();
+            
             // Waktu spesifik pelanggaran (krusial buat telat / bolos)
             $table->timestamp('violation_time');
             
