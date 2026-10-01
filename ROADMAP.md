@@ -31,3 +31,9 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 *Fokus: Kosmetik, Design System, dan Performa Layar.*
 
 - [ ] **3a.** *(Akan dibahas dan didetailkan nanti setelah Fase 1 & 2 selesai)* 🤫
+
+---
+
+## 📌 Catatan Penting (Golden Rules)
+- **Dokumentasi Kerangka Produksi:** Setiap kali kita membuat atau merombak kerangka (*framework* folder/arsitektur), **WAJIB** ada file fondasi panduan (dokumentasi penuh) yang menyertainya. Pola-pola produksi harus dituliskan secara jelas agar programmer/tim yang baru masuk bisa langsung paham tanpa tersesat.
+
