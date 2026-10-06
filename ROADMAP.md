@@ -49,7 +49,8 @@ Berikut adalah daftar modul yang dibedah dalam Fase 1 (Scrapping Database):
 - **Kuartal 5:** Modul 13 (Kurikulum), Modul 14 (User UI/UX), Modul 15 (Manajemen Sekolah).
 - **Kuartal 6 (Next):**
   - Modul 16: Humas dan Pengumuman
-  - Modul 17: Poin dan KPI
+  - Modul 17A: KPI Tendik (Sistem Penilaian)
+  - Modul 17B: Poin Siswa (Kedisiplinan)
   - Modul 18: Notifikasi
 - **Kuartal 7 (Final):**
   - Modul 19: Privacy and Legal

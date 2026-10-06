@@ -1,9 +1,9 @@
-# Dokumentasi Database & API: Modul 17 (Penilaian Kinerja / KPI Tendik)
+# Dokumentasi Database & API: Modul 17A (Penilaian Kinerja / KPI Tendik)
 
 **Status:** Finalized (MVP 1.A)
 **Terakhir Diperbarui:** 06 Oktober 2026
 
-Modul 17 untuk Tendik (Tenaga Pendidik / Guru) telah direfaktor total. Sistem "Poin/Skor Angka" dihapus seutuhnya untuk menghindari ambiguitas dan menyesuaikan standar resmi pemerintah (E-Kinerja PMM). Sistem diganti menjadi penilaian murni *Subjektif (Kualitatif)* yang berbasiskan data laporan sistem.
+Modul 17A untuk Tendik (Tenaga Pendidik / Guru) telah direfaktor total. Sistem "Poin/Skor Angka" dihapus seutuhnya untuk menghindari ambiguitas dan menyesuaikan standar resmi pemerintah (E-Kinerja PMM). Sistem diganti menjadi penilaian murni *Subjektif (Kualitatif)* yang berbasiskan data laporan sistem.
 
 ---
 
