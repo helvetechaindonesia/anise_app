@@ -34,7 +34,22 @@ Berfungsi agar sekolah tahu siapa saja *User* yang sudah membaca pengumuman pent
 
 ---
 
-## 🚀 2. Rencana API Endpoint & Logic Tersembunyi
+## 🚀 2. Rencana Hak Akses (RBAC) & UI
+
+Karena modul ini merupakan corong utama sekolah, wewenangnya dibatasi sangat ketat.
+
+### A. Hak Akses Input (Create/Edit/Push)
+Hanya *User* dengan kriteria berikut yang akan melihat tombol "Upload Excel" dan "Kirim Notifikasi" di layar mereka:
+1. *User* dengan Role Inti: `TATA_USAHA`
+2. *User* Guru yang memiliki tugas tambahan (Tabel `structural_assignments`) sebagai: `Wakasek Humas` atau `Staff Khusus Humas`.
+
+### B. Hak Akses Melihat (Read-Only)
+- **Guru, Guru BK, dan Kepala Sekolah:** Akan tetap mendapatkan menu "Manajemen Humas" di *Sidebar* mereka, tetapi layarnya bersifat *Read-Only* (hanya bisa melihat daftar pengumuman dan riwayat siapa saja yang sudah membacanya). Tidak ada tombol edit/push.
+- **Siswa:** Menu "Manajemen Humas" **disembunyikan sepenuhnya** dari *Sidebar* murid. Murid hanya akan melihat hasil pengumumannya di *Home Feed/Dashboard* utama aplikasi.
+
+---
+
+## ⚙️ 3. Rencana API Endpoint & Logic Tersembunyi
 
 ### A. Alur *Upload* Excel (Untuk TU)
 - **`POST /api/announcements/import`**:
