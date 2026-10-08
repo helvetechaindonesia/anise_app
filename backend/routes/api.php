@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\HabitController;
+use App\Http\Controllers\Api\AssignmentController;
 use App\Http\Controllers\Api\CounselingController;
 use App\Http\Controllers\Api\ExcelParserController;
 use App\Http\Controllers\Api\ExcelParserUserController;
@@ -74,11 +75,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::prefix('assignments')->group(function () {
         Route::middleware('role:GURU')->group(function () {
-            Route::post('/', [JournalController::class, 'storeTask']);
-            Route::get('/', [JournalController::class, 'getTasks']);
+            Route::post('/', [AssignmentController::class, 'storeTask']);
+            Route::get('/', [AssignmentController::class, 'getTasks']);
         });
         Route::middleware('role:SISWA')->group(function () {
-            Route::get('/siswa', [JournalController::class, 'getSiswaTasks']);
+            Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
         });
     });
 
