@@ -1,6 +1,6 @@
 class ApiConstants {
-  // Gunakan 'https://api.helvetecha.tech/api' untuk server production
-  static const String baseUrl = 'https://api.helvetecha.tech/api';
+  // Gunakan 'http://api.helvetecha.tech/api' untuk server production
+  static const String baseUrl = 'http://api.helvetecha.tech/api';
   
   // Endpoint list
   static const String loginEndpoint = '/auth/login';
