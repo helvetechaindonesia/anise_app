@@ -1,83 +1,98 @@
-# 🗃️ Blueprint Repositories (Helper Dapur)
+# 🗃️ Blueprint Repositories (Tim Helper Dapur)
 
 **Status:** Open Hiring (Draft Blueprint)
 **Lokasi Aktual Nanti:** `app/Repositories/`
 
-Dokumen ini adalah cetak biru untuk seluruh tim *Helper* (Repositories) yang bertugas mengambil bahan mentah dari rak (Database) untuk diserahkan ke sang *Chef* (Services). 
+Sesuai kerangka *Layered Architecture by Clean Conditions*, dokumen ini adalah cetak biru untuk seluruh tim **Helper (Repositories)**. 
+Tugas mereka murni hanya berinteraksi dengan "Rak Bahan" (Database). Mereka tidak peduli fitur apa (Modul) yang memanggil mereka, mereka hanya peduli pada **Bahan Baku (Entitas)** yang mereka kelola.
+
+Daftar Divisi Helper yang dibutuhkan:
 
 ---
 
-## 🔐 Modul 1 & 14: Auth & Manajemen User
+## 👥 Divisi Data Induk & Kepegawaian (HRD)
+*Tugas: Mengelola bahan baku terkait identitas manusia dan sekolah.*
 - **`UserRepository`**
-  - `findByEmailOrNik($identifier)` -> Mengambil data *user* untuk *login*.
-  - `createUser($data)` -> Simpan *user* baru.
-  - `updateDeviceToken($userId, $token)` -> Update FCM Token.
-  - `searchSiswa($keyword)` -> Mencari data spesifik siswa.
+  - `findByEmailOrNik($identifier)` -> Cari identitas untuk validasi login.
+  - `findById($id)` -> Cari profil detail.
+  - `searchSiswa($keyword)` -> Pencarian nama siswa lintas modul.
+  - `updateDeviceToken($userId, $token)` -> Update FCM token HP.
 - **`RoleRepository`**
-  - `assignRole($userId, $roleId)` -> Ganti jabatan.
+  - `getUserRoles($userId)` -> Cek akses/jabatan.
+- **`SchoolProfileRepository`**
+  - `getSettings()` -> Ambil koordinat Geofence, logo, dll.
+  - `updateSettings($data)` -> Update profil sekolah.
 
-## 📍 Modul 2 & 3: Presensi & Perizinan
-- **`AttendanceRepository`**
-  - `getHistoryByUser($userId, $month)` -> Ambil riwayat absen.
-  - `storeCheckIn($data)` -> Simpan tap masuk.
-  - `storeCheckOut($data)` -> Simpan tap pulang.
-  - `getDailyReportByClass($classId, $date)` -> Rekap per kelas.
-- **`LeaveRepository`**
-  - `createLeaveRequest($data)` -> Simpan surat izin/sakit.
-  - `getPendingApprovals($reviewerId)` -> Daftar izin butuh ACC.
-  - `updateStatus($leaveId, $status)` -> ACC/Tolak izin.
-
-## 📓 Modul 4, 5, 6, & 13: Akademik (Jurnal, PR, Ujian, Kurikulum)
-- **`JournalRepository`**
-  - `createJournal($data)` -> Simpan jurnal guru.
-  - `getJournalByClass($classId)` -> Riwayat jurnal per kelas.
-- **`AssignmentRepository`**
-  - `createTask($data)` -> Simpan rilis PR baru.
-  - `submitAnswer($data)` -> Simpan upload jawaban siswa.
-  - `gradeAnswer($submissionId, $score)` -> Simpan nilai.
-- **`AssessmentRepository`**
-  - `createAgenda($data)` -> Bikin agenda UTS/UAS.
-  - `bulkInsertScores($agendaId, $scores)` -> Upload nilai massal.
-- **`CurriculumRepository`**
-  - `getAllClasses()` -> Ambil daftar kelas.
+## 🗓️ Divisi Master Akademik & Kurikulum
+*Tugas: Mengelola bahan baku terstruktur yang statis per semester.*
+- **`ClassroomRepository`**
+  - `getAllClasses()` -> Ambil daftar rombel/kelas.
+  - `getStudentsByClass($classId)` -> Ambil absen anak sekelas.
+- **`SubjectRepository`**
   - `getAllSubjects()` -> Ambil daftar mapel.
-  - `getSchedulesByTeacher($teacherId)` -> Jadwal ngajar guru.
+- **`ScheduleRepository`**
+  - `getSchedulesByTeacher($teacherId)` -> Bahan untuk Jurnal.
+  - `getSchedulesByClass($classId)` -> Bahan jadwal murid.
+- **`AcademicYearRepository`**
+  - `getActiveYear()` -> Deteksi semester aktif saat ini.
 
-## 🕌 Modul 7, 9, 10, & 17B: Kesiswaan (G7 KAIH, Disiplin, BK, Poin)
-- **`HabitRepository`**
-  - `logActivity($data)` -> Simpan laporan sholat/sedekah.
-  - `getLeaderboard($limit)` -> Ambil *ranking* klasemen.
+## 📓 Divisi Kegiatan Belajar Mengajar (KBM)
+*Tugas: Mengelola bahan baku operasional kelas harian.*
+- **`JournalRepository`**
+  - `storeJournal($data)` -> Simpan log ngajar guru.
+  - `getHistoryByClass($classId)` -> Laporan jurnal per kelas.
+- **`AssignmentRepository`**
+  - `createTask($data)` -> Simpan PR.
+  - `submitStudentAnswer($data)` -> Simpan jawaban siswa.
+  - `gradeAnswer($id, $score)` -> Simpan nilai PR.
+- **`AssessmentRepository`** (Ujian/Raport)
+  - `createExamAgenda($data)` -> Bikin agenda UTS/UAS.
+  - `bulkInsertScores($agendaId, $scores)` -> Upload nilai massal pakai Excel.
+
+## 👮‍♂️ Divisi Kesiswaan, Disiplin & Ibadah
+*Tugas: Mengelola bahan baku tingkah laku siswa.*
+- **`AttendanceRepository`**
+  - `storeCheckIn($data)` / `storeCheckOut($data)` -> Catat absen.
+  - `getMonthlyHistory($userId, $month)` -> Histori bulanan.
+- **`LeaveRepository`**
+  - `createRequest($data)` -> Surat izin/sakit.
+  - `getPendingApprovals($reviewerId)` -> Ambil daftar antrian ACC.
+- **`HabitRepository`** (G7 KAIH)
+  - `logActivity($data)` -> Simpan rutinitas ibadah (Dhuha, dll).
+  - `getLeaderboard()` -> Bahan untuk klasemen siswa ter-alim.
 - **`DisciplineRepository`**
-  - `storeReport($data)` -> Simpan lapor siswa nakal.
-  - `processReport($reportId, $action)` -> Tindak lanjut BK.
-- **`CounselingRepository`**
-  - `bookSession($data)` -> Booking jadwal curhat.
-  - `addSecretNotes($sessionId, $notes)` -> Simpan cacatan rahasia BK.
+  - `storeViolationReport($data)` -> Simpan laporan pelanggaran.
 - **`PointRepository`**
-  - `getStudentBalance($studentId)` -> Sisa poin dompet.
-  - `addTransaction($data)` -> Potong/Tambah histori poin.
+  - `getBalance($studentId)` -> Cek sisa dompet poin.
+  - `addTransaction($data)` -> Mutasi potong/tambah poin.
 
-## 🪑 Modul 8, 11, 12, 15, 16, & 17A: Manajemen & Fasilitas
-- **`HelpdeskRepository`**
-  - `createTicket($data)` -> Simpan laporan kerusakan.
-  - `updateTicketStatus($ticketId, $status)` -> Ubah status (Done).
+## 🛋️ Divisi Bimbingan Konseling (BK)
+*Tugas: Mengelola bahan baku rahasia psikologi siswa.*
+- **`CounselingRepository`**
+  - `createSessionRequest($data)` -> Booking jadwal curhat.
+  - `updateNotes($sessionId, $notes)` -> Simpan catatan tertutup.
+  - `getTeacherSchedule($teacherId)` -> Cek jadwal kosong Guru BK.
+
+## 🪑 Divisi Logistik, Humas & Umum
+*Tugas: Mengelola barang, surat, dan komunikasi sekolah.*
 - **`InventoryRepository`**
-  - `getAllItems()` -> Katalog sarpras.
-  - `storeLoan($data)` -> Pinjam proyektor/bola.
-  - `returnItem($loanId)` -> Balikin barang.
+  - `getAllItems()` -> Ambil katalog barang (Proyektor, dll).
+  - `storeLoan($data)` / `returnItem($loanId)` -> Peminjaman.
+- **`HelpdeskRepository`**
+  - `createTicket($data)` -> Lapor fasilitas rusak (AC bocor, dll).
 - **`LetterRepository`**
-  - `getIncomingLetters()` / `storeOutgoingLetter($data)` -> Arsip surat.
+  - `getIncoming()` / `storeOutgoing($data)` -> Arsip surat TU.
 - **`AnnouncementRepository`**
-  - `broadcastAnnouncement($data)` -> Rilis pengumuman.
-- **`KpiRepository`**
-  - `storeEvaluation($data)` -> Kepsek nilai guru.
+  - `createBroadcast($data)` -> Simpan pengumuman massa.
 
-## ⚙️ Modul 18, 19, 20, 21: Sistem Core
+## ⚙️ Divisi Sistem, Keamanan & Laporan
+*Tugas: Mengelola bahan baku teknis dan log sistem.*
 - **`NotificationRepository`**
-  - `getUnread($userId)` -> Daftar notif lonceng.
-  - `markAsRead($notificationId)` -> Centang biru.
-- **`SystemLogRepository`**
-  - `storeSecurityLog($userId, $ip, $device)` -> Lapor login sukses.
-- **`SchoolSettingRepository`**
-  - `getGeofenceConfig()` -> Ambil koordinat GPS sekolah.
-  - `updateConfig($key, $value)` -> Update pengaturan global.
+  - `getUnread($userId)` -> Loncat notif.
+  - `markAsRead($id)` -> Centang notif.
+- **`SecurityLogRepository`**
+  - `storeLoginAttempt($data)` -> Catat IP dan Device user untuk keamanan.
+- **`KpiRepository`**
+  - `storeEvaluation($data)` -> Raport evaluasi kinerja tendik.
+- **`LegalRepository`**
+  - `getLatestDocument($type)` -> Ambil TOS/Privacy Policy.
