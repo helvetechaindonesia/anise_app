@@ -47,13 +47,8 @@ Berikut adalah daftar modul yang dibedah dalam Fase 1 (Scrapping Database):
 - **Kuartal 3:** Modul 7 (Gerakan 7 KAIH), Modul 8 (Helpdesk/Pengaduan), Modul 9 (Disiplin).
 - **Kuartal 4:** Modul 10 (BK), Modul 11 (Surat Menyurat), Modul 12 (Sarpras).
 - **Kuartal 5:** Modul 13 (Kurikulum), Modul 14 (User UI/UX), Modul 15 (Manajemen Sekolah).
-- **Kuartal 6 (Next):**
-  - Modul 16: Humas dan Pengumuman
-  - Modul 17A: KPI Tendik (Sistem Penilaian)
-  - Modul 17B: Poin Siswa (Kedisiplinan) - *(Catatan: Data dan tabelnya akan diisi/disusun sambil jalan saat masuk fase API)*
-  - Modul 18: Notifikasi
-- **Kuartal 7 (Final):**
-  - Modul 19: Privacy and Legal
-  - Modul 20: Bantuan dan Keamanan
-  - Modul 21: Developer Mode
+- **Kuartal 6:** Modul 16 (Humas), Modul 17A (KPI Tendik), Modul 17B (Poin Siswa)*, Modul 18 (Notifikasi).
+- **Kuartal 7:** Modul 19 (Privacy & Legal), Modul 20 (Bantuan & Keamanan), Modul 21 (Dev Mode).
+
+*\*Catatan Modul 17B: Data dan tabelnya akan diisi/disusun sambil jalan saat masuk fase API.*
 
