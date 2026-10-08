@@ -10,7 +10,7 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 *Fokus: Memastikan seluruh data dan jalur komunikasi (API/State) lengkap, efisien, dan memiliki standar yang baku.*
 
 - [x] **1a.** Menambahkan seluruh database yang belum tersedia.
-- [ ] **1b.** Menambahkan seluruh endpoint (dan/atau menyimpan beberapa endpoint yang untuk next plan) yang belum tersedia.
+- [x] **1b.** Menambahkan seluruh endpoint (dan/atau menyimpan beberapa endpoint yang untuk next plan) yang belum tersedia.
 - [ ] **1c.** Menambahkan seluruh state (frontend) yang belum tersedia.
 - [ ] **1d.** Merapihkan dan memindah-mindahkan seluruh pemetaan database berdasarkan efisiensi dan skalabilitas (membuat framework database), serta memberinya nama yang jelas & terstandarisasi.
 - [ ] **1e.** Merapihkan dan memindah-mindahkan seluruh pemetaan API endpoint dan state berdasarkan efisiensi dan skalabilitas, serta memberinya nama yang jelas & terstandarisasi.
