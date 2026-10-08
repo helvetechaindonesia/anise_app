@@ -20,6 +20,17 @@ use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\DisciplineController;
 use App\Http\Controllers\Api\HelpdeskController;
 
+use App\Http\Controllers\Api\AssessmentController;
+use App\Http\Controllers\Api\LetterController;
+use App\Http\Controllers\Api\InventoryController;
+use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\KpiController;
+use App\Http\Controllers\Api\PointController;
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\LegalController;
+use App\Http\Controllers\Api\SupportController;
+use App\Http\Controllers\Api\DevController;
+
 // ==========================================
 // 1. AUTHENTICATION & RBAC
 // ==========================================
@@ -195,6 +206,96 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
         Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+    });
+
+    // ==========================================
+    // 6. AGENDA PENILAIAN & RAPORT (Modul 6)
+    // ==========================================
+    Route::prefix('assessments')->group(function () {
+        Route::get('/', [AssessmentController::class, 'getAgendas']);
+        Route::post('/', [AssessmentController::class, 'storeAgenda']);
+        Route::post('/{id}/scores', [AssessmentController::class, 'storeScores']);
+    });
+
+    // ==========================================
+    // 11. SURAT MENYURAT
+    // ==========================================
+    Route::prefix('letters')->group(function () {
+        Route::get('/incoming', [LetterController::class, 'getIncomingLetters']);
+        Route::get('/outgoing', [LetterController::class, 'getOutgoingLetters']);
+        Route::post('/outgoing', [LetterController::class, 'storeOutgoingLetter']);
+    });
+
+    // ==========================================
+    // 12. SARPRAS (INVENTARIS)
+    // ==========================================
+    Route::prefix('inventory')->group(function () {
+        Route::get('/items', [InventoryController::class, 'getItems']);
+        Route::get('/loans', [InventoryController::class, 'getLoans']);
+        Route::post('/loans', [InventoryController::class, 'requestLoan']);
+        Route::put('/loans/{id}/return', [InventoryController::class, 'returnLoan']);
+    });
+
+    // ==========================================
+    // 16. HUMAS & PENGUMUMAN
+    // ==========================================
+    Route::prefix('announcements')->group(function () {
+        Route::get('/', [AnnouncementController::class, 'getAnnouncements']);
+        Route::post('/', [AnnouncementController::class, 'storeAnnouncement']);
+        Route::put('/{id}/read', [AnnouncementController::class, 'markAsRead']);
+    });
+
+    // ==========================================
+    // 17A. KPI TENDIK
+    // ==========================================
+    Route::prefix('kpi')->group(function () {
+        Route::get('/analysis', [KpiController::class, 'getAnalysis']);
+        Route::get('/reports', [KpiController::class, 'getReports']);
+        Route::get('/evaluations', [KpiController::class, 'getEvaluations']);
+        Route::post('/evaluations', [KpiController::class, 'storeEvaluations']);
+    });
+
+    // ==========================================
+    // 17B. POIN KEDISIPLINAN SISWA
+    // ==========================================
+    Route::prefix('points')->group(function () {
+        Route::get('/balance', [PointController::class, 'getBalance']);
+        Route::get('/rules', [PointController::class, 'getRules']);
+        Route::get('/history', [PointController::class, 'getHistory']);
+    });
+
+    // ==========================================
+    // 18. NOTIFIKASI
+    // ==========================================
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'getNotifications']);
+        Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+    });
+
+    // ==========================================
+    // 19. PRIVACY & LEGAL
+    // ==========================================
+    Route::prefix('legal')->group(function () {
+        Route::get('/{document_type}', [LegalController::class, 'getDocument']);
+        Route::post('/consent', [LegalController::class, 'submitConsent']);
+    });
+
+    // ==========================================
+    // 20. BANTUAN & KEAMANAN
+    // ==========================================
+    Route::prefix('support')->group(function () {
+        Route::get('/faqs', [SupportController::class, 'getFaqs']);
+        Route::get('/security-logs', [SupportController::class, 'getSecurityLogs']);
+    });
+
+    // ==========================================
+    // 21. DEVELOPER MODE
+    // ==========================================
+    Route::prefix('dev')->group(function () {
+        Route::get('/logs', [DevController::class, 'getLogs']);
+        Route::post('/cache/clear', [DevController::class, 'clearCache']);
+        Route::post('/impersonate/{user_id}', [DevController::class, 'impersonate']);
     });
 
 });
