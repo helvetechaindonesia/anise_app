@@ -6,6 +6,9 @@ abstract class BaseController
 {
     /**
      * Inisialisasi Base Class
+     * 
+     * [SOP ABSOLUT]: Waiters (Controllers) DILARANG KERAS menyajikan piring (Response JSON) 
+     * selain dari hasil plating piring "Resources" yang telah lolos QC "Tests".
      */
     public function __construct()
     {
