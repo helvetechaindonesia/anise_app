@@ -9,7 +9,7 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 ## 🥇 Fase 1: Scrapping Database dan Pemetaan Pemrosesan Data
 *Fokus: Memastikan seluruh data dan jalur komunikasi (API/State) lengkap, efisien, dan memiliki standar yang baku.*
 
-- [ ] **1a.** Menambahkan seluruh database yang belum tersedia.
+- [x] **1a.** Menambahkan seluruh database yang belum tersedia.
 - [ ] **1b.** Menambahkan seluruh endpoint (dan/atau menyimpan beberapa endpoint yang untuk next plan) yang belum tersedia.
 - [ ] **1c.** Menambahkan seluruh state (frontend) yang belum tersedia.
 - [ ] **1d.** Merapihkan dan memindah-mindahkan seluruh pemetaan database berdasarkan efisiensi dan skalabilitas (membuat framework database), serta memberinya nama yang jelas & terstandarisasi.
@@ -50,7 +50,7 @@ Berikut adalah daftar modul yang dibedah dalam Fase 1 (Scrapping Database):
 - **Kuartal 6 (Next):**
   - Modul 16: Humas dan Pengumuman
   - Modul 17A: KPI Tendik (Sistem Penilaian)
-  - Modul 17B: Poin Siswa (Kedisiplinan)
+  - Modul 17B: Poin Siswa (Kedisiplinan) - *(Catatan: Data dan tabelnya akan diisi/disusun sambil jalan saat masuk fase API)*
   - Modul 18: Notifikasi
 - **Kuartal 7 (Final):**
   - Modul 19: Privacy and Legal
