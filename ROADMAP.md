@@ -19,6 +19,7 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 - [x] **1h.** Menambahkan seluruh state (frontend) yang belum tersedia.
 - [x] **1i.** Merapihkan dan memindah-mindahkan seluruh pemetaan database berdasarkan efisiensi dan skalabilitas (membuat framework database), serta memberinya nama yang jelas & terstandarisasi.
 - [x] **1j.** Merapihkan dan memindah-mindahkan seluruh pemetaan API endpoint dan state berdasarkan efisiensi dan skalabilitas, serta memberinya nama yang jelas & terstandarisasi.
+- [ ] **1k.** Memetakan sekalian untuk pemilihan *Client Side* dan *Server Side*-nya.
 
 ---
 
