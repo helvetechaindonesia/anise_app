@@ -4,139 +4,196 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\JournalController;
+use App\Http\Controllers\Api\HabitController;
+use App\Http\Controllers\Api\CounselingController;
+use App\Http\Controllers\Api\ExcelParserController;
+use App\Http\Controllers\Api\ExcelParserUserController;
+use App\Http\Controllers\Api\ExcelParserKurikulumController;
 
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\SchoolController;
+use App\Http\Controllers\Api\CurriculumController;
+use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\DisciplineController;
+use App\Http\Controllers\Api\HelpdeskController;
+
+// ==========================================
+// 1. AUTHENTICATION & RBAC
+// ==========================================
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     
     Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/habits/stats', [HabitController::class, 'getHabitStats']);
-    Route::get('/habits/guru-stats', [HabitController::class, 'guruHabitStats']);
-
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
-        Route::post('/files/upload', [\App\Http\Controllers\Api\MasterDataController::class, 'uploadFile']);
-        Route::get('/files', [\App\Http\Controllers\Api\MasterDataController::class, 'getUserFiles']);
-    Route::post('/users/presensi-cam', [\App\Http\Controllers\Api\MasterDataController::class, 'submitPresensiCam']);
-    Route::post('/users/biometric/register', [\App\Http\Controllers\Api\MasterDataController::class, 'registerBiometric']);
     });
 });
-
-// Example route using CheckRole middleware
-Route::middleware(['auth:sanctum', 'role:TATA_USAHA,KEPALA_SEKOLAH'])->group(function () {
-    Route::get('/admin/dashboard', function() {
-        return response()->json(['message' => 'Admin access granted']);
-    });
-});
-
-use App\Http\Controllers\Api\JournalController;
-use App\Http\Controllers\Api\HabitController;
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/habits/stats', [HabitController::class, 'getHabitStats']);
-    Route::get('/habits/guru-stats', [HabitController::class, 'guruHabitStats']);
+    
+    // ==========================================
+    // 2. PRESENSI (ATTENDANCE)
+    // ==========================================
+    Route::prefix('attendance')->group(function () {
+        Route::get('/', [AttendanceController::class, 'getRiwayatPresensi']);
+        Route::post('/check-in-cam', [AttendanceController::class, 'submitPresensiCam']);
+        Route::post('/biometric/register', [AttendanceController::class, 'registerBiometric']);
+        Route::post('/laporan-telat', [AttendanceController::class, 'submitLaporanTelat']); // Bisa dipakai Guru/Satpam
+    });
 
-    // Guru Routes
-    Route::middleware('role:GURU')->group(function () {
-        Route::get('/journals/schedules', [JournalController::class, 'mySchedules']);
-        Route::get('/journals/guru', [JournalController::class, 'getGuruJournals']);
-        Route::get('/journals/terbit-options', [JournalController::class, 'getTerbitOptions']);
-        Route::post('/journals/terbit', [JournalController::class, 'store']);
-        Route::post('/journals', [JournalController::class, 'submitJournal']);
-        Route::get('/journals/by-subject/{subjectId}', [JournalController::class, 'getJournalsBySubject']);
-        Route::post('/tasks', [JournalController::class, 'storeTask']);
-        Route::get('/tasks', [JournalController::class, 'getTasks']);
+    // ==========================================
+    // 3. PERIZINAN & DISPENSASI (LEAVES)
+    // ==========================================
+    Route::prefix('leaves')->group(function () {
+        Route::get('/', [LeaveController::class, 'getStudentLeaves']); // TU/Guru lihat semua
+        Route::post('/', [LeaveController::class, 'submitStudentLeave']); // Siswa submit
+    });
+
+    // ==========================================
+    // 4. JURNAL MENGAJAR
+    // ==========================================
+    Route::prefix('journals')->group(function () {
+        Route::middleware('role:GURU')->group(function () {
+            Route::get('/schedules', [JournalController::class, 'mySchedules']);
+            Route::get('/guru', [JournalController::class, 'getGuruJournals']);
+            Route::get('/terbit-options', [JournalController::class, 'getTerbitOptions']);
+            Route::post('/terbit', [JournalController::class, 'store']);
+            Route::post('/', [JournalController::class, 'submitJournal']);
+            Route::get('/by-subject/{subjectId}', [JournalController::class, 'getJournalsBySubject']);
+        });
+        Route::middleware('role:SISWA')->group(function () {
+            Route::get('/siswa', [JournalController::class, 'getSiswaJournals']);
+        });
+    });
+
+    // ==========================================
+    // 5. PENUGASAN (ASSIGNMENTS)
+    // ==========================================
+    Route::prefix('assignments')->group(function () {
+        Route::middleware('role:GURU')->group(function () {
+            Route::post('/', [JournalController::class, 'storeTask']);
+            Route::get('/', [JournalController::class, 'getTasks']);
+        });
+        Route::middleware('role:SISWA')->group(function () {
+            Route::get('/siswa', [JournalController::class, 'getSiswaTasks']);
+        });
+    });
+
+    // ==========================================
+    // 7. G7 KAIH (HABITS)
+    // ==========================================
+    Route::prefix('g7kaih')->group(function () {
+        Route::get('/stats', [HabitController::class, 'getHabitStats']);
+        Route::get('/guru-stats', [HabitController::class, 'guruHabitStats']);
+        Route::middleware('role:GURU')->get('/pending', [HabitController::class, 'pendingLogs']);
+        Route::middleware('role:GURU,GURU_BK')->get('/monitored-students', [HabitController::class, 'monitoredStudents']);
+        Route::middleware('role:SISWA')->group(function () {
+            Route::get('/', [HabitController::class, 'masterHabits']);
+            Route::post('/log', [HabitController::class, 'submitLog']);
+        });
+    });
+
+    // ==========================================
+    // 8. HELPDESK & PENGADUAN
+    // ==========================================
+    Route::prefix('helpdesk')->group(function () {
+        Route::middleware('role:SISWA')->post('/', [HelpdeskController::class, 'submitStudentReport']);
+        Route::middleware('role:TATA_USAHA')->get('/all', [HelpdeskController::class, 'getStudentReports']);
+    });
+
+    // ==========================================
+    // 9. KEDISIPLINAN
+    // ==========================================
+    Route::prefix('discipline')->group(function () {
+        Route::middleware('role:GURU')->group(function () {
+            Route::post('/reports', [DisciplineController::class, 'submitDisiplinReport']);
+            Route::get('/reports', [DisciplineController::class, 'getDisiplinReports']);
+        });
+    });
+
+    // ==========================================
+    // 10. BIMBINGAN KONSELING (BK)
+    // ==========================================
+    Route::prefix('counseling')->group(function () {
+        Route::middleware('role:SISWA')->group(function () {
+            Route::get('/guru-bk', [CounselingController::class, 'getGuruBk']);
+            Route::post('/', [CounselingController::class, 'store']);
+            Route::get('/siswa', [CounselingController::class, 'siswaIndex']);
+        });
+        Route::middleware('role:GURU_BK')->group(function () {
+            Route::get('/requests', [CounselingController::class, 'guruBkIndex']);
+            Route::put('/{id}/status', [CounselingController::class, 'updateStatus']);
+        });
+    });
+
+    // ==========================================
+    // 13. KURIKULUM (MASTER DATA)
+    // ==========================================
+    Route::prefix('curriculum')->middleware('role:TATA_USAHA')->group(function () {
+        Route::get('/classes', [CurriculumController::class, 'getClasses']);
+        Route::put('/classes/{id}', [CurriculumController::class, 'updateClass']);
+        Route::delete('/classes/{id}', [CurriculumController::class, 'deleteClass']);
         
-        Route::get('/habits/pending', [HabitController::class, 'pendingLogs']);
+        Route::get('/subjects', [CurriculumController::class, 'getSubjects']);
+        Route::delete('/subjects/{id}', [CurriculumController::class, 'deleteSubject']);
         
-        Route::post('/users/disiplin-reports', [\App\Http\Controllers\Api\MasterDataController::class, 'submitDisiplinReport']);
-        Route::get('/users/disiplin-reports', [\App\Http\Controllers\Api\MasterDataController::class, 'getDisiplinReports']);
-        Route::get('/users/all-siswa', [\App\Http\Controllers\Api\MasterDataController::class, 'getAllSiswa']);
-        Route::get('/users/leaves', [\App\Http\Controllers\Api\MasterDataController::class, 'getStudentLeaves']);
+        Route::get('/schedules', [CurriculumController::class, 'getSchedules']);
+        Route::delete('/schedules/{id}', [CurriculumController::class, 'deleteSchedule']);
+        
+        Route::get('/assignments', [CurriculumController::class, 'getStructuralAssignments']);
+        Route::delete('/assignments/{id}', [CurriculumController::class, 'deleteStructuralAssignment']);
+        
+        // Excel Parser (TBD)
+        Route::post('/parse/{type}', [ExcelParserKurikulumController::class, 'parseKurikulum']);
     });
 
-        // Habit Routes for Guru/BK
-    Route::middleware('role:GURU,GURU_BK')->group(function () {
-        Route::get('/habits/monitored-students', [HabitController::class, 'monitoredStudents']);
+    // ==========================================
+    // 14. MANAJEMEN USER
+    // ==========================================
+    Route::prefix('users')->group(function () {
+        // Master Data Users & Roles (TU Only)
+        Route::middleware('role:TATA_USAHA')->group(function () {
+            Route::get('/', [UserController::class, 'getUsers']);
+            Route::post('/', [UserController::class, 'storeUser']);
+            Route::put('/{id}', [UserController::class, 'updateUser']);
+            Route::delete('/{id}', [UserController::class, 'deleteUser']);
+            Route::put('/{id}/freeze', [UserController::class, 'freezeUser']);
+            
+            Route::get('/roles', [UserController::class, 'getRoles']);
+            Route::put('/roles/{id}', [UserController::class, 'updateRole']);
+            
+            Route::get('/jabatans', [UserController::class, 'getJabatans']);
+            Route::put('/jabatans/{id}', [UserController::class, 'updateJabatan']);
+            
+            Route::get('/wali-kelas', [UserController::class, 'getWaliKelas']);
+            Route::get('/guru-wali', [UserController::class, 'getGuruWali']);
+
+            // Parsers
+            Route::post('/parse/role', [ExcelParserController::class, 'parseMasterRole']);
+            Route::post('/parse/kelas', [ExcelParserController::class, 'parseMasterKelas']);
+            Route::post('/parse/jabatan', [ExcelParserController::class, 'parseMasterJabatan']);
+            Route::post('/parse/{type}', [ExcelParserUserController::class, 'parseUser']);
+        });
+
+        // Global access
+        Route::get('/siswa/search', [UserController::class, 'searchSiswa']);
+        Route::get('/siswa/all', [UserController::class, 'getAllSiswa']);
+        Route::get('/siswa/teachers', [JournalController::class, 'getSiswaTeachers']); // from journal
+        
+        // Files
+        Route::post('/files/upload', [UserController::class, 'uploadFile']);
+        Route::get('/files', [UserController::class, 'getUserFiles']);
     });
 
-    // Siswa Routes
-    Route::middleware('role:SISWA')->group(function () {
-        Route::get('/users/siswa/teachers', [JournalController::class, 'getSiswaTeachers']);
-        Route::get('/tasks/siswa', [JournalController::class, 'getSiswaTasks']);
-        Route::post('/users/reports', [\App\Http\Controllers\Api\MasterDataController::class, 'submitStudentReport']);
-        Route::get('/habits', [HabitController::class, 'masterHabits']);
-        Route::get('/journals/siswa', [JournalController::class, 'getSiswaJournals']);
-        Route::post('/habits/log', [HabitController::class, 'submitLog']);
-        Route::post('/users/leaves', [\App\Http\Controllers\Api\MasterDataController::class, 'submitStudentLeave']);
-        // Counseling (Bimbingan BK)
-        Route::get('/counseling/guru-bk', [\App\Http\Controllers\Api\CounselingController::class, 'getGuruBk']);
-        Route::post('/counseling', [\App\Http\Controllers\Api\CounselingController::class, 'store']);
-        Route::get('/counseling/siswa', [\App\Http\Controllers\Api\CounselingController::class, 'siswaIndex']);
+    // ==========================================
+    // 15. MANAJEMEN SEKOLAH
+    // ==========================================
+    Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
+        Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
+        Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
     });
 
-    // Guru BK Routes
-    Route::middleware('role:GURU_BK')->group(function () {
-        Route::get('/counseling/guru-bk/requests', [\App\Http\Controllers\Api\CounselingController::class, 'guruBkIndex']);
-        Route::put('/counseling/{id}/status', [\App\Http\Controllers\Api\CounselingController::class, 'updateStatus']);
-    });
-
-    // Tata Usaha Routes
-    Route::middleware('role:TATA_USAHA')->group(function () {
-        Route::get('/users/reports', [\App\Http\Controllers\Api\MasterDataController::class, 'getStudentReports']);
-        Route::get('/users/leaves', [\App\Http\Controllers\Api\MasterDataController::class, 'getStudentLeaves']);
-        // Master Data
-        Route::get('/users/riwayat-presensi', [\App\Http\Controllers\Api\MasterDataController::class, 'getRiwayatPresensi']);
-        Route::get('/users/siswa/search', [\App\Http\Controllers\Api\MasterDataController::class, 'searchSiswa']);
-        Route::post('/users/laporan-telat', [\App\Http\Controllers\Api\MasterDataController::class, 'submitLaporanTelat']);
-        Route::get('/master/school-settings/geofence', [\App\Http\Controllers\Api\MasterDataController::class, 'getGeofenceSettings']);
-        Route::post('/master/school-settings/geofence', [\App\Http\Controllers\Api\MasterDataController::class, 'updateGeofenceSettings']);
-        Route::get('/master/roles', [\App\Http\Controllers\Api\MasterDataController::class, 'getRoles']);
-        Route::put('/master/roles/{id}', [\App\Http\Controllers\Api\MasterDataController::class, 'updateRole']);
-        Route::get('/master/kelas', [\App\Http\Controllers\Api\MasterDataController::class, 'getKelas']);
-        Route::put('/master/kelas/{id}', [\App\Http\Controllers\Api\MasterDataController::class, 'updateKelas']);
-        Route::get('/master/jabatans', [\App\Http\Controllers\Api\MasterDataController::class, 'getJabatans']);
-        Route::put('/master/jabatans/{id}', [\App\Http\Controllers\Api\MasterDataController::class, 'updateJabatan']);
-        Route::get('/master/users', [\App\Http\Controllers\Api\MasterDataController::class, 'getUsers']);
-        Route::post('/master/users', [\App\Http\Controllers\Api\MasterDataController::class, 'storeUser']);
-        Route::put('/master/users/{id}', [\App\Http\Controllers\Api\MasterDataController::class, 'updateUser']);
-        Route::get('/master/mapel', [\App\Http\Controllers\Api\MasterDataController::class, 'getMapel']);
-        Route::get('/master/schedules', [\App\Http\Controllers\Api\MasterDataController::class, 'getSchedules']);
-        Route::get('/master/penugasan', [\App\Http\Controllers\Api\MasterDataController::class, 'getPenugasan']);
-        Route::get('/master/wali-kelas', [\App\Http\Controllers\Api\MasterDataController::class, 'getWaliKelas']);
-        Route::get('/master/guru-wali', [\App\Http\Controllers\Api\MasterDataController::class, 'getGuruWali']);
-
-        // Delete Endpoints
-        Route::delete('/master/{type}/{id}', [\App\Http\Controllers\Api\MasterDataController::class, 'deleteMasterData']);
-        // Freeze Endpoint
-        Route::put('/master/users/{id}/freeze', [\App\Http\Controllers\Api\MasterDataController::class, 'freezeUser']);
-
-        // Parser
-        Route::post('/parse/master-role', [\App\Http\Controllers\Api\ExcelParserController::class, 'parseMasterRole']);
-        Route::post('/parse/master-kelas', [\App\Http\Controllers\Api\ExcelParserController::class, 'parseMasterKelas']);
-        Route::post('/parse/master-jabatan', [\App\Http\Controllers\Api\ExcelParserController::class, 'parseMasterJabatan']);
-
-        // Parser User
-        Route::post('/parse/user/{type}', [\App\Http\Controllers\Api\ExcelParserUserController::class, 'parseUser']);
-
-        // Parser Kurikulum
-        Route::post('/parse/kurikulum/{type}', [\App\Http\Controllers\Api\ExcelParserKurikulumController::class, 'parseKurikulum']);
-    });
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
