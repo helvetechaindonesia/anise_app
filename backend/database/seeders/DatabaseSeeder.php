@@ -48,6 +48,7 @@ class DatabaseSeeder extends Seeder
             'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
             'role_id' => $roleTU->id,
             'is_active' => true,
+            'gender' => 'L',
         ]);
 
         // 4. Create Kepala Sekolah User
@@ -58,6 +59,7 @@ class DatabaseSeeder extends Seeder
             'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
             'role_id' => $roleKepsek->id,
             'is_active' => true,
+            'gender' => 'L',
         ]);
 
         // 5. Create Guru User & Profile
@@ -68,12 +70,12 @@ class DatabaseSeeder extends Seeder
             'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
             'role_id' => $roleGuru->id,
             'is_active' => true,
+            'gender' => 'L',
         ]);
 
         \App\Models\GuruProfile::create([
             'user_id' => $guru->id,
             'nip_nuptk' => '198001012010011001',
-            'gender' => 'L',
             'employment_status' => 'PNS',
         ]);
 
@@ -92,12 +94,12 @@ class DatabaseSeeder extends Seeder
             'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
             'role_id' => $roleGuruBK->id,
             'is_active' => true,
+            'gender' => 'P',
         ]);
 
         \App\Models\GuruProfile::create([
             'user_id' => $guruBk->id,
             'nip_nuptk' => '198502022010022002',
-            'gender' => 'P',
             'employment_status' => 'PNS',
         ]);
 
@@ -118,6 +120,7 @@ class DatabaseSeeder extends Seeder
             'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
             'role_id' => $roleSiswa->id,
             'is_active' => true,
+            'gender' => 'L',
         ]);
 
         \App\Models\SiswaProfile::create([
@@ -125,8 +128,6 @@ class DatabaseSeeder extends Seeder
             'nisn' => '0012345678',
             'nis' => '1001',
             'academic_year_id' => $academicYear->id,
-            'gender' => 'L',
-            'behavior_points' => 100,
         ]);
 
         // Assign Siswa to Class
