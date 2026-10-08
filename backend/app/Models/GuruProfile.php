@@ -10,7 +10,7 @@ class GuruProfile extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'guru_profiles';
+    protected $table = 'staff_profiles';
     protected $primaryKey = 'user_id';
     public $incrementing = false;
     protected $keyType = 'string';

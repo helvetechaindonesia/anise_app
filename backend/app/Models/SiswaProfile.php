@@ -10,7 +10,7 @@ class SiswaProfile extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'siswa_profiles';
+    protected $table = 'student_profiles';
     protected $primaryKey = 'user_id';
     public $incrementing = false;
     protected $keyType = 'string';
