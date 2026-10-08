@@ -12,7 +12,7 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 - [x] **1a.** Menambahkan seluruh database yang belum tersedia.
 - [x] **1b.** Menambahkan seluruh endpoint (dan/atau menyimpan beberapa endpoint yang untuk next plan) yang belum tersedia.
 - [x] **1c.** Menambahkan seluruh *Repositories* (Helper pembantu/Tukang ngambil bahan).
-- [ ] **1d.** Menambahkan seluruh *Services* (Chef / Logika Bisnis).
+- [x] **1d.** Menambahkan seluruh *Services* (Chef / Logika Bisnis).
 - [ ] **1e.** Menambahkan seluruh *Resources* (Tukang Plating / DTO / Platter).
 - [ ] **1f.** Menambahkan seluruh *Unit Tests* (QC / Quality Control).
 - [ ] **1g.** Menambahkan seluruh state (frontend) yang belum tersedia.
