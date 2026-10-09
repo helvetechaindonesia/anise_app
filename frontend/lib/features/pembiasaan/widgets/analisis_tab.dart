@@ -10,7 +10,7 @@ import '../../../core/network/dio_client.dart';
 final habitStatsProvider = FutureProvider.family<Map<String, dynamic>, String?>((ref, studentId) async {
   final dio = ref.watch(dioProvider);
   final queryParams = studentId != null ? '?student_id=$studentId' : '';
-  final response = await dio.get('/habits/stats$queryParams');
+  final response = await dio.get('/g7kaih/stats$queryParams');
   
   if (response.data['status'] == 'success') {
     return response.data['data'] as Map<String, dynamic>;

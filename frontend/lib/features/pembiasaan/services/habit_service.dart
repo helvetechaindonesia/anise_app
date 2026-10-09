@@ -13,7 +13,7 @@ class HabitService {
   HabitService(this._dio);
 
   Future<List<HabitModel>> getMasterHabits() async {
-    final response = await _dio.get('/habits');
+    final response = await _dio.get('/g7kaih');
     if (response.data['status'] == 'success') {
       final List data = response.data['data'];
       return data.map((e) => HabitModel.fromJson(e)).toList();
@@ -33,7 +33,7 @@ class HabitService {
         'photo': await MultipartFile.fromFile(photoPath, filename: 'habit_proof.jpg'),
     });
 
-    final response = await _dio.post('/habits/log', data: formData);
+    final response = await _dio.post('/g7kaih/log', data: formData);
 
     if (response.data['status'] != 'success') {
       throw Exception(response.data['message']);
@@ -41,7 +41,7 @@ class HabitService {
   }
 
   Future<List<StudentHabitLogModel>> getPendingLogs() async {
-    final response = await _dio.get('/habits/pending');
+    final response = await _dio.get('/g7kaih/pending');
     if (response.data['status'] == 'success') {
       final List data = response.data['data'];
       return data.map((e) => StudentHabitLogModel.fromJson(e)).toList();

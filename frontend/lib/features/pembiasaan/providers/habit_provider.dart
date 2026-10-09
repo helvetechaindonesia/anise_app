@@ -46,7 +46,7 @@ final habitSubmitProvider = StateNotifierProvider<HabitSubmitNotifier, AsyncValu
 final monitoredStudentsProvider = FutureProvider<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   try {
-    final response = await dio.get('/habits/monitored-students');
+    final response = await dio.get('/g7kaih/monitored-students');
     if (response.data['status'] == 'success') {
       return response.data['data'] as List<dynamic>;
     }
@@ -59,7 +59,7 @@ final monitoredStudentsProvider = FutureProvider<List<dynamic>>((ref) async {
 final guruHabitStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   try {
-    final response = await dio.get('/habits/guru-stats');
+    final response = await dio.get('/g7kaih/guru-stats');
     if (response.data['status'] == 'success') {
       return response.data['data'] as Map<String, dynamic>;
     }
