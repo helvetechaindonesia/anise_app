@@ -52,7 +52,7 @@ class TugasNotifier extends StateNotifier<AsyncValue<void>> {
       }
 
       final response = await _dio.post(
-        '/tasks',
+        '/assignments',
         data: formData,
         onSendProgress: (count, total) {
           if (total > 0 && onProgress != null) {
@@ -80,7 +80,7 @@ final getTasksProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   
   if (user == null) return [];
 
-  final endpoint = user.role == UserRole.siswa ? '/tasks/siswa' : '/tasks';
+  final endpoint = user.role == UserRole.siswa ? '/assignments/siswa' : '/assignments';
 
   try {
     final response = await dio.get(endpoint);
