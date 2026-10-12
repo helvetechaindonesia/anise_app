@@ -66,8 +66,8 @@ class DatabaseSeeder extends Seeder
         $guru = User::create([
             'full_name' => 'Budi Santoso, S.Kom.',
             'username' => 'guru1',
-            'email' => 'budi.guru@anise.com',
-            'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
+            'email' => 'guru@sipena.sch.id',
+            'password_hash' => \Illuminate\Support\Facades\Hash::make('guru123'),
             'role_id' => $roleGuru->id,
             'is_active' => true,
             'gender' => 'L',
@@ -116,8 +116,8 @@ class DatabaseSeeder extends Seeder
         $siswa = User::create([
             'full_name' => 'Andi Wijaya',
             'username' => 'siswa1',
-            'email' => 'andi.siswa@anise.com',
-            'password_hash' => \Illuminate\Support\Facades\Hash::make('password123'),
+            'email' => 'siswa@sipena.sch.id',
+            'password_hash' => \Illuminate\Support\Facades\Hash::make('siswa123'),
             'role_id' => $roleSiswa->id,
             'is_active' => true,
             'gender' => 'L',

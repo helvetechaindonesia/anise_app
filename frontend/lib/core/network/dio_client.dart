@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/api_constants.dart';
 import '../utils/shared_prefs.dart';
+import 'adapter/dio_adapter_stub.dart'
+    if (dart.library.html) 'adapter/dio_adapter_web.dart'
+    if (dart.library.io) 'adapter/dio_adapter_io.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
@@ -29,6 +32,9 @@ final dioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+
+  // Gunakan adapter yang berbeda tergantung platform (Web atau Mobile/Desktop)
+  dio.httpClientAdapter = getAdapter();
 
   return dio;
 });

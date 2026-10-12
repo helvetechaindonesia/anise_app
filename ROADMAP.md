@@ -26,10 +26,10 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 ## 🥈 Fase 2: Refactor Internal (Kerangka dan Rangkaian)
 *Fokus: Membangun arsitektur file dan folder yang rapi agar pengembangan fitur ke depan tidak berantakan.*
 
-- [ ] **2a.** Membuat dasar kerangka pemetaan folder dan file berdasarkan efisiensi dan skalabilitas.
-- [ ] **2b.** Me-refactor seluruh file berdasarkan fungsi dan ekosistem berdasarkan efisiensi dan skalabilitas.
-- [ ] **2c.** Menghapus seluruh folder, file, dan cache yang tidak digunakan.
-- [ ] **2d.** Memindahkan dan merapihkan seluruh file sesuai kerangka yang telah dibuat.
+- [x] **2a.** Membuat dasar kerangka pemetaan folder dan file berdasarkan efisiensi dan skalabilitas.
+- [x] **2b.** Me-refactor seluruh file berdasarkan fungsi dan ekosistem berdasarkan efisiensi dan skalabilitas.
+- [x] **2c.** Menghapus seluruh folder, file, dan cache yang tidak digunakan.
+- [x] **2d.** Memindahkan dan merapihkan seluruh file sesuai kerangka yang telah dibuat.
 
 ---
 

@@ -25,15 +25,13 @@ class CounselingController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Kelas tidak ditemukan'], 404);
             }
 
-            $guruBkClass = GuruBkClass::where('class_id', $classStudent->class_id)
-                ->with('guru')
-                ->first();
+            $guruBkStudent = \Illuminate\Support\Facades\DB::table('guru_bk_students')->where('student_id', $user->id)->first();
 
-            if (!$guruBkClass || !$guruBkClass->guru) {
-                return response()->json(['status' => 'error', 'message' => 'Guru BK tidak ditemukan untuk kelas ini'], 404);
+            if (!$guruBkStudent) {
+                return response()->json(['status' => 'error', 'message' => 'Guru BK tidak ditemukan untuk siswa ini'], 404);
             }
 
-            $guru = $guruBkClass->guru;
+            $guru = \App\Models\User::find($guruBkStudent->guru_bk_id);
             return response()->json([
                 'status' => 'success',
                 'data' => [
@@ -64,10 +62,8 @@ class CounselingController extends Controller
                 ->first();
 
             $guruBkId = null;
-            if ($classStudent) {
-                $guruBkClass = GuruBkClass::where('class_id', $classStudent->class_id)->first();
-                $guruBkId = $guruBkClass?->guru_id;
-            }
+            $guruBkStudent = \Illuminate\Support\Facades\DB::table('guru_bk_students')->where('student_id', $user->id)->first();
+            $guruBkId = $guruBkStudent?->guru_bk_id;
 
             $counseling = CounselingRequest::create([
                 'id'            => Str::uuid(),

@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/time_helper.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../home/widgets/identity_card_3d_widget.dart';
+import '../../home/widgets/guru_identity_card_3d_widget.dart';
 
 class TuHomeHeader extends ConsumerWidget {
   const TuHomeHeader({Key? key}) : super(key: key);
@@ -35,8 +35,8 @@ class TuHomeHeader extends ConsumerWidget {
                 '$userName!!',
                 style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground),
               ),
-              Spacing.custom(context, 20),
-              IdentityCard3DWidget(userName: userName),
+              if (user != null)
+                GuruIdentityCard3DWidget(user: user),
               Spacing.custom(context, 20),
             ],
           ),
