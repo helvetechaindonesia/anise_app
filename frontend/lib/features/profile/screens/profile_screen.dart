@@ -132,8 +132,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 MaterialPageRoute(builder: (context) => const BiometricRegistrationScreen()),
                               );
                             },
-                            icon: Icon(PhosphorIcons.scan(PhosphorIconsStyle.bold), color: Colors.white),
-                            label: const Text('Daftarkan Wajah', style: TextStyle(color: Colors.white)),
+                            icon: Icon(PhosphorIcons.scan(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
+                            label: Text('Daftarkan Wajah', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               padding: const EdgeInsets.symmetric(vertical: 16),

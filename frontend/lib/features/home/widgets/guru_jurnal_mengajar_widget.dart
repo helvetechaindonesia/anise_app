@@ -64,7 +64,7 @@ class GuruJurnalMengajarWidget extends ConsumerWidget {
         SizedBox(height: 16.h(context)),
         kelasJadwalAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Text('Gagal memuat jadwal: $err', style: TextStyle(color: AppColors.error)),
+          error: (err, stack) => Text('Gagal memuat jadwal: $err', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
           data: (classes) {
             if (classes.isEmpty) {
               return Center(

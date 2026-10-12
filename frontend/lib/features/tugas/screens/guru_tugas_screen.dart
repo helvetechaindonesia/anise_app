@@ -253,7 +253,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => Center(
-        child: Text('Gagal memuat tugas: $error', style: const TextStyle(color: Colors.red)),
+        child: Text('Gagal memuat tugas: $error', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
       ),
     );
   }

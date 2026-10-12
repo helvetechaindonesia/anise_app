@@ -195,7 +195,7 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
                   children: [
                     Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.fill), color: AppColors.menuPastelGreen, size: 20),
                     const SizedBox(width: 8),
-                    const Text('Dalam Radius Sekolah', style: TextStyle(color: Colors.white)),
+                    Text('Dalam Radius Sekolah', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
                   ],
                 ),
               ),
@@ -209,7 +209,7 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
                 children: [
                   Text(
                     'Posisikan wajah Anda untuk absen',
-                    style: AppTextStyles.titleMedium(context, color: Colors.white),
+                    style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -217,12 +217,12 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
                     onPressed: _processPresensi,
                     backgroundColor: AppColors.primary,
                     shape: const CircleBorder(),
-                    child: Icon(PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), color: Colors.white, size: 36),
+                    child: Icon(PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), color: AppColors.onPrimary, size: 36),
                   ),
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary.withValues(alpha: 0.7))),
                   )
                 ],
               ),

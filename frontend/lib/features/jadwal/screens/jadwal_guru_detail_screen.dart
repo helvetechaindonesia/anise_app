@@ -128,7 +128,7 @@ class _JadwalGuruDetailScreenState extends ConsumerState<JadwalGuruDetailScreen>
             loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
             error: (e, s) => SliverFillRemaining(
               child: Center(
-                child: Text('Gagal memuat jurnal: $e', style: const TextStyle(color: Colors.red)),
+                child: Text('Gagal memuat jurnal: $e', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
               ),
             ),
           ),

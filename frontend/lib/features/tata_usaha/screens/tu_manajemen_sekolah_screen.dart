@@ -617,8 +617,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   child: isSaving 
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Simpan', style: TextStyle(color: Colors.white)),
+                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2))
+                    : Text('Simpan', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
                 ),
               ],
             );

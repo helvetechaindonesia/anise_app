@@ -155,8 +155,8 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _isSaving
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Simpan Pengaturan', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? CircularProgressIndicator(color: AppColors.onPrimary)
+                          : Text('Simpan Pengaturan', style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary)),
                     ),
                   )
                 ],

@@ -60,7 +60,10 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
       if (sizeInMb > 20) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ukuran file maksimal 20MB', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Ukuran file maksimal 20MB', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+            backgroundColor: AppColors.error,
+          ),
         );
         return;
       }
@@ -201,7 +204,7 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                             );
                           },
                           loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Text('Gagal memuat jurnal: $e', style: const TextStyle(color: Colors.red)),
+                          error: (e, s) => Text('Gagal memuat jurnal: $e', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
                         );
                       },
                     ),

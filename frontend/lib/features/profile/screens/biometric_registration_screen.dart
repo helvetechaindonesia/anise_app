@@ -153,7 +153,7 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Batal', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary.withValues(alpha: 0.7))),
                   )
                 ],
               ),

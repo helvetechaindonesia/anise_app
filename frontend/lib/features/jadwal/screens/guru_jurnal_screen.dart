@@ -464,7 +464,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
       loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
       error: (error, stack) => SliverFillRemaining(
         child: Center(
-          child: Text('Gagal memuat jurnal: $error', style: const TextStyle(color: Colors.red)),
+          child: Text('Gagal memuat jurnal: $error', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
         ),
       ),
     );

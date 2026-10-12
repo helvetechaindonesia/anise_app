@@ -36,7 +36,10 @@ Dokumen ini adalah kompas utama pengembangan dan refaktor aplikasi Anise agar ef
 ## 🥉 Fase 3: Standarisasi dan Pembuatan Panduan UI
 *Fokus: Kosmetik, Design System, dan Performa Layar.*
 
-- [ ] **3a.** *(Akan dibahas dan didetailkan nanti setelah Fase 1 & 2 selesai)* 🤫
+- [ ] **3a.** Standarisasi Token Desain & 5 Tipe Halaman (*Page Archetypes*: Root/Tab, Sub-Page, Detail, Form/Action, BottomSheet/Modal).
+- [ ] **3b.** Membangun *Shared Component Kit* (Reusable Lego Blocks: AppBars, Cards, Buttons, Form Inputs, Empty/Error States).
+- [ ] **3c.** Penerapan & Refactor Layar per-Modul (Siswa, Guru, BK, dan Tata Usaha).
+- [ ] **3d.** Quality Check & Optimasi Performa Layar (Responsivitas layar, pencegahan memory leak & visual audit).
 
 ---
 

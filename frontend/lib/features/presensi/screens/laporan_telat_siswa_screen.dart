@@ -181,8 +181,8 @@ class _LaporanTelatSiswaScreenState extends ConsumerState<LaporanTelatSiswaScree
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
                 child: _isSubmitting 
-                    ? const CircularProgressIndicator(color: Colors.white) 
-                    : const Text('Kirim Laporan', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ? CircularProgressIndicator(color: AppColors.onPrimary) 
+                    : Text('Kirim Laporan', style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary)),
               ),
             ),
           ],
