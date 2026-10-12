@@ -8,8 +8,23 @@ Modul ini adalah "Panel Rahasia" yang hanya dapat diakses oleh tim *Engineering/
 ---
 
 ## 🗄️ 1. Struktur Database
-Modul 21 bersifat *Tooling* sehingga tidak memerlukan penyimpanan persisten jangka panjang. Modul ini murni memanfaatkan **Sistem *Role*** dari Modul 1. 
-- Hanya `users` yang memiliki *Role* berstatus `SUPER_ADMIN` yang dapat mengakses fitur ini di Frontend.
+Modul 21 mengelola panel *Engineering/Developer* serta informasi kontak resmi pengembang aplikasi Anise.
+
+### Tabel: `developers`
+Menyimpan identitas entitas developer/vendor pengembang aplikasi untuk kebutuhan kontak helpdesk, direct WhatsApp, dan pelaporan sistem.
+
+| Nama Kolom | Tipe Data | Keterangan |
+| :--- | :--- | :--- |
+| `id` | `UUID` (Primary Key) | Pengenal unik developer |
+| `name` | `VARCHAR(255)` | Nama tim/perusahaan pengembang (cth: "Helvetecha Group") |
+| `email` | `VARCHAR(255)` | Email resmi pengembang (cth: "Helvetechaindonesia@gmail.com") |
+| `phone` | `VARCHAR(50)` | Nomor kontak / WhatsApp pengembang (cth: "081931315944") |
+| `created_at` / `updated_at` | `TIMESTAMP` | Waktu pencatatan & pembaruan data |
+
+> **Data Awal (Seeded Record):**
+> - **Nama:** Helvetecha Group
+> - **Email:** Helvetechaindonesia@gmail.com
+> - **Phone:** 081931315944 (WhatsApp URL: `https://wa.me/6281931315944`)
 
 ---
 

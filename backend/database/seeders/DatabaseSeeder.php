@@ -179,5 +179,14 @@ class DatabaseSeeder extends Seeder
                 'category' => $habit['category'],
             ]);
         }
+
+        // 11. Create Developer Contact
+        \App\Models\Developer::updateOrCreate(
+            ['email' => 'Helvetechaindonesia@gmail.com'],
+            [
+                'name' => 'Helvetecha Group',
+                'phone' => '081931315944',
+            ]
+        );
     }
 }

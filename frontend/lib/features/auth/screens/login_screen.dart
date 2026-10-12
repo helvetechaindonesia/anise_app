@@ -24,14 +24,23 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProviderStateMixin {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFocusNode = FocusNode();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   bool _rememberMe = false;
+  bool _isUsernameFocused = false;
   Map<String, String> _savedAccounts = {};
 
   @override
   void initState() {
     super.initState();
+    _usernameFocusNode.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isUsernameFocused = _usernameFocusNode.hasFocus;
+        });
+      }
+    });
     _loadSavedCredentials();
     _animationController = AnimationController(
       vsync: this,
@@ -87,11 +96,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     }
   }
 
+  List<MapEntry<String, String>> _getFilteredAccounts() {
+    final query = _usernameController.text.trim().toLowerCase();
+    if (query.isEmpty) return _savedAccounts.entries.toList();
+    return _savedAccounts.entries
+        .where((e) => e.key.toLowerCase().contains(query))
+        .toList();
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _usernameFocusNode.dispose();
     super.dispose();
   }
 
@@ -229,75 +247,116 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           Spacing.custom(context, 8),
                           AniseTextField(
                             controller: _usernameController,
+                            focusNode: _usernameFocusNode,
+                            onChanged: (_) {
+                              if (mounted) setState(() {});
+                            },
                             hintText: 'Masukkan alamat email Anda...',
                             icon: PhosphorIcons.envelopeSimple(),
                           ),
-                          if (_savedAccounts.isNotEmpty) ...[
-                            Spacing.custom(context, 8),
-                            Row(
-                              children: [
-                                Icon(PhosphorIcons.users(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
-                                SizedBox(width: 4.w(context)),
-                                Text(
-                                  'Pilih Akun Tersimpan (Klik untuk autofill):',
-                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
-                                ),
-                              ],
-                            ),
-                            Spacing.custom(context, 6),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: _savedAccounts.entries.map((entry) {
-                                  final email = entry.key;
-                                  final isSelected = _usernameController.text.trim() == email;
-                                  return Padding(
-                                    padding: EdgeInsets.only(right: 8.w(context)),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(20),
-                                      onTap: () => _selectSavedAccount(email, entry.value),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                          // Dropdown Autofill: Hanya muncul tepat di bawah form ketika cursor/form sedang aktif
+                          if (_isUsernameFocused && _getFilteredAccounts().isNotEmpty) ...[
+                            Container(
+                              margin: EdgeInsets.only(top: 6.h(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(16.w(context)),
+                                border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(PhosphorIcons.key(PhosphorIconsStyle.fill), size: 14.w(context), color: AppColors.primary),
+                                            SizedBox(width: 6.w(context)),
+                                            Text(
+                                              'Pilih Akun Tersimpan (Autofill)',
+                                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        InkWell(
+                                          onTap: () {
+                                            _usernameFocusNode.unfocus();
+                                          },
+                                          child: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.onSurfaceVariant),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Divider(height: 1, thickness: 1, color: AppColors.outlineVariant),
+                                  ..._getFilteredAccounts().map((entry) {
+                                    final email = entry.key;
+                                    final pass = entry.value;
+                                    return InkWell(
+                                      onTap: () {
+                                        _selectSavedAccount(email, pass);
+                                        _usernameFocusNode.unfocus();
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.primaryContainer : AppColors.surfaceVariant,
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.2),
-                                            width: isSelected ? 1.5 : 1.0,
+                                          border: Border(
+                                            bottom: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.4), width: 0.5),
                                           ),
                                         ),
                                         child: Row(
-                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(
-                                              isSelected ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill) : PhosphorIcons.user(PhosphorIconsStyle.bold),
-                                              size: 14.w(context),
-                                              color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                                            Container(
+                                              padding: EdgeInsets.all(6.w(context)),
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.primaryContainer,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
                                             ),
-                                            SizedBox(width: 6.w(context)),
-                                            Text(
-                                              email,
-                                              style: AppTextStyles.labelMedium(context).copyWith(
-                                                color: isSelected ? AppColors.primary : AppColors.onSurface,
-                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                            SizedBox(width: 10.w(context)),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    email,
+                                                    style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '•••••••• (Klik untuk autofill kata sandi)',
+                                                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            SizedBox(width: 6.w(context)),
                                             InkWell(
                                               onTap: () => _removeSavedAccount(email),
-                                              child: Icon(
-                                                PhosphorIcons.x(PhosphorIconsStyle.bold),
-                                                size: 12.w(context),
-                                                color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                                              child: Padding(
+                                                padding: EdgeInsets.all(4.w(context)),
+                                                child: Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.error),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    ),
-                                  );
-                                }).toList(),
+                                    );
+                                  }),
+                                ],
                               ),
                             ),
                           ],

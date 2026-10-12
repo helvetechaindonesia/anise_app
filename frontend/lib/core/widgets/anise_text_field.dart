@@ -11,6 +11,8 @@ class AniseTextField extends StatefulWidget {
   final bool enabled;
   final TextInputType? keyboardType;
   final int maxLines;
+  final FocusNode? focusNode;
+  final ValueChanged<String>? onChanged;
 
   const AniseTextField({
     super.key,
@@ -21,6 +23,8 @@ class AniseTextField extends StatefulWidget {
     this.enabled = true,
     this.keyboardType,
     this.maxLines = 1,
+    this.focusNode,
+    this.onChanged,
   });
 
   @override
@@ -40,6 +44,8 @@ class _AniseTextFieldState extends State<AniseTextField> {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: widget.controller,
+      focusNode: widget.focusNode,
+      onChanged: widget.onChanged,
       obscureText: _obscureText,
       enabled: widget.enabled,
       keyboardType: widget.keyboardType,

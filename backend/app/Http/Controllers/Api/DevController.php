@@ -26,4 +26,32 @@ class DevController extends Controller
     {
         return $this->success(null, 'Impersonating user ' . $user_id);
     }
+
+    public function getContact(Request $request)
+    {
+        $developer = \App\Models\Developer::first();
+
+        if (!$developer) {
+            $developer = (object) [
+                'name' => 'Helvetecha Group',
+                'email' => 'Helvetechaindonesia@gmail.com',
+                'phone' => '081931315944',
+            ];
+        }
+
+        $cleanPhone = preg_replace('/[^0-9]/', '', $developer->phone);
+        if (str_starts_with($cleanPhone, '0')) {
+            $cleanPhone = '62' . substr($cleanPhone, 1);
+        }
+
+        $waUrl = 'https://wa.me/' . $cleanPhone . '?text=' . urlencode('Halo Tim Developer Helvetecha, saya butuh bantuan terkait aplikasi Anise.');
+
+        return $this->success([
+            'name' => $developer->name,
+            'email' => $developer->email,
+            'phone' => $developer->phone,
+            'whatsapp_phone' => $cleanPhone,
+            'whatsapp_url' => $waUrl,
+        ], 'Kontak developer berhasil diambil');
+    }
 }

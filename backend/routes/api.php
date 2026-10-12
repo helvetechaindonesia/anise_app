@@ -45,6 +45,11 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+// ==========================================
+// DEVELOPER & HELPDESK INFO (Public)
+// ==========================================
+Route::get('/dev/contact', [DevController::class, 'getContact']);
+
 Route::middleware('auth:sanctum')->group(function () {
     
     // ==========================================

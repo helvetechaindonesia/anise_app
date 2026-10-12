@@ -143,7 +143,8 @@ Dokumen ini adalah cetak biru (blueprint) untuk seluruh RESTful API *Endpoint* a
 - `GET /security-logs`: Riwayat login *user* login.
 
 ## 👨‍💻 Modul 21: Developer Mode
-*Prefix:* `/api/dev` *(Middleware: Super Admin)*
-- `GET /logs`: *Streaming/Read* file `laravel.log`.
-- `POST /cache/clear`: *Bypass command* Artisan *optimize*.
-- `POST /impersonate/{user_id}`: Meretas masuk (*Login*) sebagai *user* lain untuk *debugging*.
+*Prefix:* `/api/dev`
+- `GET /contact`: *(Publik)* Mengambil info developer resmi (Helvetecha Group, nomor WA, email).
+- `GET /logs`: *(Middleware: Super Admin)* *Streaming/Read* file `laravel.log`.
+- `POST /cache/clear`: *(Middleware: Super Admin)* *Bypass command* Artisan *optimize*.
+- `POST /impersonate/{user_id}`: *(Middleware: Super Admin)* Meretas masuk (*Login*) sebagai *user* lain untuk *debugging*.
