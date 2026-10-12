@@ -130,28 +130,30 @@ class _GuruIdentityCard3DWidgetState extends State<GuruIdentityCard3DWidget> wit
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Abstrak Decorative Elements (pengganti watermark kaku)
+              // Abstrak Decorative Elements (Soft Circles / Concentric Rings)
               Positioned(
-                top: -50.w(context),
-                right: -20.w(context),
+                top: -60.w(context),
+                right: -40.w(context),
                 child: Container(
-                  width: 150.w(context),
-                  height: 150.w(context),
+                  width: 180.w(context),
+                  height: 180.w(context),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20.w(context)),
-                    color: AppColors.onPrimary.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.onPrimary.withValues(alpha: 0.08), width: 1.5),
+                    color: AppColors.onPrimary.withValues(alpha: 0.04),
                   ),
                 ),
               ),
               Positioned(
-                bottom: -80.w(context),
-                left: -30.w(context),
+                bottom: -90.w(context),
+                left: -50.w(context),
                 child: Container(
-                  width: 200.w(context),
-                  height: 200.w(context),
+                  width: 220.w(context),
+                  height: 220.w(context),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20.w(context)),
-                    color: AppColors.onPrimary.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.onPrimary.withValues(alpha: 0.06), width: 1.5),
+                    color: AppColors.onPrimary.withValues(alpha: 0.03),
                   ),
                 ),
               ),
@@ -271,49 +273,20 @@ class _GuruIdentityCard3DWidgetState extends State<GuruIdentityCard3DWidget> wit
                                 overflow: TextOverflow.ellipsis,
                               ),
                               SizedBox(height: 6.h(context)),
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.onPrimary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(20.w(context)),
-                                      ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          nipText,
-                                          style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                nipText,
+                                style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary.withValues(alpha: 0.85)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              SizedBox(height: 6.h(context)),
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.secondary.withValues(alpha: 0.2),
-                                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.5)),
-                                        borderRadius: BorderRadius.circular(20.w(context)),
-                                      ),
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          'STATUS: $peranLabel',
-                                          style: AppTextStyles.labelSmall(context, color: AppColors.secondary),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              SizedBox(height: 3.h(context)),
+                              Text(
+                                'STATUS: $peranLabel',
+                                style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),

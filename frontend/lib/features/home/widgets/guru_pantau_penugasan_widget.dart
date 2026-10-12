@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/section_action_link.dart';
 import '../../tugas/providers/tugas_provider.dart';
 import '../../tugas/screens/guru_tugas_screen.dart';
 import '../../tugas/widgets/tugas_item_card.dart';
@@ -52,24 +53,13 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
                 ),
               ],
             ),
-            GestureDetector(
+            SectionActionLink(
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const GuruTugasScreen()),
                 );
               },
-              child: Row(
-                children: [
-                  Text(
-                    'Lihat\nSemua',
-                    textAlign: TextAlign.right,
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
-                  ),
-                  SizedBox(width: 4.w(context)),
-                  Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onBackground),
-                ],
-              ),
             ),
           ],
         ),

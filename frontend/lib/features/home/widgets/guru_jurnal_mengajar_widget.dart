@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/section_action_link.dart';
 import '../../jadwal/screens/guru_jurnal_screen.dart';
 import '../../jadwal/screens/guru_jurnal_detail_screen.dart';
 import '../../jadwal/screens/jadwal_guru_detail_screen.dart';
@@ -36,7 +37,7 @@ class GuruJurnalMengajarWidget extends ConsumerWidget {
                 ),
               ],
             ),
-            GestureDetector(
+            SectionActionLink(
               onTap: () {
                 if (onNavigateTab != null) {
                   onNavigateTab!(1);
@@ -47,17 +48,6 @@ class GuruJurnalMengajarWidget extends ConsumerWidget {
                   );
                 }
               },
-              child: Row(
-                children: [
-                  Text(
-                    'Lihat\nSemua',
-                    textAlign: TextAlign.right,
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
-                  ),
-                  SizedBox(width: 4.w(context)),
-                  Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onBackground),
-                ],
-              ),
             ),
           ],
         ),
