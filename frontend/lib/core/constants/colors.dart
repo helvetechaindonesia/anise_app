@@ -22,6 +22,7 @@ class AppColors {
 
   // Neutral & Outline
   static const Color outline = primary;                     // Hijau Gelap (Garis tepi tegas)
+  static const Color outlineVariant = Color(0xFFDDE3EA);    // Garis tepi halus/divider
   
   // Status Colors
   static const Color error = Color(0xFFE53935);
