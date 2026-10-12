@@ -1,0 +1,59 @@
+# 🔄 Alur Kerja Scrapping & Standarisasi UI-Backend (SOP Frontend Anise)
+**Standar Kolaborasi Interaktif: User-Directed Deep Scrapping & Alignment**  
+*Lokasi: `docs/frontend/UI/WORKFLOW_SCRAPPING_SOP.md`*  
+*Terakhir Diperbarui: 12 Oktober 2026*
+
+---
+
+## 🎯 1. Filosofi & Esensi Alur Kerja
+Alur kerja ini dirancang agar pengembangan frontend tidak lagi meraba-raba atau membuat asumsi sepihak. Setiap halaman disisir secara kolaboratif bersama User:
+1. **User mengarahkan fokus halaman** (misal: "Home Siswa", "Presensi Screen", dll).
+2. **AI melakukan 3 lapis audit sekaligus:**
+   - 🎨 **Audit UI & Standarisasi Komponen:** Cek kepatuhan elemen terhadap Design Tokens & Shared Component Kit.
+   - 🔌 **Audit Integrasi API / Backend Lookup:** Cek apakah fitur sudah memanggil endpoint Laravel yang tepat.
+   - 📝 **Audit Backend Notes & Gaps:** Tarik catatan teknis dari backend (jika ada controller/service yang belum terhubung atau butuh payload khusus).
+3. **Penyajian Laporan Terstruktur** kepada User untuk disepakati sebelum dieksekusi.
+
+---
+
+## 📋 2. Template Laporan Audit Tiap Halaman (Format Baku)
+Setiap kali User memberikan instruksi penelusuran (misal: *"Brok, scrapping halaman X"*), AI wajib menyajikan output dengan struktur 4 bagian berikut:
+
+```markdown
+### 📍 [Nama Halaman / Screen Target]
+
+#### 1. 🗂️ Daftar Fitur yang Ditemukan di Halaman Ini
+- Fitur A: [Penjelasan singkat & widget yang menangani]
+- Fitur B: [Penjelasan singkat & widget yang menangani]
+
+#### 2. 🎨 Aspek UI yang Perlu Distandarisasi
+- Komponen X ➔ Belum memakai token/komponen baku (Rekomendasi: ganti ke `AniseCard` / `PillButton` / dll).
+- Spacing & Layout ➔ Jarak vertikal tidak seragam / teks meluber.
+
+#### 3. 🔌 Jalur Komunikasi Backend (API Endpoint Alignment)
+| Fitur | Status Sambungan | Endpoint Backend Laravel | Service / Repository Backend |
+| :--- | :---: | :--- | :--- |
+| Fitur A | 🟢 Terhubung | `GET /api/v1/...` | `AttendanceService` |
+| Fitur B | 🟡 Dummy Data | `POST /api/v1/...` | `AssignmentService` |
+| Fitur C | 🔴 Belum Ada Endpoint | *(Perlu dibuatkan route / controller baru)* | - |
+
+#### 4. 📝 Catatan Teknis & Rekomendasi Eksekusi
+- Payload khusus atau header authorization yang dibutuhkan.
+- Rekomendasi perbaikan bertahap untuk disetujui User.
+```
+
+---
+
+## 🚀 3. Siklus Eksekusi (The 4-Step Loop)
+```text
+[ 1. User Direct Halaman Target ]
+              │
+              ▼
+[ 2. AI Deep Scrapping (UI + Backend + Notes) ]
+              │
+              ▼
+[ 3. Diskusi & Kesepakatan Bareng User ]
+              │
+              ▼
+[ 4. Refactor & Sambungkan ke Backend ➔ Git Commit ]
+```
