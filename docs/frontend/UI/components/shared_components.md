@@ -23,6 +23,8 @@ Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. 
 | **`MenuIconButton`** | Rounded Rectangle `56x56` (radius 20px / ~35%), warna blok primary + label teks. | [specs/menu_icon_button.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/menu_icon_button.md) |
 | **`PillButton`** | Tombol kapsul (tinggi 52px, radius 16-26px) untuk aksi Save, Kirim, Login, Wajah. | [specs/pill_button.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/pill_button.md) |
 | **`CardButton`** | Kartu interaktif yang dapat diklik (radius 24px), warna blok primary + ripple effect. | [specs/card_button.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/card_button.md) |
+| **`SectionActionLink`** | Menu extend ringkas satu baris ("Semua >") di sebelah kanan judul seksi. | [specs/section_action_link.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/section_action_link.md) |
+| **`IdentityCard`** | Kartu identitas digital 3D (pola lingkaran lembut, bersih tanpa pill badges kaku). | [specs/identity_card.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/identity_card.md) |
 
 ---
 
