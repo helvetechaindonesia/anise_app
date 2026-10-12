@@ -2,20 +2,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPrefs {
   static const String _tokenKey = 'auth_token';
+  static const String _loginTimeKey = 'login_timestamp';
+  static const int _sessionValidityDays = 7;
 
   static Future<void> setToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    await prefs.setInt(_loginTimeKey, DateTime.now().millisecondsSinceEpoch);
   }
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    final token = prefs.getString(_tokenKey);
+    if (token == null) return null;
+
+    final loginTime = prefs.getInt(_loginTimeKey);
+    if (loginTime != null) {
+      final loginDate = DateTime.fromMillisecondsSinceEpoch(loginTime);
+      final difference = DateTime.now().difference(loginDate);
+      // Jika sesi melebihi 7 hari, bersihkan sesi
+      if (difference.inDays >= _sessionValidityDays) {
+        await clearToken();
+        return null;
+      }
+    }
+    return token;
   }
 
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await prefs.remove(_loginTimeKey);
   }
 
   static const String _rememberMeKey = 'remember_me';

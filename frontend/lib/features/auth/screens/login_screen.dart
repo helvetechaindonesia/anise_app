@@ -5,10 +5,13 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../../home/screens/main_navigation_screen.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_text_field.dart';
+import '../../../core/widgets/anise_button.dart';
 import '../../../core/utils/shared_prefs.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'lupa_sandi_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -65,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('NISN dan Password harus diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          content: Text('Email dan Kata Sandi wajib diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -285,39 +288,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           ),
                           Spacing.component(context),
                           
-                          // Submit Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52.h(context),
-                            child: ElevatedButton(
-                              onPressed: authState.status == AuthStatus.loading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: AppColors.onPrimary,
-                                elevation: 4,
-                                shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.w(context)),
-                                ),
-                              ),
-                              child: authState.status == AuthStatus.loading
-                                  ? SizedBox(
-                                      height: 24.w(context),
-                                      width: 24.w(context),
-                                      child: const CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 3),
-                                    )
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Masuk ke Akun',
-                                          style: AppTextStyles.bodyLarge(context, color: AppColors.onPrimary),
-                                        ),
-                                        SizedBox(width: 8.w(context)),
-                                        Icon(PhosphorIcons.arrowRight(PhosphorIconsStyle.bold), color: AppColors.onPrimary, size: 20.w(context)),
-                                      ],
-                                    ),
-                            ),
+                          Spacing.component(context),
+                          
+                          // Submit Button (PillButton)
+                          AniseButton(
+                            text: 'Masuk ke Akun',
+                            icon: PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+                            isLoading: authState.status == AuthStatus.loading,
+                            variant: AniseButtonVariant.primary,
+                            onPressed: _handleLogin,
                           ),
                         ],
                       ),
@@ -338,18 +317,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     Spacing.custom(context, 4),
                     Center(
                       child: InkWell(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Membuka kontak WhatsApp Helpdesk IT...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                              backgroundColor: AppColors.primary,
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                        onTap: () async {
+                          final uri = Uri.parse(ApiConstants.developerSupportUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          } else {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Tidak dapat membuka WhatsApp developer.', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
                         },
                         child: Text(
-                          'Hubungi Helpdesk IT Sekolah',
-                          style: AppTextStyles.bodyMedium(context, color: AppColors.primary),
+                          'Hubungi Helpdesk IT (Developer)',
+                          style: AppTextStyles.bodyMedium(context, color: AppColors.primary).copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

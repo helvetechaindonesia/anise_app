@@ -101,4 +101,41 @@ class AuthController extends Controller
             'data' => $user
         ]);
     }
+
+    /**
+     * Request reset password via registered WhatsApp number.
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return $this->error('Alamat email tidak terdaftar di sistem', 404);
+        }
+
+        $phone = $user->phone;
+        if (empty($phone)) {
+            return $this->error('Nomor WhatsApp belum didaftarkan pada akun ini. Silakan hubungi Helpdesk IT.', 422);
+        }
+
+        // Format nomor untuk WhatsApp (e.g., 0812 -> 62812)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        if (str_starts_with($cleanPhone, '0')) {
+            $cleanPhone = '62' . substr($cleanPhone, 1);
+        }
+
+        // Masked phone untuk tampilan UI (e.g., 0812****89)
+        $maskedPhone = substr($phone, 0, 4) . '****' . substr($phone, -2);
+
+        return $this->success([
+            'user_name' => $user->full_name,
+            'masked_phone' => $maskedPhone,
+            'whatsapp_phone' => $cleanPhone,
+            'message' => 'Instruksi pemulihan kata sandi siap dikirimkan ke nomor WhatsApp Anda.'
+        ], 'Nomor WhatsApp terdaftar ditemukan');
+    }
 }

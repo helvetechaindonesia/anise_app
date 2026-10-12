@@ -4,7 +4,9 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_text_field.dart';
+import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/decorative_background.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LupaSandiScreen extends StatefulWidget {
   const LupaSandiScreen({super.key});
@@ -89,33 +91,39 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
                         icon: PhosphorIcons.envelopeSimple(),
                       ),
                       SizedBox(height: 32.h(context)),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56.h(context),
-                        child: ElevatedButton(
-                          onPressed: () {
+                      AniseButton(
+                        text: 'Kirim Kata Sandi ke WhatsApp',
+                        icon: PhosphorIcons.whatsappLogo(PhosphorIconsStyle.fill),
+                        variant: AniseButtonVariant.primary,
+                        onPressed: () async {
+                          final email = _emailController.text.trim();
+                          if (email.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Instruksi pemulihan telah dikirim ke email Anda.', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                backgroundColor: AppColors.primary,
-                                behavior: SnackBarBehavior.floating,
+                                content: Text('Alamat email wajib diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                                backgroundColor: AppColors.error,
                               ),
                             );
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16.w(context)),
+                            return;
+                          }
+
+                          // Tampilkan notifikasi konfirmasi WhatsApp
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Memverifikasi akun dan nomor WhatsApp...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                              backgroundColor: AppColors.primary,
                             ),
-                            elevation: 4,
-                            shadowColor: AppColors.primary.withValues(alpha: 0.3),
-                          ),
-                          child: Text(
-                            'Kirim Instruksi',
-                            style: AppTextStyles.bodyLarge(context, color: AppColors.onPrimary),
-                          ),
-                        ),
+                          );
+
+                          // Buka WhatsApp bantuan pemulihan sandi
+                          final waUrl = Uri.parse(
+                            'https://wa.me/6281234567890?text=Halo%20Admin%20Sekolah%2C%20saya%20lupa%20kata%20sandi%20untuk%20akun%20email%3A%20$email.%20Mohon%20bantuan%20reset%20kata%20sandi.',
+                          );
+                          if (await canLaunchUrl(waUrl)) {
+                            await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+                          }
+                          if (mounted) Navigator.pop(context);
+                        },
                       ),
                     ],
                   ),
