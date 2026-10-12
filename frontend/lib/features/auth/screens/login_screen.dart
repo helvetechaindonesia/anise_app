@@ -27,6 +27,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   bool _rememberMe = false;
+  Map<String, String> _savedAccounts = {};
 
   @override
   void initState() {
@@ -43,12 +44,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   }
 
   void _loadSavedCredentials() async {
+    final accounts = await SharedPrefs.getRememberedAccounts();
     final creds = await SharedPrefs.getSavedCredentials();
-    if (creds['rememberMe'] == true && mounted) {
+    if (mounted) {
       setState(() {
-        _rememberMe = true;
-        _usernameController.text = creds['username'];
-        _passwordController.text = creds['password'];
+        _savedAccounts = accounts;
+        if (creds['rememberMe'] == true && creds['username'].toString().isNotEmpty) {
+          _rememberMe = true;
+          _usernameController.text = creds['username'];
+          _passwordController.text = creds['password'];
+        } else if (_savedAccounts.isNotEmpty) {
+          // Default ke akun yang ada di daftar
+          final firstEmail = _savedAccounts.keys.first;
+          _usernameController.text = firstEmail;
+          _passwordController.text = _savedAccounts[firstEmail] ?? '';
+          _rememberMe = true;
+        }
+      });
+    }
+  }
+
+  void _selectSavedAccount(String email, String password) {
+    setState(() {
+      _usernameController.text = email;
+      _passwordController.text = password;
+      _rememberMe = true;
+    });
+  }
+
+  void _removeSavedAccount(String email) async {
+    await SharedPrefs.removeRememberedAccount(email);
+    final updated = await SharedPrefs.getRememberedAccounts();
+    if (mounted) {
+      setState(() {
+        _savedAccounts = updated;
+        if (_usernameController.text == email) {
+          _usernameController.clear();
+          _passwordController.clear();
+          _rememberMe = false;
+        }
       });
     }
   }
@@ -79,8 +113,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     final success = await ref.read(authProvider.notifier).login(username, password);
 
     if (success && mounted) {
-      // Simpan credentials jika sukses
+      // Simpan credentials & timpa password akun jika rememberMe aktif
       await SharedPrefs.saveCredentials(username, password, _rememberMe);
+      if (!mounted) return;
       
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
@@ -197,6 +232,75 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                             hintText: 'Masukkan alamat email Anda...',
                             icon: PhosphorIcons.envelopeSimple(),
                           ),
+                          if (_savedAccounts.isNotEmpty) ...[
+                            Spacing.custom(context, 8),
+                            Row(
+                              children: [
+                                Icon(PhosphorIcons.users(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
+                                SizedBox(width: 4.w(context)),
+                                Text(
+                                  'Pilih Akun Tersimpan (Klik untuk autofill):',
+                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                            Spacing.custom(context, 6),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: _savedAccounts.entries.map((entry) {
+                                  final email = entry.key;
+                                  final isSelected = _usernameController.text.trim() == email;
+                                  return Padding(
+                                    padding: EdgeInsets.only(right: 8.w(context)),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => _selectSavedAccount(email, entry.value),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.primaryContainer : AppColors.surfaceVariant,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.2),
+                                            width: isSelected ? 1.5 : 1.0,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              isSelected ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill) : PhosphorIcons.user(PhosphorIconsStyle.bold),
+                                              size: 14.w(context),
+                                              color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                                            ),
+                                            SizedBox(width: 6.w(context)),
+                                            Text(
+                                              email,
+                                              style: AppTextStyles.labelMedium(context).copyWith(
+                                                color: isSelected ? AppColors.primary : AppColors.onSurface,
+                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                              ),
+                                            ),
+                                            SizedBox(width: 6.w(context)),
+                                            InkWell(
+                                              onTap: () => _removeSavedAccount(email),
+                                              child: Icon(
+                                                PhosphorIcons.x(PhosphorIconsStyle.bold),
+                                                size: 12.w(context),
+                                                color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
                           Spacing.item(context),
                           
                           Text(

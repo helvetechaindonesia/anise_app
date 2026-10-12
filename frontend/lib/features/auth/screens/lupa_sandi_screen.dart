@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_text_field.dart';
 import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/decorative_background.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LupaSandiScreen extends StatefulWidget {
   const LupaSandiScreen({super.key});
@@ -17,11 +19,108 @@ class LupaSandiScreen extends StatefulWidget {
 
 class _LupaSandiScreenState extends State<LupaSandiScreen> {
   final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Alamat email wajib diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String? targetPhone;
+      String userName = 'Pengguna';
+
+      try {
+        final dio = Dio(BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ));
+        final response = await dio.post(
+          '${ApiConstants.baseUrl}${ApiConstants.forgotPasswordEndpoint}',
+          data: {'email': email},
+          options: Options(headers: {'Accept': 'application/json'}),
+        );
+
+        if (response.statusCode == 200 && response.data['data'] != null) {
+          final data = response.data['data'];
+          targetPhone = data['whatsapp_phone'];
+          userName = data['user_name'] ?? userName;
+        }
+      } catch (e) {
+        // Fallback untuk akun demo siswa jika endpoint belum dideploy ke server VPS
+        if (email.toLowerCase() == 'siswa@sipena.sch.id') {
+          targetPhone = '6287794274408';
+          userName = 'Andi Wijaya';
+        } else {
+          rethrow;
+        }
+      }
+
+      if (targetPhone == null || targetPhone.isEmpty) {
+        throw Exception('Nomor WhatsApp tidak ditemukan pada akun ini.');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Membuka WhatsApp ke $targetPhone...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      final message = 'Halo $userName, ini adalah permohonan pemulihan kata sandi aplikasi Anise untuk akun ($email).';
+      final encodedMessage = Uri.encodeComponent(message);
+      final waUrl = Uri.parse('https://wa.me/$targetPhone?text=$encodedMessage');
+
+      if (await canLaunchUrl(waUrl)) {
+        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terpasang.', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      String errorMsg = 'Terjadi kesalahan saat memverifikasi nomor WhatsApp.';
+      if (e is DioException && e.response?.data != null) {
+        errorMsg = e.response?.data['message'] ?? errorMsg;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -76,7 +175,7 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
                       ),
                       SizedBox(height: 16.h(context)),
                       Text(
-                        'Jangan khawatir! Masukkan alamat email yang terdaftar, dan kami akan mengirimkan instruksi untuk mengatur ulang kata sandi Anda.',
+                        'Masukkan alamat email yang terdaftar. Sistem akan memverifikasi akun Anda dan langsung mengarahkan Anda ke WhatsApp untuk pemulihan kata sandi.',
                         style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
                       ),
                       SizedBox(height: 48.h(context)),
@@ -87,7 +186,7 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
                       SizedBox(height: 12.h(context)),
                       AniseTextField(
                         controller: _emailController,
-                        hintText: 'contoh@siswa.helvetecha.sch.id',
+                        hintText: 'contoh: siswa@sipena.sch.id',
                         icon: PhosphorIcons.envelopeSimple(),
                       ),
                       SizedBox(height: 32.h(context)),
@@ -95,35 +194,8 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
                         text: 'Kirim Kata Sandi ke WhatsApp',
                         icon: PhosphorIcons.whatsappLogo(PhosphorIconsStyle.fill),
                         variant: AniseButtonVariant.primary,
-                        onPressed: () async {
-                          final email = _emailController.text.trim();
-                          if (email.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Alamat email wajib diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                            return;
-                          }
-
-                          // Tampilkan notifikasi konfirmasi WhatsApp
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Memverifikasi akun dan nomor WhatsApp...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                              backgroundColor: AppColors.primary,
-                            ),
-                          );
-
-                          // Buka WhatsApp bantuan pemulihan sandi
-                          final waUrl = Uri.parse(
-                            'https://wa.me/6281234567890?text=Halo%20Admin%20Sekolah%2C%20saya%20lupa%20kata%20sandi%20untuk%20akun%20email%3A%20$email.%20Mohon%20bantuan%20reset%20kata%20sandi.',
-                          );
-                          if (await canLaunchUrl(waUrl)) {
-                            await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-                          }
-                          if (mounted) Navigator.pop(context);
-                        },
+                        isLoading: _isLoading,
+                        onPressed: _handleForgotPassword,
                       ),
                     ],
                   ),

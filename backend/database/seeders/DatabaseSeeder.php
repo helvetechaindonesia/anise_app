@@ -117,6 +117,7 @@ class DatabaseSeeder extends Seeder
             'full_name' => 'Andi Wijaya',
             'username' => 'siswa1',
             'email' => 'siswa@sipena.sch.id',
+            'phone' => '087794274408',
             'password_hash' => \Illuminate\Support\Facades\Hash::make('siswa123'),
             'role_id' => $roleSiswa->id,
             'is_active' => true,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SharedPrefs {
@@ -38,6 +39,48 @@ class SharedPrefs {
   static const String _rememberMeKey = 'remember_me';
   static const String _usernameKey = 'saved_username';
   static const String _passwordKey = 'saved_password';
+  static const String _savedAccountsKey = 'saved_accounts_map';
+
+  /// Menyimpan atau menimpa email dan password untuk akun tersimpan
+  static Future<void> saveRememberedAccount(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_savedAccountsKey);
+    Map<String, dynamic> map = {};
+    if (raw != null) {
+      try {
+        map = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+    // Simpan atau timpa kredensial email yang bersangkutan
+    map[email] = password;
+    await prefs.setString(_savedAccountsKey, jsonEncode(map));
+  }
+
+  /// Mengambil semua akun yang pernah login dengan 'Ingat Saya'
+  static Future<Map<String, String>> getRememberedAccounts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_savedAccountsKey);
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, v.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Menghapus akun tertentu dari daftar yang diingat
+  static Future<void> removeRememberedAccount(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_savedAccountsKey);
+    if (raw != null) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        map.remove(email);
+        await prefs.setString(_savedAccountsKey, jsonEncode(map));
+      } catch (_) {}
+    }
+  }
 
   static Future<void> saveCredentials(String username, String password, bool remember) async {
     final prefs = await SharedPreferences.getInstance();
@@ -45,6 +88,7 @@ class SharedPrefs {
     if (remember) {
       await prefs.setString(_usernameKey, username);
       await prefs.setString(_passwordKey, password);
+      await saveRememberedAccount(username, password);
     } else {
       await prefs.remove(_usernameKey);
       await prefs.remove(_passwordKey);

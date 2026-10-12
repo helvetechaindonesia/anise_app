@@ -21,7 +21,7 @@
 1. **Dimensi Baku:**
    - **Tinggi:** `52.h(context)` (ergonomis untuk sentuhan jempol / *Touch Target Standard 48-52px*).
    - **Lebar:** `double.infinity` (memenuhi wadah) atau lebar kustom proporsional.
-   - **Tingkat Kelengkungan (Border Radius):** **`26.w(context)`** (atau 50% dari tinggi tombol, menghasilkan bentuk kapsul utuh/pill murni). Alternatif: `16.w` untuk rounded modern.
+   - **Tingkat Kelengkungan (Border Radius):** **Full Rounded / `const StadiumBorder()`** (100% kelengkungan kapsul murni di kedua ujungnya tanpa sudut siku).
 2. **Hierarki Varian:**
    - **Primary:** Latar blok `AppColors.primary`, teks `AppColors.onPrimary` (Putih).
    - **Secondary:** Latar blok `AppColors.secondary` (Mint), teks `AppColors.onSecondary` (Hitam).

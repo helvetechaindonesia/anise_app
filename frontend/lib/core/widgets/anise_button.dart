@@ -68,9 +68,7 @@ class AniseButton extends StatelessWidget {
           elevation: 0,
           shadowColor: Colors.transparent,
           side: border,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.w(context)),
-          ),
+          shape: const StadiumBorder(),
           padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
         ),
         child: isLoading
