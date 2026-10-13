@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/section_action_link.dart';
@@ -11,7 +9,7 @@ import '../../tugas/screens/tugas_screen.dart';
 import '../../tugas/widgets/tugas_item_card.dart';
 
 class TugasMendatangWidget extends ConsumerWidget {
-  const TugasMendatangWidget({Key? key}) : super(key: key);
+  const TugasMendatangWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,31 +72,17 @@ class TugasMendatangWidget extends ConsumerWidget {
                 final tugas = entry.value;
                 final isLast = index == tugasList.length - 1;
                 
-                return Column(
-                  children: [
-                    TugasItemCard(
-                      subject: tugas['subject'] as String,
-                      teacher: tugas['teacher'] as String,
-                      title: tugas['title'] as String,
-                      timeInfo: tugas['timeInfo'] as String,
-                      statusText: tugas['statusText'] as String,
-                      statusColor: tugas['statusColor'] as Color,
-                      statusIcon: tugas['statusIcon'] as IconData,
-                      timeBgColor: tugas['timeBgColor'] as Color,
-                      timeIconColor: tugas['timeIconColor'] as Color,
-                    ),
-                    if (!isLast)
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16.h(context)),
-                        child: Center(
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.8,
-                            height: 1,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                  ],
+                return TugasItemCard(
+                  subject: tugas['subject'] as String,
+                  teacher: tugas['teacher'] as String,
+                  title: tugas['title'] as String,
+                  timeInfo: tugas['timeInfo'] as String,
+                  statusText: tugas['statusText'] as String,
+                  statusColor: tugas['statusColor'] as Color,
+                  statusIcon: tugas['statusIcon'] as IconData,
+                  timeBgColor: tugas['timeBgColor'] as Color,
+                  timeIconColor: tugas['timeIconColor'] as Color,
+                  showDivider: !isLast,
                 );
               }).toList(),
             );

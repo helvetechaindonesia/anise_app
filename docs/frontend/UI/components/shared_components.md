@@ -1,6 +1,6 @@
 # 🧩 Blueprint Komponen Bersama (Shared Components Blueprint)
 **Katalog Komponen Baku Antarmuka Aplikasi Anise**  
-*Terakhir Diperbarui: 12 Oktober 2026*
+*Terakhir Diperbarui: 13 Oktober 2026*
 
 Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. Setiap komponen memiliki dokumentasi spesifikasi teknis mendalam yang terpisah di folder `specs/`.
 
@@ -33,7 +33,8 @@ Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. 
 | Komponen | Peran & Letak | Tautan Dokumen Detail |
 | :--- | :--- | :--- |
 | **`CardInfo`** | Kartu ringkasan statistik & metrik performa (Hadir, Poin, Rekap). | [specs/card_info.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/card_info.md) |
-| **`ItemListTile`** | Baris kartu daftar data vertikal (riwayat absen, surat masuk, daftar siswa). | [specs/item_list_tile.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/item_list_tile.md) |
+| **`AniseScheduleCard`** | Kartu carousel horizontal jadwal KBM/kelas (warna Deep Teal, avatar profil / badge siswa). | [specs/anise_schedule_card.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_schedule_card.md) |
+| **`ItemListTile`** | Baris daftar vertikal datar baku Model B (tugas, riwayat presensi, pengumuman, surat masuk). | [specs/item_list_tile.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/item_list_tile.md) |
 | **`StateFeedback`** | Tampilan status saat data kosong (*Empty State*) atau internet error (*Retry View*). | [specs/state_feedback.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/state_feedback.md) |
 
 ---
