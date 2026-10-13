@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -65,41 +64,19 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
         }
       }
 
-      bool isSaved = false;
-      String destinationInfo = 'folder Download';
-
-      // 1. Upayakan penyimpanan instan langsung ke direktori Download publik Android
-      try {
-        if (Platform.isAndroid) {
-          final downloadDir = Directory('/storage/emulated/0/Download');
-          if (downloadDir.existsSync()) {
-            final targetFile = File('${downloadDir.path}/$fileName');
-            await targetFile.writeAsBytes(bytes, flush: true);
-            isSaved = true;
-            destinationInfo = 'folder Download';
-          }
-        }
-      } catch (_) {
-        isSaved = false;
-      }
-
-      // 2. Fallback menggunakan FilePicker.saveFile bawaan OS (tetap di dalam app tanpa browser)
-      if (!isSaved) {
-        final savedUri = await FilePicker.saveFile(
-          fileName: fileName,
-          bytes: bytes,
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          dialogTitle: 'Pilih Lokasi Simpan Rekap Presensi',
-        );
-        if (savedUri != null) {
-          isSaved = true;
-          destinationInfo = 'perangkat';
-        }
-      }
+      // Gunakan FilePicker.saveFile (SAF natif Android) agar file resmi terdaftar di sistem Android
+      final savedUri = await FilePicker.saveFile(
+        dialogTitle: 'Simpan Rekap Presensi',
+        fileName: fileName,
+        bytes: bytes,
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
 
       if (!mounted) return;
 
-      if (isSaved) {
+      if (savedUri != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -112,7 +89,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                 SizedBox(width: 10.w(context)),
                 Expanded(
                   child: Text(
-                    'Berhasil mengunduh $fileName ke $destinationInfo!',
+                    'Berhasil menyimpan $fileName!',
                     style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
                   ),
                 ),
@@ -121,6 +98,18 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
             backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Penyimpanan berkas dibatalkan.',
+              style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
+            ),
+            backgroundColor: AppColors.onSurfaceVariant,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
