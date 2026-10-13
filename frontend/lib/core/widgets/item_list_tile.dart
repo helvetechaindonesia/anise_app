@@ -17,6 +17,8 @@ class ItemListTile extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool showDivider;
+  final double? dividerThickness;
+  final Color? dividerColor;
   final EdgeInsetsGeometry? padding;
 
   const ItemListTile({
@@ -32,6 +34,8 @@ class ItemListTile extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.showDivider = true,
+    this.dividerThickness,
+    this.dividerColor,
     this.padding,
   });
 
@@ -130,11 +134,13 @@ class ItemListTile extends StatelessWidget {
         ),
         if (showDivider)
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w(context)),
-            child: Divider(
-              height: 1,
-              thickness: 1,
-              color: AppColors.outlineVariant.withValues(alpha: 0.5),
+            padding: EdgeInsets.symmetric(horizontal: 4.w(context), vertical: 2.h(context)),
+            child: Container(
+              height: dividerThickness ?? 2.0.h(context),
+              decoration: BoxDecoration(
+                color: dividerColor ?? AppColors.onBackground.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(1.w(context)),
+              ),
             ),
           ),
       ],

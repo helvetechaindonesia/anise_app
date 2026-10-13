@@ -19,6 +19,8 @@ class TugasItemCard extends StatelessWidget {
   final int? nilai;
   final bool isSelesai;
   final bool showDivider;
+  final double? dividerThickness;
+  final Color? dividerColor;
   final VoidCallback? onTap;
 
   const TugasItemCard({
@@ -35,6 +37,8 @@ class TugasItemCard extends StatelessWidget {
     this.nilai,
     this.isSelesai = false,
     this.showDivider = true,
+    this.dividerThickness,
+    this.dividerColor,
     this.onTap,
   });
 
@@ -52,6 +56,8 @@ class TugasItemCard extends StatelessWidget {
       statusIcon: statusIcon,
       statusColor: AppColors.onBackground,
       showDivider: showDivider,
+      dividerThickness: dividerThickness,
+      dividerColor: dividerColor,
       trailing: (isSelesai && nilai != null)
           ? Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 6.h(context)),

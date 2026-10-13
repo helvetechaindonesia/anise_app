@@ -41,10 +41,12 @@ Komponen ini dirancang untuk menggantikan desain kartu kotak terisolasi (*heavy 
    - **Judul Utama:** `AppTextStyles.titleMedium`, warna `AppColors.onBackground`, berat `w700` (Bold pekat).
    - **Metadata Baris:** Ikon ukuran `14.w(context)` berdampingan dengan `AppTextStyles.labelMedium`.
    - **Status & Trailing:** Status warna kontekstual (misal `AppColors.error` untuk belum dikerjakan / terlambat) dengan trailing opsional di kanan.
-3. **Pemisah (Divider):**
-   - Ketebalan: `1.0px`.
-   - Warna: `AppColors.outlineVariant.withValues(alpha: 0.5)`.
-   - Dapat dinonaktifkan dengan `showDivider: false` (misal untuk item terakhir pada list).
+3. **Pemisah (Divider / Separator):**
+   - **Bentuk:** Wadah `Container` garis tegas dengan ujung membulat halus (`borderRadius: 1.w(context)`).
+   - **Ketebalan Baku (Thickness):** **`2.0.h(context)`** (cukup tebal dan tegas, tidak samar/nyaru di layar beresolusi tinggi).
+   - **Warna Kontras Baku:** **`AppColors.onBackground.withValues(alpha: 0.18)`** (harmonis dengan tema Deep Teal, tegas membatasi item tanpa mengganggu teks).
+   - **Padding Spacing:** Horizontal `4.w(context)`, Vertikal `2.h(context)`.
+   - Dapat dinonaktifkan dengan `showDivider: false` (misal untuk item paling akhir).
 
 ---
 
@@ -62,6 +64,8 @@ Komponen ini dirancang untuk menggantikan desain kartu kotak terisolasi (*heavy 
 | `trailing` | `Widget?` | Opsional | Komponen aksi tambahan di pojok kanan bawah. |
 | `onTap` | `VoidCallback?` | Opsional | Fungsi callback saat item baris ditekan. |
 | `showDivider` | `bool` | Opsional | Menampilkan garis batas di bawah item (default: `true`). |
+| `dividerThickness` | `double?` | Opsional | Ketebalan garis pembatas (default: `2.0.h(context)`). |
+| `dividerColor` | `Color?` | Opsional | Warna garis pembatas (default: `AppColors.onBackground (18% alpha)`). |
 | `padding` | `EdgeInsetsGeometry?` | Opsional | Override padding kustom jika dibutuhkan. |
 
 ---
