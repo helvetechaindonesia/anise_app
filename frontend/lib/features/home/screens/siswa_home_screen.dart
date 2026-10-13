@@ -27,7 +27,7 @@ import '../widgets/identity_card_3d_widget.dart';
 import '../widgets/layanan_cepat_widget.dart';
 import '../widgets/bimbingan_mentor_widget.dart';
 import '../widgets/tugas_mendatang_widget.dart';
-import '../widgets/siswa_home_header.dart';
+import '../../../core/widgets/main_header.dart';
 import '../../../core/utils/time_helper.dart';
 
 class SiswaHomeScreen extends ConsumerStatefulWidget {
@@ -49,7 +49,9 @@ class _SiswaHomeScreenState extends ConsumerState<SiswaHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final userName = user?.fullName ?? 'Alivia Renata';
+    final userName = (user != null && user.fullName.trim().isNotEmpty)
+        ? user.fullName
+        : ((user != null && user.username.trim().isNotEmpty) ? user.username : 'Siswa');
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight, // Background handled by DecorativeBackground
@@ -57,7 +59,14 @@ class _SiswaHomeScreenState extends ConsumerState<SiswaHomeScreen> {
         child: CustomScrollView(
           slivers: [
             // 1. Header (Fixed/Pinned)
-            const SiswaHomeHeader(),
+            MainHeader(
+              onNotificationPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                );
+              },
+            ),
 
             SliverToBoxAdapter(
               child: Padding(

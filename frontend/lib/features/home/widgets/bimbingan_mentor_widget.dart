@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/section_action_link.dart';
 import '../providers/home_provider.dart';
 import '../../jadwal/screens/semua_pengajar_screen.dart';
 import '../../jadwal/screens/jadwal_guru_detail_screen.dart';
@@ -32,24 +33,13 @@ class BimbinganMentorWidget extends ConsumerWidget {
                 ),
               ],
             ),
-            GestureDetector(
+            SectionActionLink(
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SemuaPengajarScreen()),
                 );
               },
-              child: Row(
-                children: [
-                  Text(
-                    'Lihat\nSemua',
-                    textAlign: TextAlign.right,
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
-                  ),
-                  SizedBox(width: 4.w(context)),
-                  Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onBackground),
-                ],
-              ),
             ),
           ],
         ),

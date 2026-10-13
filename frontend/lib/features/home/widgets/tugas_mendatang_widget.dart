@@ -15,6 +15,9 @@ class TugasMendatangWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tugasAsync = ref.watch(tugasMendatangProvider);
+    final int tugasCount = tugasAsync.value?.length ?? 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -28,18 +31,20 @@ class TugasMendatangWidget extends ConsumerWidget {
                   'Tugas Mendatang',
                   style: AppTextStyles.bodyLarge(context, color: AppColors.onBackground),
                 ),
-                SizedBox(width: 8.w(context)),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(20.w(context)),
+                if (tugasCount > 0) ...[
+                  SizedBox(width: 8.w(context)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(20.w(context)),
+                    ),
+                    child: Text(
+                      '$tugasCount',
+                      style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary),
+                    ),
                   ),
-                  child: Text(
-                    '2',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary),
-                  ),
-                ),
+                ],
               ],
             ),
             SectionActionLink(

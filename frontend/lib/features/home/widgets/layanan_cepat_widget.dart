@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/menu_icon_button.dart';
 
 import '../../jadwal/screens/jadwal_screen.dart';
 import '../../presensi/screens/presensi_screen.dart';
@@ -74,7 +75,9 @@ class _LayananCepatWidgetState extends State<LayananCepatWidget> {
             itemCount: displayItems.length,
             itemBuilder: (context, index) {
               final item = displayItems[index];
-              return GestureDetector(
+              return MenuIconButton(
+                icon: item['icon'] as IconData,
+                label: item['label'] as String,
                 onTap: () {
                   if (item['label'] == 'Lainnya') {
                     setState(() {
@@ -157,38 +160,6 @@ class _LayananCepatWidgetState extends State<LayananCepatWidget> {
                     );
                   }
                 },
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56.w(context),
-                      height: 56.w(context),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                        borderRadius: BorderRadius.circular(20.w(context)),
-                      ),
-                      child: item['icon'] != null
-                          ? Icon(
-                              item['icon'] as IconData,
-                              color: AppColors.onPrimaryContainer,
-                              size: 24.w(context),
-                            )
-                          : null,
-                    ),
-                    Spacing.custom(context, 8),
-                    Text(
-                      item['label'] as String,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                    ),
-                  ],
-                ),
               );
             },
           ),
