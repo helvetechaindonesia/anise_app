@@ -50,7 +50,7 @@ class AniseScheduleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ?topWidget,
+            if (topWidget != null) topWidget!,
             const Spacer(),
             Text(
               title,

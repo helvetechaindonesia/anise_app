@@ -35,13 +35,13 @@ class _BerkasSayaScreenState extends ConsumerState<BerkasSayaScreen> {
 
   Future<void> _pickFile() async {
     try {
-      final List<PlatformFile> result = await FilePicker.pickFiles(
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'],
       );
 
-      if (result.isNotEmpty) {
-        final file = result.first;
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
         if (file.path == null) return;
         
         setState(() => _isUploading = true);

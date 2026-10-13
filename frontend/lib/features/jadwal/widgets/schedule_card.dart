@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
@@ -293,15 +294,18 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Tautan berhasil disalin!'),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
-                backgroundColor: AppColors.primary,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            final shareText = StringBuffer()
+              ..writeln('📚 *Jadwal & Catatan Kelas - AN-ISE App*')
+              ..writeln('----------------------------------------')
+              ..writeln('📖 *Mata Pelajaran:* ${widget.subjectName}')
+              ..writeln('👨‍🏫 *Guru:* ${widget.teacherName}')
+              ..writeln('⏰ *Waktu:* ${widget.timeRange}')
+              ..writeln('')
+              ..writeln('📝 *Catatan Pembelajaran:*')
+              ..writeln(widget.description)
+              ..writeln('')
+              ..writeln('📲 Dibagikan melalui AN-ISE Learning Management System');
+            SharePlus.instance.share(shareText.toString(), subject: 'Jadwal Pembelajaran: ${widget.subjectName}');
           },
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -313,7 +317,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
               ),
               SizedBox(width: 4.w(context)),
               Text(
-                '12', // Dummy count untuk jumlah share
+                'Bagikan',
                 style: AppTextStyles.bodySmall(context, color: mutedTextColor),
               ),
             ],
@@ -497,9 +501,27 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(
-                                              item['user'] ?? 'Siswa',
-                                              style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  item['user'] ?? 'Siswa',
+                                                  style: AppTextStyles.labelMedium(context, color: (item['is_me'] == true || item['user'] == 'Saya') ? AppColors.primary : AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                                ),
+                                                if (item['is_me'] == true || item['user'] == 'Saya') ...[
+                                                  SizedBox(width: 6.w(context)),
+                                                  Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.primaryContainer,
+                                                      borderRadius: BorderRadius.circular(4.w(context)),
+                                                    ),
+                                                    child: Text(
+                                                      'Anda',
+                                                      style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontSize: 10, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                             Row(
                                               children: [

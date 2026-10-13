@@ -149,14 +149,15 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
 
   Future<void> _handleUpload(String title) async {
     try {
-      PlatformFile? result = await FilePicker.pickFile(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
       );
 
-      if (result != null) {
-        String? filePath = result.path;
-        String? fileName = result.name;
+      if (result != null && result.files.isNotEmpty) {
+        PlatformFile picked = result.files.first;
+        String? filePath = picked.path;
+        String? fileName = picked.name;
         
         if (filePath == null) return;
 

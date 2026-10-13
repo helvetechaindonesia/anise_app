@@ -601,6 +601,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                         try {
                           final dio = ref.read(dioProvider);
                           await dio.post('/journals/$jId/save');
+                          ref.invalidate(allJournalsProvider);
                         } catch (_) {}
                       }
                     },
@@ -628,11 +629,14 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                                   }
                                 }
                               }
+                              final isMe = item['is_me'] == true || item['can_delete'] == true;
+                              final authorName = item['author_name'] ?? (isMe ? 'Saya' : 'Siswa');
                               return {
                                 'id': item['id'],
-                                'user': item['author_name'] ?? 'Pengguna',
+                                'user': isMe ? 'Saya' : authorName,
                                 'text': item['comment_text'] ?? '',
                                 'time': timeStr,
+                                'is_me': isMe,
                                 'can_delete': item['can_delete'] == true,
                               };
                             }).toList();

@@ -29,14 +29,14 @@ class _SiswaAjukanIzinScreenState extends ConsumerState<SiswaAjukanIzinScreen> {
   }
 
   Future<void> _pickFile() async {
-    final List<PlatformFile> result = await FilePicker.pickFiles(
+    final FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
     );
-    if (result.isNotEmpty) {
+    if (result != null && result.files.isNotEmpty) {
       setState(() {
-        _filePath = result.first.path;
-        _fileName = result.first.name;
+        _filePath = result.files.first.path;
+        _fileName = result.files.first.name;
       });
     }
   }

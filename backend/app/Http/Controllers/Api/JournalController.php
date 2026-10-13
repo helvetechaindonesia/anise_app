@@ -528,18 +528,21 @@ class JournalController extends Controller
                 ->get()
                 ->map(function ($c) use ($user, $isTeacherOwner) {
                     $u = $c->user;
-                    $name = $u?->guruProfile ? $u->guruProfile->full_name : ($u?->siswaProfile ? $u->siswaProfile->full_name : ($u?->full_name ?: ($u?->username ?? 'Pengguna')));
+                    $isMe = ($user->id === $c->user_id);
+                    $name = $u?->full_name ?: ($u?->guruProfile?->full_name ?: ($u?->siswaProfile?->full_name ?: ($u?->username ?? 'Pengguna')));
                     $uRole = $u?->role_type ?? ($u?->role ?? 'SISWA');
                     return [
                         'id' => $c->id,
                         'journal_id' => $c->journal_id,
                         'user_id' => $c->user_id,
-                        'author_name' => $name,
+                        'author_name' => $isMe ? 'Saya' : $name,
+                        'raw_author_name' => $name,
+                        'is_me' => $isMe,
                         'author_role' => $uRole,
                         'author_avatar' => $u?->profile_picture,
                         'comment_text' => $c->comment_text,
                         'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
-                        'can_delete' => ($user->id === $c->user_id) || $isTeacherOwner
+                        'can_delete' => $isMe || $isTeacherOwner
                     ];
                 });
 
@@ -625,7 +628,7 @@ class JournalController extends Controller
                 'comment_text' => $request->comment_text
             ]);
 
-            $name = $user->guruProfile ? $user->guruProfile->full_name : ($user->siswaProfile ? $user->siswaProfile->full_name : ($user->full_name ?: ($user->username ?? 'Saya')));
+            $rawName = $user->full_name ?: ($user->guruProfile?->full_name ?: ($user->siswaProfile?->full_name ?: ($user->username ?? 'Saya')));
 
             return response()->json([
                 'status' => 'success',
@@ -633,7 +636,9 @@ class JournalController extends Controller
                     'id' => $comment->id,
                     'journal_id' => $comment->journal_id,
                     'user_id' => $comment->user_id,
-                    'author_name' => $name,
+                    'author_name' => 'Saya',
+                    'raw_author_name' => $rawName,
+                    'is_me' => true,
                     'author_role' => $userRole,
                     'author_avatar' => $user->profile_picture,
                     'comment_text' => $comment->comment_text,

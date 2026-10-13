@@ -120,14 +120,15 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
 
   Future<void> _pickExcelFile(String title) async {
     try {
-      PlatformFile? result = await FilePicker.pickFile(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
       );
 
-      if (result != null) {
-        String fileName = result.name;
-        String filePath = result.path!;
+      if (result != null && result.files.isNotEmpty) {
+        PlatformFile picked = result.files.first;
+        String fileName = picked.name;
+        String filePath = picked.path!;
         
         setState(() {
           _isUploading = true;

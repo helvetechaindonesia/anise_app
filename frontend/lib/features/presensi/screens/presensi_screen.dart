@@ -64,14 +64,13 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
         }
       }
 
-      // Gunakan FilePicker.saveFile (SAF natif Android) agar file resmi terdaftar di sistem Android
-      final savedUri = await FilePicker.saveFile(
+      // Gunakan FilePicker.platform.saveFile (SAF natif Android) agar file resmi terdaftar di sistem Android
+      final savedUri = await FilePicker.platform.saveFile(
         dialogTitle: 'Simpan Rekap Presensi',
         fileName: fileName,
         bytes: bytes,
         type: FileType.custom,
         allowedExtensions: ['xlsx'],
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
 
       if (!mounted) return;

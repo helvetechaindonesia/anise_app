@@ -47,13 +47,13 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   }
 
   Future<void> _pickFile() async {
-    List<PlatformFile> result = await FilePicker.pickFiles(
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx'],
     );
 
-    if (result.isNotEmpty) {
-      File file = File(result.first.path!);
+    if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      File file = File(result.files.first.path!);
       int sizeInBytes = file.lengthSync();
       double sizeInMb = sizeInBytes / (1024 * 1024);
 
@@ -70,7 +70,7 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
 
       setState(() {
         _selectedFile = file;
-        _fileName = result.first.name;
+        _fileName = result.files.first.name;
       });
     }
   }

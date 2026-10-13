@@ -126,7 +126,7 @@ class ItemListTile extends StatelessWidget {
                         )
                       else
                         const SizedBox(),
-                      ?trailing,
+                      if (trailing != null) trailing!,
                     ],
                   ),
                 ],

@@ -75,14 +75,15 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
   Future<void> _pickExcelFile(String title) async {
     try {
-      PlatformFile? result = await FilePicker.pickFile(
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'xls'],
       );
 
-      if (result != null && result.path != null) {
-        String fileName = result.name;
-        String filePath = result.path!;
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+        PlatformFile picked = result.files.first;
+        String fileName = picked.name;
+        String filePath = picked.path!;
         
         setState(() {
           _isUploading = true;
