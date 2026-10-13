@@ -1,12 +1,14 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/utils/shared_prefs.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_button.dart';
 
@@ -33,50 +35,101 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     try {
       final month = ref.read(selectedMonthProvider);
       final year = ref.read(selectedYearProvider);
-      final token = await SharedPrefs.getToken();
+      final dio = ref.read(dioProvider);
 
-      if (token == null || token.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Sesi login tidak valid. Silakan login kembali.',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        return;
-      }
-
-      final url = Uri.parse(
-        '${ApiConstants.baseUrl}/attendance/export?month=$month&year=$year&token=$token',
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Sedang mengunduh berkas Excel (.xlsx)... Periksa notifikasi unduhan ponsel Anda.',
-            style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-          ),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
+      // Unduh binary data langsung via background HTTP Dio (tanpa redirect/buka browser)
+      final response = await dio.get<List<int>>(
+        '/attendance/export',
+        queryParameters: {
+          'month': month,
+          'year': year,
+        },
+        options: Options(
+          responseType: ResponseType.bytes,
         ),
       );
 
-      final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (!launched) {
-        await launchUrl(url, mode: LaunchMode.platformDefault);
+      if (response.data == null || response.data!.isEmpty) {
+        throw Exception('Data berkas dari server kosong.');
+      }
+
+      final bytes = Uint8List.fromList(response.data!);
+
+      // Ekstrak nama file dari header Content-Disposition bila tersedia
+      String fileName = 'Rekap_Presensi_${month}_$year.xlsx';
+      final contentDisposition = response.headers.value('content-disposition');
+      if (contentDisposition != null) {
+        final match = RegExp(r'filename="?([^";]+)"?').firstMatch(contentDisposition);
+        if (match != null && match.group(1) != null) {
+          fileName = match.group(1)!;
+        }
+      }
+
+      bool isSaved = false;
+      String destinationInfo = 'folder Download';
+
+      // 1. Upayakan penyimpanan instan langsung ke direktori Download publik Android
+      try {
+        if (Platform.isAndroid) {
+          final downloadDir = Directory('/storage/emulated/0/Download');
+          if (downloadDir.existsSync()) {
+            final targetFile = File('${downloadDir.path}/$fileName');
+            await targetFile.writeAsBytes(bytes, flush: true);
+            isSaved = true;
+            destinationInfo = 'folder Download';
+          }
+        }
+      } catch (_) {
+        isSaved = false;
+      }
+
+      // 2. Fallback menggunakan FilePicker.saveFile bawaan OS (tetap di dalam app tanpa browser)
+      if (!isSaved) {
+        final savedUri = await FilePicker.saveFile(
+          fileName: fileName,
+          bytes: bytes,
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: 'Pilih Lokasi Simpan Rekap Presensi',
+        );
+        if (savedUri != null) {
+          isSaved = true;
+          destinationInfo = 'perangkat';
+        }
+      }
+
+      if (!mounted) return;
+
+      if (isSaved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                  color: AppColors.onPrimary,
+                  size: 20.w(context),
+                ),
+                SizedBox(width: 10.w(context)),
+                Expanded(
+                  child: Text(
+                    'Berhasil mengunduh $fileName ke $destinationInfo!',
+                    style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Gagal mengunduh: $e',
+            'Gagal mengunduh berkas: $e',
             style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
           ),
           backgroundColor: AppColors.error,
