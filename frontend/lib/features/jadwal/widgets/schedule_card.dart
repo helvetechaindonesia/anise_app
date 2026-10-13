@@ -229,20 +229,23 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 1. KOMENTAR
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             _showCommentBottomSheet(context);
           },
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 PhosphorIcons.chatTeardrop(PhosphorIconsStyle.bold),
                 color: mutedTextColor,
-                size: 20.w(context),
+                size: 18.w(context),
               ),
-              SizedBox(width: 6.w(context)),
+              SizedBox(width: 4.w(context)),
               Text(
                 '${widget.comments}',
                 style: AppTextStyles.bodySmall(context, color: mutedTextColor),
@@ -253,6 +256,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
         
         // 2. BAGIKAN
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -265,13 +269,14 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
             );
           },
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
                 color: mutedTextColor,
-                size: 20.w(context),
+                size: 18.w(context),
               ),
-              SizedBox(width: 6.w(context)),
+              SizedBox(width: 4.w(context)),
               Text(
                 '12', // Dummy count untuk jumlah share
                 style: AppTextStyles.bodySmall(context, color: mutedTextColor),
@@ -282,6 +287,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
 
         // 3. SUKA
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             setState(() {
               _isLiked = !_isLiked;
@@ -293,13 +299,14 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
             });
           },
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 _isLiked ? PhosphorIcons.heart(PhosphorIconsStyle.fill) : PhosphorIcons.heart(PhosphorIconsStyle.bold),
                 color: _isLiked ? AppColors.error : mutedTextColor,
-                size: 20.w(context),
+                size: 18.w(context),
               ),
-              SizedBox(width: 6.w(context)),
+              SizedBox(width: 4.w(context)),
               Text(
                 '$_currentLikes',
                 style: AppTextStyles.bodySmall(context, color: _isLiked ? AppColors.error : mutedTextColor),
@@ -310,6 +317,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
         
         // 4. SIMPAN (BOOKMARK)
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             setState(() {
               _isSaved = !_isSaved;
@@ -324,10 +332,13 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
               ),
             );
           },
-          child: Icon(
-            _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
-            color: _isSaved ? AppColors.secondary : iconColor,
-            size: 20.w(context),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2.w(context), vertical: 2.h(context)),
+            child: Icon(
+              _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
+              color: _isSaved ? AppColors.secondary : iconColor,
+              size: 18.w(context),
+            ),
           ),
         ),
       ],

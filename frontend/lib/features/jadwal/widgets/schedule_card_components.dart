@@ -282,7 +282,7 @@ class _RatingSectionWidgetState extends State<RatingSectionWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
+      padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
       decoration: BoxDecoration(
         color: AppColors.backgroundLight,
         borderRadius: BorderRadius.circular(12.w(context)),
@@ -291,17 +291,26 @@ class _RatingSectionWidgetState extends State<RatingSectionWidget> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(PhosphorIcons.chartBar(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
-              SizedBox(width: 6.w(context)),
-              Text(
-                'Tensi Penilaian ($_currentRating/5)',
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(PhosphorIcons.chartBar(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
+                SizedBox(width: 6.w(context)),
+                Flexible(
+                  child: Text(
+                    'Tensi Penilaian ($_currentRating/5)',
+                    style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
+          SizedBox(width: 8.w(context)),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: List.generate(5, (index) {
               final starIndex = index + 1;
               final isFilled = starIndex <= _currentRating;
@@ -324,11 +333,11 @@ class _RatingSectionWidgetState extends State<RatingSectionWidget> {
                   );
                 },
                 child: Padding(
-                  padding: EdgeInsets.only(left: 4.w(context)),
+                  padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
                   child: Icon(
                     isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
-                    color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
-                    size: 20.w(context),
+                    color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.4),
+                    size: 18.w(context),
                   ),
                 ),
               );
