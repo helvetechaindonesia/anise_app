@@ -51,6 +51,9 @@ Route::prefix('auth')->group(function () {
 Route::get('/dev/contact', [DevController::class, 'getContact']);
 Route::match(['get', 'post'], '/dev/seed-home-data', [DevController::class, 'seedHomeData']);
 
+// Export Presensi XLSX (Dapat diakses via Browser/Download Manager dengan parameter ?token=... atau Bearer Header)
+Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXlsx']);
+
 Route::middleware('auth:sanctum')->group(function () {
     
     // ==========================================
@@ -58,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::prefix('attendance')->group(function () {
         Route::get('/', [AttendanceController::class, 'getRiwayatPresensi']);
+        Route::get('/export', [AttendanceController::class, 'exportPresensiXlsx']);
         Route::post('/check-in-cam', [AttendanceController::class, 'submitPresensiCam']);
         Route::post('/biometric/register', [AttendanceController::class, 'registerBiometric']);
         Route::post('/laporan-telat', [AttendanceController::class, 'submitLaporanTelat']); // Bisa dipakai Guru/Satpam
