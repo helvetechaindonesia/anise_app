@@ -35,7 +35,17 @@ Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. 
 | **`CardInfo`** | Kartu ringkasan statistik & metrik performa (Hadir, Poin, Rekap). | [specs/card_info.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/card_info.md) |
 | **`AniseScheduleCard`** | Kartu carousel horizontal jadwal KBM/kelas (warna Deep Teal, avatar profil / badge siswa). | [specs/anise_schedule_card.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_schedule_card.md) |
 | **`ItemListTile`** | Baris daftar vertikal datar baku Model B (tugas, riwayat presensi, pengumuman, surat masuk). | [specs/item_list_tile.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/item_list_tile.md) |
+| **`AniseExpandableCard`** | Kartu accordion kolapsibel dengan animasi halus (rekap ketidakhadiran, rincian nilai). | [specs/anise_expandable_card.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_expandable_card.md) |
 | **`StateFeedback`** | Tampilan status saat data kosong (*Empty State*) atau internet error (*Retry View*). | [specs/state_feedback.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/state_feedback.md) |
+
+---
+
+## 📝 4. Input & Filter (Form & Selectors)
+
+| Komponen | Peran & Letak | Tautan Dokumen Detail |
+| :--- | :--- | :--- |
+| **`AniseDropdown`** | Dropdown filter/selector standar dengan outline terpadu & ikon caret (bulan, tahun, kelas, mapel). | [specs/anise_dropdown.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_dropdown.md) |
+| **`AniseTextField`** | Text field input form standar dengan label, hint, validasi error & rounded outline. | `lib/core/widgets/anise_text_field.dart` |
 
 ---
 

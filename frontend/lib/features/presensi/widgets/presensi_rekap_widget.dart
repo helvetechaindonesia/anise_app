@@ -4,17 +4,12 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/anise_expandable_card.dart';
+import '../../../../core/widgets/card_info.dart';
 import '../providers/presensi_provider.dart';
 
-class PresensiRekapWidget extends ConsumerStatefulWidget {
+class PresensiRekapWidget extends ConsumerWidget {
   const PresensiRekapWidget({super.key});
-
-  @override
-  ConsumerState<PresensiRekapWidget> createState() => _PresensiRekapWidgetState();
-}
-
-class _PresensiRekapWidgetState extends ConsumerState<PresensiRekapWidget> {
-  bool _isKetidakhadiranExpanded = false;
 
   static const List<String> _months = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -22,7 +17,7 @@ class _PresensiRekapWidgetState extends ConsumerState<PresensiRekapWidget> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(presensiSummaryProvider);
     final summary = summaryAsync.value ?? {};
 
@@ -54,130 +49,30 @@ class _PresensiRekapWidgetState extends ConsumerState<PresensiRekapWidget> {
   Widget _buildHadirTerlambatRow(BuildContext context, String hadirCount, String terlambatCount) {
     return Row(
       children: [
-        // 1. Card Hadir Penuh (Ikon Dinamis Check Circle)
+        // 1. Card Hadir Penuh (CardInfo Baku)
         Expanded(
-          child: Container(
-            padding: EdgeInsets.all(12.w(context)),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16.w(context)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.onBackground.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 42.w(context),
-                  height: 42.w(context),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12.w(context)),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
-                      color: AppColors.onPrimary,
-                      size: 22.w(context),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12.w(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hadir Penuh',
-                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            hadirCount,
-                            style: AppTextStyles.titleLarge(context, color: AppColors.onSurface),
-                          ),
-                          SizedBox(width: 4.w(context)),
-                          Text(
-                            'Hari',
-                            style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          child: CardInfo(
+            title: 'Hadir Penuh',
+            value: hadirCount,
+            unit: 'Hari',
+            icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+            iconBgColor: AppColors.primary,
+            iconColor: AppColors.onPrimary,
           ),
         ),
         SizedBox(width: 12.w(context)),
 
-        // 2. Card Terlambat (Ikon Dinamis Warning Circle)
+        // 2. Card Terlambat (CardInfo Baku)
         Expanded(
-          child: Container(
-            padding: EdgeInsets.all(12.w(context)),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16.w(context)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.onBackground.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 42.w(context),
-                  height: 42.w(context),
-                  decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(12.w(context)),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
-                      color: AppColors.onPrimary,
-                      size: 22.w(context),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12.w(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Terlambat',
-                        style: AppTextStyles.labelSmall(context, color: AppColors.error),
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            terlambatCount,
-                            style: AppTextStyles.titleLarge(context, color: AppColors.error),
-                          ),
-                          SizedBox(width: 4.w(context)),
-                          Text(
-                            'Hari',
-                            style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          child: CardInfo(
+            title: 'Terlambat',
+            value: terlambatCount,
+            unit: 'Hari',
+            icon: PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
+            iconBgColor: AppColors.error,
+            iconColor: AppColors.onPrimary,
+            titleColor: AppColors.error,
+            valueColor: AppColors.error,
           ),
         ),
       ],
@@ -267,83 +162,18 @@ class _PresensiRekapWidgetState extends ConsumerState<PresensiRekapWidget> {
   }
 
   Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String izin, String alpha) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isKetidakhadiranExpanded = !_isKetidakhadiranExpanded;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.primaryContainer,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.onBackground.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(
-                  PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
-                  color: AppColors.onPrimaryContainer,
-                  size: 18.w(context),
-                ),
-                SizedBox(width: 12.w(context)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Rekap Ketidakhadiran',
-                        style: AppTextStyles.titleSmall(context, color: AppColors.onPrimaryContainer).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        periodeStr,
-                        style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer.withValues(alpha: 0.7)),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  _isKetidakhadiranExpanded
-                      ? PhosphorIcons.caretUp(PhosphorIconsStyle.bold)
-                      : PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
-                  color: AppColors.onPrimaryContainer,
-                  size: 16.w(context),
-                ),
-              ],
-            ),
-            if (_isKetidakhadiranExpanded) ...[
-              SizedBox(height: 16.h(context)),
-              Container(
-                padding: EdgeInsets.all(14.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                ),
-                child: Column(
-                  children: [
-                    _buildSiaRow(context, 'Sakit', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
-                    Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-                    _buildSiaRow(context, 'Izin', '$izin Hari', AppColors.secondary, PhosphorIcons.envelope(PhosphorIconsStyle.fill)),
-                    Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-                    _buildSiaRow(context, 'Alpha', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),
-                  ],
-                ),
-              ),
-            ]
-          ],
-        ),
+    return AniseExpandableCard(
+      title: 'Rekap Ketidakhadiran',
+      subtitle: periodeStr,
+      icon: PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
+      child: Column(
+        children: [
+          _buildSiaRow(context, 'Sakit', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
+          Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
+          _buildSiaRow(context, 'Izin', '$izin Hari', AppColors.secondary, PhosphorIcons.envelope(PhosphorIconsStyle.fill)),
+          Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
+          _buildSiaRow(context, 'Alpha', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),
+        ],
       ),
     );
   }
