@@ -25,7 +25,22 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
-            return $this->error('Invalid credentials', 401);
+            if ($user) {
+                try {
+                    \Illuminate\Support\Facades\DB::table('security_audit_logs')->insert([
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'user_id' => $user->id,
+                        'event_type' => 'FAILED_LOGIN_ATTEMPT',
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                        'metadata' => json_encode(['email' => $request->email, 'time' => now()->toIso8601String()]),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                } catch (\Throwable $e) {}
+            }
+
+            return $this->error('Email atau kata sandi tidak valid', 401);
         }
 
         if (!$user->is_active) {
