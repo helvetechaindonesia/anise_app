@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Traits\ApiResponser;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Rap2hpoutre\FastExcel\FastExcel;
@@ -153,13 +154,17 @@ class AttendanceController extends Controller
             }
 
             $validator = null;
-            if ($user->role === 'SISWA' && in_array($log->status, ['K', 'PA', 'TERLAMBAT', 'Terlambat'])) {
-                $report = DB::table('laporan_telat_siswa')
-                    ->join('users', 'laporan_telat_siswa.approved_by', '=', 'users.id')
-                    ->where('siswa_id', $user->id)
-                    ->select('users.full_name')
-                    ->first();
-                $validator = $report ? $report->full_name : 'Budi Santoso, S.Kom. (Wali Kelas)';
+            if (in_array($log->status, ['K', 'PA', 'TERLAMBAT', 'Terlambat'])) {
+                if (Schema::hasTable('discipline_reports')) {
+                    $report = DB::table('discipline_reports')
+                        ->join('users', 'discipline_reports.approved_by', '=', 'users.id')
+                        ->where('discipline_reports.student_id', $user->id)
+                        ->select('users.full_name')
+                        ->first();
+                    $validator = $report ? $report->full_name : 'Budi Santoso, S.Kom. (Wali Kelas)';
+                } else {
+                    $validator = 'Budi Santoso, S.Kom. (Wali Kelas)';
+                }
             }
 
             return [
@@ -211,94 +216,111 @@ class AttendanceController extends Controller
 
     public function exportPresensiXlsx(Request $request)
     {
-        $user = null;
+        try {
+            $user = null;
 
-        // 1. Authenticate user from Bearer header
-        if ($request->bearerToken()) {
-            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
-            if ($accessToken) {
-                $user = $accessToken->tokenable;
+            // 1. Authenticate user from Bearer header
+            if ($request->bearerToken()) {
+                $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+                if ($accessToken) {
+                    $user = $accessToken->tokenable;
+                }
             }
-        }
 
-        // 2. Fallback: Authenticate from query parameter 'token'
-        if (!$user && $request->filled('token')) {
-            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($request->query('token'));
-            if ($accessToken) {
-                $user = $accessToken->tokenable;
+            // 2. Fallback: Authenticate from query parameter 'token'
+            if (!$user && $request->filled('token')) {
+                $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($request->query('token'));
+                if ($accessToken) {
+                    $user = $accessToken->tokenable;
+                }
             }
-        }
 
-        // 3. Fallback: Check if user resolved by middleware
-        if (!$user && $request->user()) {
-            $user = $request->user();
-        }
+            // 3. Fallback: Check if user resolved by middleware
+            if (!$user && $request->user()) {
+                $user = $request->user();
+            }
 
-        if (!$user) {
-            return response()->json(['message' => 'Unauthorized: Token autentikasi tidak valid atau telah berakhir.'], 401);
-        }
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized: Token autentikasi tidak valid atau telah berakhir.'], 401);
+            }
 
-        $month = (int) $request->query('month', now()->month);
-        $year = (int) $request->query('year', now()->year);
+            $month = (int) $request->query('month', now()->month);
+            $year = (int) $request->query('year', now()->year);
 
-        // Student metadata
-        $nisn = DB::table('student_profiles')->where('user_id', $user->id)->value('nisn') ?? '-';
-        $classData = DB::table('class_students')
-            ->join('classes', 'class_students.class_id', '=', 'classes.id')
-            ->where('class_students.student_id', $user->id)
-            ->select('classes.grade_level', 'classes.name')
-            ->first();
-        $className = $classData ? ($classData->grade_level . ' ' . $classData->name) : 'Kelas Reguler';
+            // Student metadata
+            $nisn = '-';
+            if (Schema::hasTable('student_profiles')) {
+                $nisn = DB::table('student_profiles')->where('user_id', $user->id)->value('nisn') ?? '-';
+            }
 
-        // Logs from attendances
-        $logs = DB::table('attendances')
-            ->where('user_id', $user->id)
-            ->whereYear('tanggal', $year)
-            ->whereMonth('tanggal', $month)
-            ->orderBy('tanggal', 'asc')
-            ->get();
+            $className = 'Kelas Reguler';
+            if (Schema::hasTable('class_students') && Schema::hasTable('classes')) {
+                $classData = DB::table('class_students')
+                    ->join('classes', 'class_students.class_id', '=', 'classes.id')
+                    ->where('class_students.student_id', $user->id)
+                    ->select('classes.grade_level', 'classes.name')
+                    ->first();
+                if ($classData) {
+                    $className = trim(($classData->grade_level ?? '') . ' ' . ($classData->name ?? ''));
+                }
+            }
 
-        // Approved Leaves
-        $leaves = DB::table('student_leaves')
-            ->where('student_id', $user->id)
-            ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
-            ->whereYear('start_date', $year)
-            ->whereMonth('start_date', $month)
-            ->get();
+            // Logs from attendances
+            $logs = collect();
+            if (Schema::hasTable('attendances')) {
+                $logs = DB::table('attendances')
+                    ->where('user_id', $user->id)
+                    ->whereYear('tanggal', $year)
+                    ->whereMonth('tanggal', $month)
+                    ->orderBy('tanggal', 'asc')
+                    ->get();
+            }
 
-        // Late reports approved by wali kelas
-        $lateReports = DB::table('laporan_telat_siswa')
-            ->leftJoin('users', 'laporan_telat_siswa.approved_by', '=', 'users.id')
-            ->where('siswa_id', $user->id)
-            ->select('laporan_telat_siswa.*', 'users.full_name as validator_name')
-            ->get()
-            ->keyBy(function ($item) {
-                return Carbon::parse($item->waktu_telat)->format('Y-m-d');
-            });
+            // Approved Leaves
+            $leaves = collect();
+            if (Schema::hasTable('student_leaves')) {
+                $leaves = DB::table('student_leaves')
+                    ->where('student_id', $user->id)
+                    ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
+                    ->whereYear('start_date', $year)
+                    ->whereMonth('start_date', $month)
+                    ->get();
+            }
 
-        // Summary counts
-        $hadirCount = $logs->whereIn('status', ['MASUK', 'Hadir', 'Hadir Tepat', 'PULANG', 'Pulang Tepat'])->count();
-        $terlambatCount = $logs->whereIn('status', ['TERLAMBAT', 'Terlambat', 'TAM'])->count();
-        $pulangAwalCount = $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
-        $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
-        $sakitCount = $leaves->where('type', 'SAKIT')->count();
-        $izinCount = $leaves->where('type', 'IZIN')->count();
-        $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
+            // Late reports approved by wali kelas (gunakan discipline_reports jika ada)
+            $lateReports = collect();
+            if (Schema::hasTable('discipline_reports')) {
+                $lateReports = DB::table('discipline_reports')
+                    ->leftJoin('users', 'discipline_reports.approved_by', '=', 'users.id')
+                    ->where('discipline_reports.student_id', $user->id)
+                    ->select('discipline_reports.*', 'users.full_name as validator_name')
+                    ->get()
+                    ->keyBy(function ($item) {
+                        return Carbon::parse($item->violation_time ?? $item->created_at)->format('Y-m-d');
+                    });
+            }
 
-        $rows = [];
-        $no = 1;
+            // Summary counts
+            $hadirCount = $logs->whereIn('status', ['MASUK', 'Hadir', 'Hadir Tepat', 'PULANG', 'Pulang Tepat'])->count();
+            $terlambatCount = $logs->whereIn('status', ['TERLAMBAT', 'Terlambat', 'TAM'])->count();
+            $pulangAwalCount = $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
+            $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
+            $sakitCount = $leaves->where('type', 'SAKIT')->count();
+            $izinCount = $leaves->where('type', 'IZIN')->count();
+            $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
-        // Populate attendance rows
-        foreach ($logs as $log) {
-            $date = Carbon::parse($log->tanggal);
-            $hari = $date->locale('id')->isoFormat('dddd');
-            $tanggal = $date->locale('id')->isoFormat('D MMMM Y');
+            $rows = [];
+            $no = 1;
 
-            $jamMasuk = $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-';
-            $jamPulang = $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') . ' WIB' : '-';
+            // Populate attendance rows
+            foreach ($logs as $log) {
+                $date = Carbon::parse($log->tanggal);
+                $hari = $date->locale('id')->isoFormat('dddd');
+                $tanggal = $date->locale('id')->isoFormat('D MMMM Y');
 
-            $status = $log->status;
-            if ($user->role === 'SISWA' || $user->role_type === 'SISWA') {
+                $jamMasuk = $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-';
+                $jamPulang = $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') . ' WIB' : '-';
+
                 $statusMap = [
                     'MASUK' => 'Hadir',
                     'Hadir' => 'Hadir',
@@ -311,114 +333,126 @@ class AttendanceController extends Controller
                     'ALPHA' => 'Alpha',
                 ];
                 $status = $statusMap[$log->status] ?? $log->status;
+
+                $catatan = 'Presensi Tepat Waktu';
+                if (in_array($log->status, ['TERLAMBAT', 'Terlambat', 'TAM'])) {
+                    $catatan = 'Terlambat Masuk Sekolah';
+                } elseif (in_array($log->status, ['PA', 'Pulang Awal'])) {
+                    $catatan = $log->pulang_awal_reason ?? 'Pulang Sebelum Jam Berakhir';
+                } elseif ($log->status === 'K') {
+                    $catatan = 'Kembali ke Sekolah';
+                }
+
+                $dateKey = $date->format('Y-m-d');
+                $validator = '-';
+                if (in_array($log->status, ['TERLAMBAT', 'Terlambat', 'TAM', 'PA', 'Pulang Awal', 'K'])) {
+                    if (isset($lateReports[$dateKey])) {
+                        $validator = ($lateReports[$dateKey]->validator_name ?? 'Wali Kelas') . ' (Disetujui)';
+                    } else {
+                        $validator = 'Budi Santoso, S.Kom. (Wali Kelas)';
+                    }
+                }
+
+                $rows[] = [
+                    'No' => $no++,
+                    'Hari' => $hari,
+                    'Tanggal' => $tanggal,
+                    'Jam Masuk' => $jamMasuk,
+                    'Jam Pulang' => $jamPulang,
+                    'Status Kehadiran' => $status,
+                    'Keterangan' => $catatan,
+                    'Lokasi' => 'Gerbang Utama (Geofence Verified)',
+                    'Validasi Wali Kelas' => $validator,
+                ];
             }
 
-            $catatan = 'Presensi Tepat Waktu';
-            if (in_array($log->status, ['TERLAMBAT', 'Terlambat', 'TAM'])) {
-                $catatan = 'Terlambat Masuk Sekolah';
-            } elseif (in_array($log->status, ['PA', 'Pulang Awal'])) {
-                $catatan = $log->pulang_awal_reason ?? 'Pulang Sebelum Jam Berakhir';
-            } elseif ($log->status === 'K') {
-                $catatan = 'Kembali ke Sekolah';
-            }
+            // Populate leave rows that are not in attendances
+            foreach ($leaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
-            $dateKey = $date->format('Y-m-d');
-            $validator = '-';
-            if (in_array($log->status, ['TERLAMBAT', 'Terlambat', 'TAM', 'PA', 'Pulang Awal', 'K'])) {
-                if (isset($lateReports[$dateKey])) {
-                    $validator = ($lateReports[$dateKey]->validator_name ?? 'Wali Kelas') . ' (Disetujui)';
-                } else {
-                    $validator = 'Budi Santoso, S.Kom. (Wali Kelas)';
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $dateStr = $c->format('Y-m-d');
+                    if (!$logs->contains('tanggal', $dateStr)) {
+                        $rows[] = [
+                            'No' => $no++,
+                            'Hari' => $c->locale('id')->isoFormat('dddd'),
+                            'Tanggal' => $c->locale('id')->isoFormat('D MMMM Y'),
+                            'Jam Masuk' => '-',
+                            'Jam Pulang' => '-',
+                            'Status Kehadiran' => ucfirst(strtolower($leave->type)),
+                            'Keterangan' => $leave->reason ?? ('Pengajuan ' . ucfirst(strtolower($leave->type))),
+                            'Lokasi' => 'Surat Elektronik (' . ($leave->status ?? 'ACC') . ')',
+                            'Validasi Wali Kelas' => 'Budi Santoso, S.Kom. (Wali Kelas)',
+                        ];
+                    }
                 }
             }
 
-            $rows[] = [
-                'No' => $no++,
-                'Hari' => $hari,
-                'Tanggal' => $tanggal,
-                'Jam Masuk' => $jamMasuk,
-                'Jam Pulang' => $jamPulang,
-                'Status Kehadiran' => $status,
-                'Keterangan' => $catatan,
-                'Lokasi' => 'Gerbang Utama (Geofence Verified)',
-                'Validasi Wali Kelas' => $validator,
-            ];
-        }
-
-        // Populate leave rows that are not in attendances
-        foreach ($leaves as $leave) {
-            $startDate = Carbon::parse($leave->start_date);
-            $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
-
-            for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                $dateStr = $c->format('Y-m-d');
-                if (!$logs->contains('tanggal', $dateStr)) {
-                    $rows[] = [
-                        'No' => $no++,
-                        'Hari' => $c->locale('id')->isoFormat('dddd'),
-                        'Tanggal' => $c->locale('id')->isoFormat('D MMMM Y'),
-                        'Jam Masuk' => '-',
-                        'Jam Pulang' => '-',
-                        'Status Kehadiran' => ucfirst(strtolower($leave->type)),
-                        'Keterangan' => $leave->reason ?? ('Pengajuan ' . ucfirst(strtolower($leave->type))),
-                        'Lokasi' => 'Surat Elektronik (' . ($leave->status ?? 'ACC') . ')',
-                        'Validasi Wali Kelas' => 'Budi Santoso, S.Kom. (Wali Kelas)',
-                    ];
-                }
+            // If empty
+            if (empty($rows)) {
+                $rows[] = [
+                    'No' => 1,
+                    'Hari' => '-',
+                    'Tanggal' => 'Tidak ada data presensi pada periode ini',
+                    'Jam Masuk' => '-',
+                    'Jam Pulang' => '-',
+                    'Status Kehadiran' => '-',
+                    'Keterangan' => '-',
+                    'Lokasi' => '-',
+                    'Validasi Wali Kelas' => '-',
+                ];
             }
-        }
 
-        // If empty
-        if (empty($rows)) {
+            // Add summary divider
             $rows[] = [
-                'No' => 1,
-                'Hari' => '-',
-                'Tanggal' => 'Tidak ada data presensi pada periode ini',
-                'Jam Masuk' => '-',
-                'Jam Pulang' => '-',
-                'Status Kehadiran' => '-',
-                'Keterangan' => '-',
-                'Lokasi' => '-',
-                'Validasi Wali Kelas' => '-',
+                'No' => '',
+                'Hari' => '',
+                'Tanggal' => '',
+                'Jam Masuk' => '',
+                'Jam Pulang' => '',
+                'Status Kehadiran' => '',
+                'Keterangan' => '',
+                'Lokasi' => '',
+                'Validasi Wali Kelas' => '',
             ];
+
+            // Summary row
+            $namaBulan = Carbon::createFromDate($year, $month, 1)->locale('id')->isoFormat('MMMM');
+            $rows[] = [
+                'No' => 'REKAP',
+                'Hari' => 'STATISTIK',
+                'Tanggal' => "Periode: {$namaBulan} {$year}",
+                'Jam Masuk' => "Siswa: {$user->full_name}",
+                'Jam Pulang' => "NISN: {$nisn}",
+                'Status Kehadiran' => "Kelas: {$className}",
+                'Keterangan' => "Hadir: {$hadirCount} | Terlambat: {$terlambatCount} | Sakit: {$sakitCount} | Izin: {$izinCount} | Alpha: {$alphaCount}",
+                'Lokasi' => "Total Kehadiran: " . ($hadirCount + $terlambatCount) . " Hari",
+                'Validasi Wali Kelas' => "Diunduh: " . now()->locale('id')->isoFormat('D MMMM Y, HH:mm') . ' WIB',
+            ];
+
+            $cleanStudentName = Str::slug($user->full_name, '_');
+            $filename = "Rekap_Presensi_{$cleanStudentName}_{$namaBulan}_{$year}.xlsx";
+
+            // Simpan ke storage internal Laravel (aman dari batasan open_basedir pada aaPanel/Nginx)
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                @mkdir($tempDir, 0777, true);
+            }
+            $tempPath = $tempDir . DIRECTORY_SEPARATOR . 'presensi_' . Str::uuid() . '.xlsx';
+            (new FastExcel(collect($rows)))->export($tempPath);
+
+            return response()->download($tempPath, $filename, [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ])->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memproses ekspor presensi: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
         }
-
-        // Add summary divider
-        $rows[] = [
-            'No' => '',
-            'Hari' => '',
-            'Tanggal' => '',
-            'Jam Masuk' => '',
-            'Jam Pulang' => '',
-            'Status Kehadiran' => '',
-            'Keterangan' => '',
-            'Lokasi' => '',
-            'Validasi Wali Kelas' => '',
-        ];
-
-        // Summary row
-        $namaBulan = Carbon::createFromDate($year, $month, 1)->locale('id')->isoFormat('MMMM');
-        $rows[] = [
-            'No' => 'REKAP',
-            'Hari' => 'STATISTIK',
-            'Tanggal' => "Periode: {$namaBulan} {$year}",
-            'Jam Masuk' => "Siswa: {$user->full_name}",
-            'Jam Pulang' => "NISN: {$nisn}",
-            'Status Kehadiran' => "Kelas: {$className}",
-            'Keterangan' => "Hadir: {$hadirCount} | Terlambat: {$terlambatCount} | Sakit: {$sakitCount} | Izin: {$izinCount} | Alpha: {$alphaCount}",
-            'Lokasi' => "Total Kehadiran: " . ($hadirCount + $terlambatCount) . " Hari",
-            'Validasi Wali Kelas' => "Diunduh: " . now()->locale('id')->isoFormat('D MMMM Y, HH:mm') . ' WIB',
-        ];
-
-        $cleanStudentName = Str::slug($user->full_name, '_');
-        $filename = "Rekap_Presensi_{$cleanStudentName}_{$namaBulan}_{$year}.xlsx";
-
-        $tempPath = tempnam(sys_get_temp_dir(), 'presensi_') . '.xlsx';
-        (new FastExcel(collect($rows)))->export($tempPath);
-
-        return response()->download($tempPath, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ])->deleteFileAfterSend(true);
     }
 }
