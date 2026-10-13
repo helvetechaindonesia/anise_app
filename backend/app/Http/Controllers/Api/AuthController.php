@@ -165,27 +165,32 @@ class AuthController extends Controller
     }
 
     /**
-     * Dispatch WhatsApp message via Gateway API (Fonnte / Generic)
+     * Dispatch WhatsApp message via Gateway API (Self-Hosted Baileys / Generic Gateway)
      */
     private function dispatchWhatsAppMessage(string $phone, string $message): bool
     {
-        $gatewayToken = env('WA_GATEWAY_TOKEN');
-        $gatewayUrl = env('WA_GATEWAY_URL', 'https://api.fonnte.com/send');
+        $gatewayUrl = env('WA_GATEWAY_URL', 'http://127.0.0.1:3001/send-message');
+        $gatewayKey = env('WA_GATEWAY_KEY', 'anise_secret_gateway_key_2026');
 
-        if (!empty($gatewayToken)) {
-            try {
-                \Illuminate\Support\Facades\Http::withHeaders([
-                    'Authorization' => $gatewayToken,
-                ])->post($gatewayUrl, [
-                    'target' => $phone,
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)
+                ->withHeaders([
+                    'x-api-key' => $gatewayKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($gatewayUrl, [
+                    'phone' => $phone,
                     'message' => $message,
                 ]);
+
+            if ($response->successful()) {
+                \Illuminate\Support\Facades\Log::info("WhatsApp berhasil dikirim ke {$phone} via Self-Hosted Gateway");
                 return true;
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Gagal mengirim pesan WhatsApp: ' . $e->getMessage());
+            } else {
+                \Illuminate\Support\Facades\Log::warning("WhatsApp Gateway response gagal: " . $response->body());
             }
-        } else {
-            \Illuminate\Support\Facades\Log::info("Simulasi Pengiriman WhatsApp Anise ke {$phone}: \n{$message}");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::info("WhatsApp Gateway simulasi/offline ({$e->getMessage()}), pesan dicatat ke log: \n{$message}");
         }
 
         return true;
