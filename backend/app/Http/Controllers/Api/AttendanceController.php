@@ -218,7 +218,7 @@ class AttendanceController extends Controller
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
                     if ((int)$c->year === $year && (int)$c->month === $month) {
                         $dateStr = $c->format('Y-m-d');
-                        if (!$logs->contains('tanggal', $dateStr)) {
+                        if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
                             $leaveStatus = ucfirst(strtolower($leave->type));
                             $mergedLogs->push([
                                 'hari' => $c->locale('id')->dayName,
@@ -372,8 +372,7 @@ class AttendanceController extends Controller
             $izinCount = $leaves->where('type', 'IZIN')->count();
             $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
-            $rows = [];
-            $no = 1;
+            $dailyRows = [];
 
             // Populate attendance rows
             foreach ($logs as $log) {
@@ -416,8 +415,8 @@ class AttendanceController extends Controller
                     }
                 }
 
-                $rows[] = [
-                    'No' => $no++,
+                $dailyRows[] = [
+                    '_raw_date' => $log->tanggal,
                     'Hari' => $hari,
                     'Tanggal' => $tanggal,
                     'Jam Masuk' => $jamMasuk,
@@ -435,21 +434,34 @@ class AttendanceController extends Controller
                 $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                    $dateStr = $c->format('Y-m-d');
-                    if (!$logs->contains('tanggal', $dateStr)) {
-                        $rows[] = [
-                            'No' => $no++,
-                            'Hari' => $c->locale('id')->isoFormat('dddd'),
-                            'Tanggal' => $c->locale('id')->isoFormat('D MMMM Y'),
-                            'Jam Masuk' => '-',
-                            'Jam Pulang' => '-',
-                            'Status Kehadiran' => ucfirst(strtolower($leave->type)),
-                            'Keterangan' => $leave->reason ?? ('Pengajuan ' . ucfirst(strtolower($leave->type))),
-                            'Lokasi' => 'Surat Elektronik (' . ($leave->status ?? 'ACC') . ')',
-                            'Validasi Wali Kelas' => 'Budi Santoso, S.Kom. (Wali Kelas)',
-                        ];
+                    if ((int)$c->year === $year && (int)$c->month === $month) {
+                        $dateStr = $c->format('Y-m-d');
+                        if (!$logs->contains('tanggal', $dateStr) && !collect($dailyRows)->contains('_raw_date', $dateStr)) {
+                            $dailyRows[] = [
+                                '_raw_date' => $dateStr,
+                                'Hari' => $c->locale('id')->isoFormat('dddd'),
+                                'Tanggal' => $c->locale('id')->isoFormat('D MMMM Y'),
+                                'Jam Masuk' => '-',
+                                'Jam Pulang' => '-',
+                                'Status Kehadiran' => ucfirst(strtolower($leave->type)),
+                                'Keterangan' => $leave->reason ?? ('Pengajuan ' . ucfirst(strtolower($leave->type))),
+                                'Lokasi' => 'Surat Elektronik (' . ($leave->status ?? 'ACC') . ')',
+                                'Validasi Wali Kelas' => 'Budi Santoso, S.Kom. (Wali Kelas)',
+                            ];
+                        }
                     }
                 }
+            }
+
+            // Urutkan dailyRows secara kronologis (dari tanggal 1 ke akhir bulan)
+            $sortedDaily = collect($dailyRows)->sortBy('_raw_date')->values();
+
+            $rows = [];
+            $no = 1;
+            foreach ($sortedDaily as $item) {
+                $rawRow = (array) $item;
+                unset($rawRow['_raw_date']);
+                $rows[] = array_merge(['No' => $no++], $rawRow);
             }
 
             // If empty

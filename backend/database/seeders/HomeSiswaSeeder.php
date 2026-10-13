@@ -329,21 +329,23 @@ class HomeSiswaSeeder extends Seeder
         }
 
         // Catat Surat Izin Sakit untuk 9 Oktober 2026
-        \Illuminate\Support\Facades\DB::table('student_leaves')->updateOrInsert(
-            [
-                'student_id' => $siswa->id,
-                'start_date' => '2026-10-09',
-            ],
-            [
-                'id' => (string) Str::uuid(),
-                'type' => 'SAKIT',
-                'reason' => 'Demam tinggi dan istirahat dokter klinik Peunaron',
-                'end_date' => '2026-10-09',
-                'status' => 'APPROVED',
-                'approved_by' => $budiId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
+        if (\Illuminate\Support\Facades\Schema::hasTable('student_leaves')) {
+            \Illuminate\Support\Facades\DB::table('student_leaves')->updateOrInsert(
+                [
+                    'student_id' => $siswa->id,
+                    'start_date' => '2026-10-09',
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                    'type' => 'SAKIT',
+                    'reason' => 'Demam tinggi dan istirahat dokter klinik Peunaron',
+                    'end_date' => '2026-10-09',
+                    'status' => 'APPROVED',
+                    'approved_by' => $budiId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
     }
 }
