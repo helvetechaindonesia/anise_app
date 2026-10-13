@@ -15,6 +15,7 @@ class ItemListTile extends StatelessWidget {
   final IconData? statusIcon;
   final Color? statusColor;
   final Widget? trailing;
+  final Widget? bottomWidget;
   final VoidCallback? onTap;
   final bool showDivider;
   final double? dividerThickness;
@@ -32,6 +33,7 @@ class ItemListTile extends StatelessWidget {
     this.statusIcon,
     this.statusColor,
     this.trailing,
+    this.bottomWidget,
     this.onTap,
     this.showDivider = true,
     this.dividerThickness,
@@ -127,6 +129,12 @@ class ItemListTile extends StatelessWidget {
                       ?trailing,
                     ],
                   ),
+                ],
+
+                // 6. Bottom Widget (misal: badge validator tepat di bawah status)
+                if (bottomWidget != null) ...[
+                  SizedBox(height: 8.h(context)),
+                  bottomWidget!,
                 ],
               ],
             ),

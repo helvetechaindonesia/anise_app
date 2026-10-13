@@ -27,6 +27,8 @@ Komponen ini dirancang untuk menggantikan desain kartu kotak terisolasi (*heavy 
 │  [📅 Metadata Icon] Waktu / Tenggat (labelMedium, w400)      │
 │                                                              │
 │  [⏳ Status Icon] Status Pengerjaan         [ Trailing / Aksi]│
+│                                                              │
+│  [🛡️ Bottom Widget / Validator Pill Badge]                   │
 ├──────────────────────────────────────────────────────────────┤
 │  ────────────────── Divider Halus ─────────────────────────  │
 └──────────────────────────────────────────────────────────────┘
@@ -41,6 +43,7 @@ Komponen ini dirancang untuk menggantikan desain kartu kotak terisolasi (*heavy 
    - **Judul Utama:** `AppTextStyles.titleMedium`, warna `AppColors.onBackground`, berat `w700` (Bold pekat).
    - **Metadata Baris:** Ikon ukuran `14.w(context)` berdampingan dengan `AppTextStyles.labelMedium`.
    - **Status & Trailing:** Status warna kontekstual (misal `AppColors.error` untuk belum dikerjakan / terlambat) dengan trailing opsional di kanan.
+   - **Bottom Widget:** Widget tambahan yang diletakkan tepat di bawah status (misal: badge validator yang tidak ditumpuk di kanan).
 3. **Pemisah (Divider / Separator):**
    - **Bentuk:** Wadah `Container` garis tegas dengan ujung membulat halus (`borderRadius: 1.w(context)`).
    - **Ketebalan Baku (Thickness):** **`2.0.h(context)`** (cukup tebal dan tegas, tidak samar/nyaru di layar beresolusi tinggi).
@@ -62,6 +65,7 @@ Komponen ini dirancang untuk menggantikan desain kartu kotak terisolasi (*heavy 
 | `statusIcon` | `IconData?` | Opsional | Ikon indikator status (contoh: `PhosphorIcons.clock`). |
 | `statusColor` | `Color?` | Opsional | Warna teks & ikon status (default `AppColors.onBackground`). |
 | `trailing` | `Widget?` | Opsional | Komponen aksi tambahan di pojok kanan bawah. |
+| `bottomWidget` | `Widget?` | Opsional | Komponen tambahan yang diletakkan tepat di bawah baris status (contoh: Pill Badge Validator). |
 | `onTap` | `VoidCallback?` | Opsional | Fungsi callback saat item baris ditekan. |
 | `showDivider` | `bool` | Opsional | Menampilkan garis batas di bawah item (default: `true`). |
 | `dividerThickness` | `double?` | Opsional | Ketebalan garis pembatas (default: `2.0.h(context)`). |

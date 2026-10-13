@@ -96,7 +96,7 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusColor: statusColor,
               showDivider: !isLast,
               dividerThickness: 2.0.h(context),
-              trailing: (statusLower != 'hadir' && validator.isNotEmpty)
+              bottomWidget: (statusLower != 'hadir' && validator.isNotEmpty)
                   ? Container(
                       padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
                       decoration: BoxDecoration(
@@ -111,16 +111,11 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
                             size: 13.w(context),
                             color: badgeColor,
                           ),
-                          SizedBox(width: 4.w(context)),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: 160.w(context)),
-                            child: Text(
-                              validator,
-                              style: AppTextStyles.labelSmall(context, color: badgeColor).copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          SizedBox(width: 5.w(context)),
+                          Text(
+                            validator,
+                            style: AppTextStyles.labelSmall(context, color: badgeColor).copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
