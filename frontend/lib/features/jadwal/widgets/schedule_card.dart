@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import 'schedule_card_components.dart';
+import 'schedule_share_modal.dart';
 
 enum ScheduleStatus { selesai, live, upcoming }
 
@@ -137,7 +137,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER: Avatar, Username, Waktu
+          // HEADER: Avatar, Username, Upload Time, & Status Badge
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -146,14 +146,14 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                 child: Container(
                   width: 44.w(context),
                   height: 44.w(context),
-                  color: AppColors.onSurface.withValues(alpha: 0.1),
+                  color: AppColors.primaryContainer,
                   child: widget.teacherImage != null && widget.teacherImage!.isNotEmpty
                       ? Image.network(
                           widget.teacherImage!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
+                          errorBuilder: (context, error, stackTrace) => Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.primary, size: 22.w(context)),
                         )
-                      : Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
+                      : Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.primary, size: 22.w(context)),
                 ),
               ),
               SizedBox(width: 12.w(context)),
@@ -165,18 +165,76 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                     Text(
                       widget.teacherName,
                       style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 2.h(context)),
                     Text(
                       widget.uploadTime,
-                      style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
               ),
+              SizedBox(width: 8.w(context)),
+              // STATUS BADGE (Top Right)
+              if (isLive)
+                FadeTransition(
+                  opacity: _blinkAnimation,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      border: Border.all(color: AppColors.error, width: 1),
+                      borderRadius: BorderRadius.circular(12.w(context)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6.w(context),
+                          height: 6.w(context),
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 6.w(context)),
+                        Text(
+                          'Live',
+                          style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (widget.status == ScheduleStatus.upcoming)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                  ),
+                  child: Text(
+                    'Akan Datang',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                )
+              else
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                  ),
+                  child: Text(
+                    'Selesai',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
             ],
           ),
-          SizedBox(height: 16.h(context)),
+          SizedBox(height: 14.h(context)),
           
           // KONTEN: Mata Pelajaran & Waktu Kelas
           PostTitleWidget(
@@ -216,39 +274,6 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
           if (isLive) ...[
             SizedBox(height: 16.h(context)),
             const LiveActionWidget(),
-          ],
-          
-          if (isLive) ...[
-            SizedBox(height: 16.h(context)),
-            FadeTransition(
-              opacity: _blinkAnimation,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 8.h(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  border: Border.all(color: AppColors.error.withValues(alpha: 0.5), width: 1.5),
-                  borderRadius: BorderRadius.circular(20.w(context)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8.w(context),
-                      height: 8.w(context),
-                      decoration: const BoxDecoration(
-                        color: AppColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    SizedBox(width: 8.w(context)),
-                    Text(
-                      'Sedang Berlangsung',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
 
           SizedBox(height: 16.h(context)),
@@ -294,18 +319,14 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            final shareText = StringBuffer()
-              ..writeln('📚 *Jadwal & Catatan Kelas - AN-ISE App*')
-              ..writeln('----------------------------------------')
-              ..writeln('📖 *Mata Pelajaran:* ${widget.subjectName}')
-              ..writeln('👨‍🏫 *Guru:* ${widget.teacherName}')
-              ..writeln('⏰ *Waktu:* ${widget.timeRange}')
-              ..writeln('')
-              ..writeln('📝 *Catatan Pembelajaran:*')
-              ..writeln(widget.description)
-              ..writeln('')
-              ..writeln('📲 Dibagikan melalui AN-ISE Learning Management System');
-            SharePlus.instance.share(shareText.toString(), subject: 'Jadwal Pembelajaran: ${widget.subjectName}');
+            ScheduleShareModal.show(
+              context: context,
+              subjectName: widget.subjectName,
+              teacherName: widget.teacherName,
+              timeRange: widget.timeRange,
+              description: widget.description,
+              dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
+            );
           },
           child: Row(
             mainAxisSize: MainAxisSize.min,

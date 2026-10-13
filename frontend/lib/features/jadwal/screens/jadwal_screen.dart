@@ -398,7 +398,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                               ? AppColors.onPrimaryContainer.withValues(alpha: 0.85)
                               : (isToday ? AppColors.secondary : AppColors.onSurfaceVariant),
                         ).copyWith(
-                          fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: (isSelected || isToday) ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
                       SizedBox(height: 4.h(context)),
@@ -409,28 +409,17 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                           color: isSelected
                               ? AppColors.onPrimaryContainer
                               : (isToday ? AppColors.secondary : AppColors.onSurface),
-                        ).copyWith(fontWeight: (isSelected || isToday) ? FontWeight.w700 : FontWeight.w600),
+                        ).copyWith(fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600),
                       ),
-                      if (isSelected) ...[
-                        SizedBox(height: 4.h(context)),
-                        Container(
-                          width: 5.w(context),
-                          height: 5.w(context),
-                          decoration: const BoxDecoration(
-                            color: AppColors.secondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ]
                     ],
                   ),
 
-                  // Highlight garis di bawah untuk Hari Ini (Today Indicator)
+                  // Garis indikator bawah untuk Hari Ini
                   if (isToday)
                     Positioned(
-                      bottom: 4.h(context),
+                      bottom: 5.h(context),
                       child: Container(
-                        width: 22.w(context),
+                        width: 20.w(context),
                         height: 3.h(context),
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.onPrimaryContainer : AppColors.secondary,
