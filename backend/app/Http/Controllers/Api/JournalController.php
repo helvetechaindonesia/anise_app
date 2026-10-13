@@ -264,27 +264,53 @@ class JournalController extends Controller
             $classId = $classStudent->class_id;
 
             // 1. Ambil seluruh jadwal reguler untuk kelas siswa
-            $schedules = \App\Models\Schedule::where('class_id', $classId)
-                ->with(['subject', 'teacher.guruProfile'])
-                ->get();
+            $schedules = collect();
+            try {
+                $schedules = \App\Models\Schedule::where('class_id', $classId)
+                    ->with(['subject', 'teacher.guruProfile'])
+                    ->get();
+            } catch (\Throwable $e) {}
 
-            // 2. Ambil seluruh jurnal mengajar untuk kelas siswa
-            $journals = \App\Models\Journal::where(function ($query) use ($classId) {
-                $query->where('class_id', $classId)
-                      ->orWhereHas('schedule', function ($q) use ($classId) {
-                          $q->where('class_id', $classId);
-                      });
-            })
-            ->with(['schedule.subject', 'schedule.teacher.guruProfile', 'tasks', 'comments', 'reviews'])
-            ->orderBy('teaching_date', 'desc')
-            ->get();
+            // 2. Ambil seluruh jurnal mengajar untuk kelas siswa secara aman
+            $journals = collect();
+            try {
+                $withRelations = ['schedule.subject', 'schedule.teacher.guruProfile'];
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_tasks')) {
+                    $withRelations[] = 'tasks';
+                }
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                    $withRelations[] = 'comments';
+                }
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                    $withRelations[] = 'reviews';
+                }
+
+                $journals = \App\Models\Journal::where(function ($query) use ($classId) {
+                    $query->where('class_id', $classId)
+                          ->orWhereHas('schedule', function ($q) use ($classId) {
+                              $q->where('class_id', $classId);
+                          });
+                })
+                ->with($withRelations)
+                ->orderBy('teaching_date', 'desc')
+                ->get();
+            } catch (\Throwable $e) {
+                // Fallback query tanpa relasi tambahan jika terjadi mismatch
+                try {
+                    $journals = \App\Models\Journal::where('class_id', $classId)
+                        ->orWhereHas('schedule', function ($q) use ($classId) {
+                            $q->where('class_id', $classId);
+                        })
+                        ->get();
+                } catch (\Throwable $ex) {}
+            }
 
             $result = [];
 
             // A. Petakan data Jurnal yang sudah terbit
             foreach ($journals as $journal) {
-                $sched = $journal->schedule;
-                $teacher = $sched ? $sched->teacher : $journal->teacher;
+                $sched = $journal->schedule ?? null;
+                $teacher = $sched ? $sched->teacher : ($journal->teacher ?? null);
                 $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
                 
                 $subjectName = $sched?->subject?->name ?? ($journal->subject?->name ?? 'Mata Pelajaran');
@@ -293,12 +319,19 @@ class JournalController extends Controller
                 
                 $dayOfWeek = $sched ? $sched->day_of_week : null;
                 if ($dayOfWeek === null && $journal->teaching_date) {
-                    $dayOfWeek = Carbon::parse($journal->teaching_date)->dayOfWeekIso;
+                    try {
+                        $dayOfWeek = Carbon::parse($journal->teaching_date)->dayOfWeekIso;
+                    } catch (\Throwable $e) {}
                 }
 
-                $task = $journal->tasks->first();
-                $hasTask = $journal->tasks->count() > 0 || (bool)$journal->has_task;
-                $taskTitle = $task ? $task->title : ($hasTask ? 'Tugas: ' . $journal->topic_material : null);
+                $hasTask = (bool)($journal->has_task ?? false);
+                $taskTitle = null;
+                try {
+                    if ($journal->relationLoaded('tasks') && $journal->tasks && $journal->tasks->isNotEmpty()) {
+                        $hasTask = true;
+                        $taskTitle = $journal->tasks->first()->title;
+                    }
+                } catch (\Throwable $e) {}
 
                 $likesCount = 0;
                 try {
@@ -308,10 +341,25 @@ class JournalController extends Controller
                             ->where('interaction_type', 'LIKE')
                             ->count();
                     }
-                } catch (\Exception $e) {}
+                } catch (\Throwable $e) {}
 
-                $commentsCount = $journal->comments ? $journal->comments->count() : 0;
-                $avgRating = $journal->reviews ? ($journal->reviews->avg('rating') ?: 5.0) : 5.0;
+                $commentsCount = 0;
+                try {
+                    if ($journal->relationLoaded('comments') && $journal->comments) {
+                        $commentsCount = $journal->comments->count();
+                    } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                        $commentsCount = \Illuminate\Support\Facades\DB::table('journal_comments')->where('journal_id', $journal->id)->count();
+                    }
+                } catch (\Throwable $e) {}
+
+                $avgRating = 5.0;
+                try {
+                    if ($journal->relationLoaded('reviews') && $journal->reviews && $journal->reviews->isNotEmpty()) {
+                        $avgRating = (float)($journal->reviews->avg('rating') ?: 5.0);
+                    } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                        $avgRating = (float)(\Illuminate\Support\Facades\DB::table('journal_reviews')->where('journal_id', $journal->id)->avg('rating') ?: 5.0);
+                    }
+                } catch (\Throwable $e) {}
 
                 $result[] = [
                     'id' => $journal->id,
@@ -329,7 +377,7 @@ class JournalController extends Controller
                     'day_of_week' => $dayOfWeek,
                     'has_task' => $hasTask,
                     'task_title' => $taskTitle,
-                    'attachment_url' => $journal->attachment_url,
+                    'attachment_url' => $journal->attachment_url ?? null,
                     'likes' => $likesCount,
                     'comments' => $commentsCount,
                     'rating' => (float)$avgRating
@@ -338,7 +386,7 @@ class JournalController extends Controller
 
             // B. Petakan Jadwal Reguler mingguan (Template mata pelajaran)
             foreach ($schedules as $sched) {
-                $teacher = $sched->teacher;
+                $teacher = $sched->teacher ?? null;
                 $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
                 $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
 
@@ -369,7 +417,7 @@ class JournalController extends Controller
                 'status' => 'success',
                 'data' => $result
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
