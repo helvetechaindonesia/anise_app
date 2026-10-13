@@ -146,6 +146,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     }
   }
 
+  Future<void> _contactHelpdeskWhatsApp() async {
+    const phone = ApiConstants.developerWhatsApp; // '6281931315944'
+    const message = "Halo Tim Helpdesk Developer Helvetecha Group,\n\n"
+        "Saya pengguna aplikasi Anise butuh bantuan terkait kendala login / akun sekolah saya.\n\n"
+        "Mohon bantuannya ya tim. Terima kasih!";
+
+    final encodedMessage = Uri.encodeComponent(message);
+
+    // 1. Native WhatsApp intent (langsung buka chat WhatsApp di HP)
+    final nativeUri = Uri.parse('whatsapp://send?phone=$phone&text=$encodedMessage');
+    // 2. Universal wa.me URL
+    final universalUri = Uri.parse('https://wa.me/$phone?text=$encodedMessage');
+    // 3. Web API URL fallback
+    final webUri = Uri.parse('https://api.whatsapp.com/send?phone=$phone&text=$encodedMessage');
+
+    try {
+      bool launched = false;
+
+      // Coba native scheme dulu
+      if (await canLaunchUrl(nativeUri)) {
+        launched = await launchUrl(nativeUri, mode: LaunchMode.externalNonBrowserApplication);
+      }
+
+      // Jika native belum merespon, buka via universal wa.me
+      if (!launched) {
+        if (await canLaunchUrl(universalUri)) {
+          launched = await launchUrl(universalUri, mode: LaunchMode.externalApplication);
+        } else {
+          launched = await launchUrl(universalUri, mode: LaunchMode.externalApplication);
+        }
+      }
+
+      if (!launched) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(universalUri, mode: LaunchMode.externalApplication);
+      } catch (err) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tidak dapat membuka WhatsApp. Silakan hubungi: $phone', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -480,20 +530,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                     Spacing.custom(context, 4),
                     Center(
                       child: InkWell(
-                        onTap: () async {
-                          final uri = Uri.parse(ApiConstants.developerSupportUrl);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          } else {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Tidak dapat membuka WhatsApp developer.', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                backgroundColor: AppColors.error,
-                              ),
-                            );
-                          }
-                        },
+                        onTap: _contactHelpdeskWhatsApp,
                         child: Text(
                           'Hubungi Helpdesk IT (Developer)',
                           style: AppTextStyles.bodyMedium(context, color: AppColors.primary).copyWith(
