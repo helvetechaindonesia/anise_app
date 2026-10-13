@@ -33,6 +33,32 @@ final mentorsProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((
   }
 });
 
+String _formatDueDate(dynamic raw) {
+  if (raw == null || raw.toString().trim().isEmpty) return '-';
+  try {
+    final dt = DateTime.parse(raw.toString()).toLocal();
+    final now = DateTime.now();
+    final timeStr = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB";
+    
+    final today = DateTime(now.year, now.month, now.day);
+    final targetDate = DateTime(dt.year, dt.month, dt.day);
+    final difference = targetDate.difference(today).inDays;
+    
+    if (difference == 0) {
+      return "Hari ini, $timeStr";
+    } else if (difference == 1) {
+      return "Besok, $timeStr";
+    } else if (difference > 1 && difference <= 7) {
+      return "$difference hari lagi, $timeStr";
+    } else {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return "${dt.day} ${months[dt.month - 1]} ${dt.year}, $timeStr";
+    }
+  } catch (_) {
+    return raw.toString();
+  }
+}
+
 final tugasMendatangProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final tasksAsync = ref.watch(getTasksProvider);
   
@@ -40,11 +66,11 @@ final tugasMendatangProvider = FutureProvider.autoDispose<List<Map<String, dynam
     data: (tasks) {
       if (tasks.isEmpty) return [];
       
-      return tasks.take(3).map((t) => {
+      return tasks.take(5).map((t) => {
         'subject': t['subject'] ?? '-',
         'teacher': t['teacher'] ?? '-',
         'title': t['title'] ?? '-',
-        'timeInfo': t['due_date'] ?? '-',
+        'timeInfo': _formatDueDate(t['due_date']),
         'statusText': 'Belum Dikerjakan',
         'statusColor': AppColors.primary,
         'statusIcon': PhosphorIcons.hourglass(PhosphorIconsStyle.bold),

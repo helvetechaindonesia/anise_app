@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/section_action_link.dart';
 
 class TuRingkasanSuratWidget extends StatelessWidget {
   const TuRingkasanSuratWidget({Key? key}) : super(key: key);
@@ -36,21 +37,10 @@ class TuRingkasanSuratWidget extends StatelessWidget {
                 ),
               ],
             ),
-            GestureDetector(
+            SectionActionLink(
               onTap: () {
-                // TODO: Navigate to Surat Tab
+                // Navigate to Surat Tab
               },
-              child: Row(
-                children: [
-                  Text(
-                    'Lihat\nSemua',
-                    textAlign: TextAlign.right,
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
-                  ),
-                  SizedBox(width: 4.w(context)),
-                  Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onBackground),
-                ],
-              ),
             ),
           ],
         ),

@@ -111,7 +111,7 @@ class AssignmentController extends Controller
             ->get()
             ->map(function ($task) {
                 $sched = $task->journal->schedule;
-                $teacherName = $sched->teacher->guruProfile ? $sched->teacher->guruProfile->full_name : $sched->teacher->username;
+                $teacherName = $sched->teacher->full_name ?: $sched->teacher->username;
                 
                 return [
                     'id' => $task->id,

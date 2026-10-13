@@ -49,6 +49,7 @@ Route::prefix('auth')->group(function () {
 // DEVELOPER & HELPDESK INFO (Public)
 // ==========================================
 Route::get('/dev/contact', [DevController::class, 'getContact']);
+Route::match(['get', 'post'], '/dev/seed-home-data', [DevController::class, 'seedHomeData']);
 
 Route::middleware('auth:sanctum')->group(function () {
     

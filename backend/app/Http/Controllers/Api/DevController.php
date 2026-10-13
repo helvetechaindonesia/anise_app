@@ -27,6 +27,17 @@ class DevController extends Controller
         return $this->success(null, 'Impersonating user ' . $user_id);
     }
 
+    public function seedHomeData(Request $request)
+    {
+        try {
+            $seeder = new \Database\Seeders\HomeSiswaSeeder();
+            $seeder->run();
+            return $this->success(null, 'Data asli Home Siswa (7 Guru Pengajar & 5 Tugas Aktif) berhasil disuntikkan ke database!');
+        } catch (\Throwable $e) {
+            return $this->error('Gagal menyuntikkan data: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function getContact(Request $request)
     {
         $developer = \App\Models\Developer::first();

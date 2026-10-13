@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/section_action_link.dart';
 import '../../tugas/widgets/tugas_item_card.dart';
 import '../../bk/screens/bk_surat_screen.dart';
 
@@ -63,24 +64,13 @@ class BkSuratWidget extends StatelessWidget {
                 ),
               ],
             ),
-            GestureDetector(
+            SectionActionLink(
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const BkSuratScreen()),
                 );
               },
-              child: Row(
-                children: [
-                  Text(
-                    'Lihat\nSemua',
-                    textAlign: TextAlign.right,
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
-                  ),
-                  SizedBox(width: 4.w(context)),
-                  Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onBackground),
-                ],
-              ),
             ),
           ],
         ),
