@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/menu_icon_button.dart';
 import '../../presensi/screens/presensi_screen.dart';
 import '../../lapor/screens/lapor_kesiswaan_screen.dart';
 import '../../berkas/screens/berkas_saya_screen.dart';
@@ -16,7 +17,7 @@ import '../screens/tu_manajemen_sekolah_screen.dart';
 class TuLayananCepatWidget extends StatefulWidget {
   final Function(int)? onNavigateTab;
 
-  const TuLayananCepatWidget({Key? key, this.onNavigateTab}) : super(key: key);
+  const TuLayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
   State<TuLayananCepatWidget> createState() => _TuLayananCepatWidgetState();
@@ -62,21 +63,21 @@ class _TuLayananCepatWidgetState extends State<TuLayananCepatWidget> {
   @override
   Widget build(BuildContext context) {
     final allItems = [
-      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi', 'color': AppColors.menuPastelPurple},
-      {'icon': PhosphorIcons.envelope(PhosphorIconsStyle.bold), 'label': 'Surat', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.ticket(PhosphorIconsStyle.bold), 'label': 'Dispensasi', 'color': AppColors.menuPastelGreen},
-      {'icon': PhosphorIcons.books(PhosphorIconsStyle.bold), 'label': 'Kurikulum', 'color': AppColors.menuPastelLilac},
-      {'icon': PhosphorIcons.archive(PhosphorIconsStyle.bold), 'label': 'Inventaris', 'color': AppColors.menuPastelGreyish},
-      {'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.bold), 'label': 'Kesiswaan', 'color': AppColors.menuPastelPurple},
-      {'icon': PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), 'label': 'Lapor', 'color': AppColors.menuPastelRed},
-      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File', 'color': AppColors.menuPastelMint},
-      {'icon': PhosphorIcons.buildings(PhosphorIconsStyle.bold), 'label': 'Manajemen Sekolah', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.identificationCard(PhosphorIconsStyle.bold), 'label': 'Manajemen User', 'color': AppColors.menuPastelPurple},
+      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi'},
+      {'icon': PhosphorIcons.envelope(PhosphorIconsStyle.bold), 'label': 'Surat'},
+      {'icon': PhosphorIcons.ticket(PhosphorIconsStyle.bold), 'label': 'Dispensasi'},
+      {'icon': PhosphorIcons.books(PhosphorIconsStyle.bold), 'label': 'Kurikulum'},
+      {'icon': PhosphorIcons.archive(PhosphorIconsStyle.bold), 'label': 'Inventaris'},
+      {'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.bold), 'label': 'Kesiswaan'},
+      {'icon': PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), 'label': 'Lapor'},
+      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File'},
+      {'icon': PhosphorIcons.buildings(PhosphorIconsStyle.bold), 'label': 'Manajemen Sekolah'},
+      {'icon': PhosphorIcons.identificationCard(PhosphorIconsStyle.bold), 'label': 'Manajemen User'},
     ];
 
     final displayedItems = _isExpanded
-        ? (List.from(allItems)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup', 'color': AppColors.menuPastelGreyish}))
-        : (allItems.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya', 'color': AppColors.menuPastelGreyish}));
+        ? (List.from(allItems)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup'}))
+        : (allItems.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya'}));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +104,9 @@ class _TuLayananCepatWidgetState extends State<TuLayananCepatWidget> {
             itemCount: displayedItems.length,
             itemBuilder: (context, index) {
               final item = displayedItems[index];
-              return GestureDetector(
+              return MenuIconButton(
+                icon: item['icon'] as IconData,
+                label: item['label'] as String,
                 onTap: () {
                   if (item['label'] == 'Lainnya') {
                     setState(() {
@@ -117,40 +120,6 @@ class _TuLayananCepatWidgetState extends State<TuLayananCepatWidget> {
                     _navigate(context, item['label'] as String);
                   }
                 },
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56.w(context),
-                      height: 56.w(context),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                        borderRadius: BorderRadius.circular(20.w(context)),
-                      ),
-                      child: item['icon'] != null
-                          ? Icon(
-                              item['icon'] as IconData,
-                              color: AppColors.onPrimaryContainer,
-                              size: 24.w(context),
-                            )
-                          : null,
-                    ),
-                    Spacing.custom(context, 8),
-                    Text(
-                      item['label'] as String,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                    ),
-                  ],
-                ),
               );
             },
           ),

@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/menu_icon_button.dart';
 
 import '../../jadwal/screens/jadwal_screen.dart';
-import '../../presensi/screens/presensi_screen.dart';
 import '../../tugas/screens/guru_tugas_screen.dart';
 import '../../pembiasaan/screens/guru_pembiasaan_screen.dart';
 import '../../poin/screens/poin_screen.dart';
-import '../../penilaian/screens/agenda_penilaian_screen.dart';
 import '../../lapor/screens/lapor_kesiswaan_screen.dart';
 import '../../berkas/screens/berkas_saya_screen.dart';
-import '../screens/guru_home_screen.dart'; // Just for dummy navigation if needed
 import '../../presensi/screens/guru_presensi_screen.dart';
 import '../../penilaian/screens/guru_agenda_penilaian_screen.dart';
 import '../../bk/screens/bk_disiplin_screen.dart';
@@ -23,7 +20,7 @@ import '../../tata_usaha/screens/tu_izin_screen.dart';
 class GuruLayananCepatWidget extends StatefulWidget {
   final Function(int)? onNavigateTab;
 
-  const GuruLayananCepatWidget({Key? key, this.onNavigateTab}) : super(key: key);
+  const GuruLayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
   State<GuruLayananCepatWidget> createState() => _GuruLayananCepatWidgetState();
@@ -35,22 +32,22 @@ class _GuruLayananCepatWidgetState extends State<GuruLayananCepatWidget> {
   @override
   Widget build(BuildContext context) {
     final items = [
-      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi', 'color': AppColors.menuPastelGreen},
-      {'icon': PhosphorIcons.chalkboardTeacher(PhosphorIconsStyle.bold), 'label': 'Jurnal', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.notebook(PhosphorIconsStyle.bold), 'label': 'Penugasan', 'color': AppColors.menuPastelPurple},
-      {'icon': PhosphorIcons.heart(PhosphorIconsStyle.bold), 'label': 'Pembiasaan', 'color': AppColors.menuPastelLilac},
-      {'icon': PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold), 'label': 'KPI', 'color': AppColors.menuPastelGreen},
-      {'icon': PhosphorIcons.calendarCheck(PhosphorIconsStyle.bold), 'label': 'Agenda', 'color': AppColors.menuPastelGreyish},
-      {'icon': PhosphorIcons.megaphone(PhosphorIconsStyle.bold), 'label': 'Lapor', 'color': AppColors.menuPastelRed},
-      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File', 'color': AppColors.menuPastelMint},
-      {'icon': PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), 'label': 'Disiplin', 'color': AppColors.menuPastelRed},
-      {'icon': PhosphorIcons.scroll(PhosphorIconsStyle.bold), 'label': 'Dispensasi', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold), 'label': 'Izin Siswa', 'color': AppColors.menuPastelPurple},
+      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi'},
+      {'icon': PhosphorIcons.chalkboardTeacher(PhosphorIconsStyle.bold), 'label': 'Jurnal'},
+      {'icon': PhosphorIcons.notebook(PhosphorIconsStyle.bold), 'label': 'Penugasan'},
+      {'icon': PhosphorIcons.heart(PhosphorIconsStyle.bold), 'label': 'Pembiasaan'},
+      {'icon': PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold), 'label': 'KPI'},
+      {'icon': PhosphorIcons.calendarCheck(PhosphorIconsStyle.bold), 'label': 'Agenda'},
+      {'icon': PhosphorIcons.megaphone(PhosphorIconsStyle.bold), 'label': 'Lapor'},
+      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File'},
+      {'icon': PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), 'label': 'Disiplin'},
+      {'icon': PhosphorIcons.scroll(PhosphorIconsStyle.bold), 'label': 'Dispensasi'},
+      {'icon': PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold), 'label': 'Izin Siswa'},
     ];
 
     final displayItems = _isExpanded
-        ? (List.from(items)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup', 'color': AppColors.menuPastelGreyish}))
-        : (items.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya', 'color': AppColors.menuPastelGreyish}));
+        ? (List.from(items)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup'}))
+        : (items.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya'}));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +74,9 @@ class _GuruLayananCepatWidgetState extends State<GuruLayananCepatWidget> {
             itemCount: displayItems.length,
             itemBuilder: (context, index) {
               final item = displayItems[index];
-              return GestureDetector(
+              return MenuIconButton(
+                icon: item['icon'] as IconData,
+                label: item['label'] as String,
                 onTap: () {
                   if (item['label'] == 'Lainnya') {
                     setState(() {
@@ -160,38 +159,6 @@ class _GuruLayananCepatWidgetState extends State<GuruLayananCepatWidget> {
                     );
                   }
                 },
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56.w(context),
-                      height: 56.w(context),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                        borderRadius: BorderRadius.circular(20.w(context)),
-                      ),
-                      child: item['icon'] != null
-                          ? Icon(
-                              item['icon'] as IconData,
-                              color: AppColors.onPrimaryContainer,
-                              size: 24.w(context),
-                            )
-                          : null,
-                    ),
-                    Spacing.custom(context, 8),
-                    Text(
-                      item['label'] as String,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                    ),
-                  ],
-                ),
               );
             },
           ),

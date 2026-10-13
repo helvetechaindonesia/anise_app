@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
@@ -21,7 +20,7 @@ import '../../bk/screens/siswa_ajukan_bimbingan_screen.dart';
 class LayananCepatWidget extends StatefulWidget {
   final Function(int)? onNavigateTab;
 
-  const LayananCepatWidget({Key? key, this.onNavigateTab}) : super(key: key);
+  const LayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
   State<LayananCepatWidget> createState() => _LayananCepatWidgetState();
@@ -33,22 +32,22 @@ class _LayananCepatWidgetState extends State<LayananCepatWidget> {
   @override
   Widget build(BuildContext context) {
     final items = [
-      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi', 'color': AppColors.menuPastelGreen},
-      {'icon': PhosphorIcons.clock(PhosphorIconsStyle.bold), 'label': 'Jadwal', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.clipboardText(PhosphorIconsStyle.bold), 'label': 'Tugas', 'color': AppColors.menuPastelPurple},
-      {'icon': PhosphorIcons.heart(PhosphorIconsStyle.bold), 'label': 'Pembiasaan', 'color': AppColors.menuPastelLilac},
-      {'icon': PhosphorIcons.star(PhosphorIconsStyle.bold), 'label': 'Poin', 'color': AppColors.menuPastelGreen},
-      {'icon': PhosphorIcons.calendarCheck(PhosphorIconsStyle.bold), 'label': 'Agenda', 'color': AppColors.menuPastelGreyish},
-      {'icon': PhosphorIcons.megaphone(PhosphorIconsStyle.bold), 'label': 'Lapor', 'color': AppColors.menuPastelRed},
-      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File', 'color': AppColors.menuPastelMint},
-      {'icon': PhosphorIcons.scroll(PhosphorIconsStyle.bold), 'label': 'Dispensasi', 'color': AppColors.menuPastelBlue},
-      {'icon': PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold), 'label': 'Izin', 'color': AppColors.menuPastelPurple},
-      {'icon': PhosphorIcons.chats(PhosphorIconsStyle.bold), 'label': 'Bimbingan', 'color': AppColors.menuPastelGreen},
+      {'icon': PhosphorIcons.fingerprint(PhosphorIconsStyle.bold), 'label': 'Presensi'},
+      {'icon': PhosphorIcons.clock(PhosphorIconsStyle.bold), 'label': 'Jadwal'},
+      {'icon': PhosphorIcons.clipboardText(PhosphorIconsStyle.bold), 'label': 'Tugas'},
+      {'icon': PhosphorIcons.heart(PhosphorIconsStyle.bold), 'label': 'Pembiasaan'},
+      {'icon': PhosphorIcons.star(PhosphorIconsStyle.bold), 'label': 'Poin'},
+      {'icon': PhosphorIcons.calendarCheck(PhosphorIconsStyle.bold), 'label': 'Agenda'},
+      {'icon': PhosphorIcons.megaphone(PhosphorIconsStyle.bold), 'label': 'Lapor'},
+      {'icon': PhosphorIcons.folderUser(PhosphorIconsStyle.bold), 'label': 'E-File'},
+      {'icon': PhosphorIcons.scroll(PhosphorIconsStyle.bold), 'label': 'Dispensasi'},
+      {'icon': PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold), 'label': 'Izin'},
+      {'icon': PhosphorIcons.chats(PhosphorIconsStyle.bold), 'label': 'Bimbingan'},
     ];
 
     final displayItems = _isExpanded
-        ? (List.from(items)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup', 'color': AppColors.menuPastelGreyish}))
-        : (items.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya', 'color': AppColors.menuPastelGreyish}));
+        ? (List.from(items)..add({'icon': PhosphorIcons.caretUp(PhosphorIconsStyle.bold), 'label': 'Tutup'}))
+        : (items.sublist(0, 7)..add({'icon': PhosphorIcons.dotsNine(PhosphorIconsStyle.bold), 'label': 'Lainnya'}));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,7 +67,7 @@ class _LayananCepatWidgetState extends State<LayananCepatWidget> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              childAspectRatio: 0.8,
+              childAspectRatio: 0.72,
               crossAxisSpacing: 8.w(context),
               mainAxisSpacing: 16.h(context),
             ),

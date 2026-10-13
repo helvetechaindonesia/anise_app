@@ -11,15 +11,17 @@ class MenuIconButton extends StatelessWidget {
   final VoidCallback onTap;
   final Color? backgroundColor;
   final Color? iconColor;
+  final int maxLines;
 
   const MenuIconButton({
-    Key? key,
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
     this.backgroundColor,
     this.iconColor,
-  }) : super(key: key);
+    this.maxLines = 2,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +61,7 @@ class MenuIconButton extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-            maxLines: 1,
+            maxLines: maxLines,
             overflow: TextOverflow.ellipsis,
           ),
         ],

@@ -3,12 +3,12 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/menu_icon_button.dart';
 import '../../presensi/screens/guru_presensi_screen.dart';
 import '../../pembiasaan/screens/guru_pembiasaan_screen.dart';
 import '../../poin/screens/poin_screen.dart';
 import '../../lapor/screens/lapor_kesiswaan_screen.dart';
 import '../../berkas/screens/berkas_saya_screen.dart';
-import '../../jadwal/screens/guru_jurnal_screen.dart';
 import '../../bk/screens/bk_disiplin_screen.dart';
 import '../../bk/screens/bk_surat_screen.dart';
 import '../../bk/screens/bk_bimbingan_screen.dart';
@@ -16,7 +16,7 @@ import '../../bk/screens/bk_bimbingan_screen.dart';
 class BkLayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
 
-  const BkLayananCepatWidget({Key? key, this.onNavigateTab}) : super(key: key);
+  const BkLayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +52,9 @@ class BkLayananCepatWidget extends StatelessWidget {
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            return GestureDetector(
+            return MenuIconButton(
+              icon: item['icon'] as IconData,
+              label: item['label'] as String,
               onTap: () {
                 if (item['label'] == 'Presensi') {
                   Navigator.push(
@@ -112,38 +114,6 @@ class BkLayananCepatWidget extends StatelessWidget {
                   );
                 }
               },
-              child: Column(
-                children: [
-                  Container(
-                    width: 56.w(context),
-                    height: 56.w(context),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryContainer,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryContainer.withValues(alpha: 0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                      borderRadius: BorderRadius.circular(20.w(context)),
-                    ),
-                    child: item['icon'] != null
-                        ? Icon(
-                            item['icon'] as IconData,
-                            color: AppColors.onPrimaryContainer,
-                            size: 24.w(context),
-                          )
-                        : null,
-                  ),
-                  Spacing.custom(context, 8),
-                  Text(
-                    item['label'] as String,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurface),
-                  ),
-                ],
-              ),
             );
           },
         ),
