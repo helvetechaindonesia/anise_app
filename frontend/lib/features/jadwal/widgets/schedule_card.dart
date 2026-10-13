@@ -5,7 +5,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import 'schedule_card_components.dart';
 
-enum ScheduleStatus { selesai, live }
+enum ScheduleStatus { selesai, live, upcoming }
 
 class ScheduleCard extends StatefulWidget {
   final String? journalId;
@@ -22,9 +22,18 @@ class ScheduleCard extends StatefulWidget {
   final String? fileSize;
   final bool hasImages;
   final int likes;
+  final bool isLiked;
+  final bool isSaved;
   final int comments;
   final int initialRating;
+  final bool hasRated;
+  final int? userRating;
   final ValueChanged<int>? onRatingChanged;
+  final VoidCallback? onLikeToggled;
+  final VoidCallback? onSaveToggled;
+  final Future<List<Map<String, dynamic>>> Function()? onFetchComments;
+  final Future<bool> Function(String commentText)? onCommentSubmitted;
+  final Future<bool> Function(String commentId)? onDeleteComment;
 
   const ScheduleCard({
     Key? key,
@@ -42,9 +51,18 @@ class ScheduleCard extends StatefulWidget {
     this.fileSize,
     this.hasImages = false,
     required this.likes,
+    this.isLiked = false,
+    this.isSaved = false,
     required this.comments,
     this.initialRating = 5,
+    this.hasRated = false,
+    this.userRating,
     this.onRatingChanged,
+    this.onLikeToggled,
+    this.onSaveToggled,
+    this.onFetchComments,
+    this.onCommentSubmitted,
+    this.onDeleteComment,
   }) : super(key: key);
 
   @override
@@ -61,11 +79,27 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _isLiked = widget.isLiked;
+    _isSaved = widget.isSaved;
     _currentLikes = widget.likes;
     _blinkController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
     _blinkAnimation = Tween<double>(begin: 0.2, end: 1.0).animate(_blinkController);
     if (widget.status == ScheduleStatus.live) {
       _blinkController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ScheduleCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isLiked != widget.isLiked ||
+        oldWidget.likes != widget.likes ||
+        oldWidget.isSaved != widget.isSaved) {
+      setState(() {
+        _isLiked = widget.isLiked;
+        _currentLikes = widget.likes;
+        _isSaved = widget.isSaved;
+      });
     }
   }
 
@@ -170,10 +204,11 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
             SizedBox(height: 16.h(context)),
             const ImageGridWidget(isLive: false),
           ],
-          if (!isLive) ...[
+          if (widget.status == ScheduleStatus.selesai) ...[
             SizedBox(height: 16.h(context)),
             RatingSectionWidget(
-              initialRating: widget.initialRating,
+              initialRating: widget.userRating ?? widget.initialRating,
+              isLocked: widget.hasRated,
               onRatingChanged: widget.onRatingChanged,
             ),
           ],
@@ -297,6 +332,9 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                 _currentLikes--;
               }
             });
+            if (widget.onLikeToggled != null) {
+              widget.onLikeToggled!();
+            }
           },
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -322,6 +360,9 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
             setState(() {
               _isSaved = !_isSaved;
             });
+            if (widget.onSaveToggled != null) {
+              widget.onSaveToggled!();
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(_isSaved ? 'Berhasil disimpan ke koleksi' : 'Dihapus dari koleksi'),
@@ -347,7 +388,9 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
 
   void _showCommentBottomSheet(BuildContext context) {
     final commentController = TextEditingController();
-    final List<Map<String, String>> localComments = [];
+    List<Map<String, dynamic>> commentsList = [];
+    bool isLoading = true;
+    bool hasFetched = false;
 
     showModalBottomSheet(
       context: context,
@@ -356,10 +399,29 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final totalCount = widget.comments + localComments.length;
+            // Muat data komentar saat pertama kali dibuka
+            if (!hasFetched) {
+              hasFetched = true;
+              if (widget.onFetchComments != null && widget.journalId != null && !widget.journalId!.startsWith('sched_')) {
+                widget.onFetchComments!().then((list) {
+                  setSheetState(() {
+                    commentsList = list;
+                    isLoading = false;
+                  });
+                }).catchError((_) {
+                  setSheetState(() {
+                    isLoading = false;
+                  });
+                });
+              } else {
+                isLoading = false;
+              }
+            }
+
+            final totalCount = commentsList.length;
 
             return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
+              height: MediaQuery.of(context).size.height * 0.72,
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.only(
@@ -380,14 +442,16 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                   ),
                   SizedBox(height: 16.h(context)),
                   Text(
-                    'Komentar ($totalCount)',
+                    'Tanggapan & Diskusi ($totalCount)',
                     style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
                   ),
                   SizedBox(height: 12.h(context)),
                   Divider(color: AppColors.outlineVariant, height: 1),
                   Expanded(
-                    child: localComments.isEmpty && widget.comments == 0
-                        ? Center(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : commentsList.isEmpty
+                            ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -398,12 +462,12 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                                 ),
                                 SizedBox(height: 16.h(context)),
                                 Text(
-                                  'Belum ada komentar terbaru',
+                                  'Belum ada tanggapan untuk kelas ini',
                                   style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
                                 ),
                                 SizedBox(height: 4.h(context)),
                                 Text(
-                                  'Jadilah yang pertama memberikan tanggapan!',
+                                  'Maksimal 1 tanggapan per siswa untuk menjaga ketertiban.',
                                   style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
                                 ),
                               ],
@@ -411,10 +475,12 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                           )
                         : ListView.separated(
                             padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
-                            itemCount: localComments.length,
-                            separatorBuilder: (context, index) => SizedBox(height: 12.h(context)),
+                            itemCount: commentsList.length,
+                            separatorBuilder: (context, index) => SizedBox(height: 14.h(context)),
                             itemBuilder: (context, idx) {
-                              final item = localComments[idx];
+                              final item = commentsList[idx];
+                              final canDelete = item['can_delete'] == true;
+
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -435,9 +501,38 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                                               item['user'] ?? 'Siswa',
                                               style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
                                             ),
-                                            Text(
-                                              item['time'] ?? 'Baru saja',
-                                              style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  item['time'] ?? 'Baru saja',
+                                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+                                                ),
+                                                if (canDelete) ...[
+                                                  SizedBox(width: 8.w(context)),
+                                                  GestureDetector(
+                                                    onTap: () async {
+                                                      final commentId = item['id']?.toString();
+                                                      if (widget.onDeleteComment != null && commentId != null) {
+                                                        final ok = await widget.onDeleteComment!(commentId);
+                                                        if (ok) {
+                                                          setSheetState(() {
+                                                            commentsList.removeAt(idx);
+                                                          });
+                                                        }
+                                                      } else {
+                                                        setSheetState(() {
+                                                          commentsList.removeAt(idx);
+                                                        });
+                                                      }
+                                                    },
+                                                    child: Icon(
+                                                      PhosphorIcons.trash(PhosphorIconsStyle.bold),
+                                                      color: AppColors.error,
+                                                      size: 16.w(context),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ],
                                         ),
@@ -485,7 +580,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                               controller: commentController,
                               style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                               decoration: InputDecoration(
-                                hintText: 'Tulis tanggapan atau komentar...',
+                                hintText: 'Tulis komentar (1x tanggapan)...',
                                 hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
                                 border: InputBorder.none,
                                 isDense: true,
@@ -496,26 +591,33 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                         ),
                         SizedBox(width: 12.w(context)),
                         GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             final text = commentController.text.trim();
                             if (text.isNotEmpty) {
-                              setSheetState(() {
-                                localComments.insert(0, {
-                                  'user': 'Saya',
-                                  'text': text,
-                                  'time': 'Baru saja',
+                              if (widget.onCommentSubmitted != null) {
+                                final success = await widget.onCommentSubmitted!(text);
+                                if (success) {
+                                  setSheetState(() {
+                                    commentsList.insert(0, {
+                                      'user': 'Saya',
+                                      'text': text,
+                                      'time': 'Baru saja',
+                                      'can_delete': true,
+                                    });
+                                    commentController.clear();
+                                  });
+                                }
+                              } else {
+                                setSheetState(() {
+                                  commentsList.insert(0, {
+                                    'user': 'Saya',
+                                    'text': text,
+                                    'time': 'Baru saja',
+                                    'can_delete': true,
+                                  });
+                                  commentController.clear();
                                 });
-                                commentController.clear();
-                              });
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Komentar berhasil dikirim!'),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
-                                  backgroundColor: AppColors.primary,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                              }
                             }
                           },
                           child: Container(

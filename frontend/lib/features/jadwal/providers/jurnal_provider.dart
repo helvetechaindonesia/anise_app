@@ -73,7 +73,7 @@ final jurnalProvider = StateNotifierProvider<JurnalNotifier, AsyncValue<Map<Stri
   return JurnalNotifier(ref.watch(dioProvider));
 });
 
-final allJournalsProvider = FutureProvider<List<dynamic>>((ref) async {
+final allJournalsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
   final user = ref.watch(authProvider).user;
   

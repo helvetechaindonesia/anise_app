@@ -38,13 +38,13 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
   }
 
   Future<void> _pickFile() async {
-    List<PlatformFile> result = await FilePicker.pickFiles(
+    final FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx'],
     );
 
-    if (result.isNotEmpty) {
-      File file = File(result.first.path!);
+    if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+      File file = File(result.files.first.path!);
       int sizeInBytes = file.lengthSync();
       double sizeInMb = sizeInBytes / (1024 * 1024);
 
@@ -58,7 +58,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
       setState(() {
         _selectedFile = file;
-        _fileName = result.first.name;
+        _fileName = result.files.first.name;
       });
     }
   }

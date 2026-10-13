@@ -258,11 +258,13 @@ class ImageGridWidget extends StatelessWidget {
 
 class RatingSectionWidget extends StatefulWidget {
   final int initialRating;
+  final bool isLocked;
   final ValueChanged<int>? onRatingChanged;
 
   const RatingSectionWidget({
     Key? key,
     this.initialRating = 5,
+    this.isLocked = false,
     this.onRatingChanged,
   }) : super(key: key);
 
@@ -272,78 +274,258 @@ class RatingSectionWidget extends StatefulWidget {
 
 class _RatingSectionWidgetState extends State<RatingSectionWidget> {
   late int _currentRating;
+  late bool _hasSubmitted;
 
   @override
   void initState() {
     super.initState();
     _currentRating = widget.initialRating;
+    _hasSubmitted = widget.isLocked;
+  }
+
+  @override
+  void didUpdateWidget(covariant RatingSectionWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRating != widget.initialRating || oldWidget.isLocked != widget.isLocked) {
+      _currentRating = widget.initialRating;
+      _hasSubmitted = widget.isLocked;
+    }
+  }
+
+  void _showRatingModal(BuildContext context) {
+    int tempRating = _currentRating;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              backgroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(context))),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 22.h(context)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12.w(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        PhosphorIcons.star(PhosphorIconsStyle.fill),
+                        color: AppColors.warning,
+                        size: 32.w(context),
+                      ),
+                    ),
+                    SizedBox(height: 14.h(context)),
+                    Text(
+                      'Beri Penilaian Pembelajaran',
+                      style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 6.h(context)),
+                    Text(
+                      'Bagaimana pemahaman dan suasana kelas hari ini? Penilaian Anda akan disimpan permanen.',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 18.h(context)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        final starIndex = index + 1;
+                        final isFilled = starIndex <= tempRating;
+                        return GestureDetector(
+                          onTap: () {
+                            setModalState(() {
+                              tempRating = starIndex;
+                            });
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6.w(context)),
+                            child: Icon(
+                              isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
+                              color: isFilled ? AppColors.warning : AppColors.outlineVariant,
+                              size: 32.w(context),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                    SizedBox(height: 8.h(context)),
+                    Text(
+                      '$tempRating dari 5 Bintang',
+                      style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 22.h(context)),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => Navigator.pop(ctx),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 12.h(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceVariant,
+                                borderRadius: BorderRadius.circular(14.w(context)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Batal',
+                                  style: AppTextStyles.labelMedium(context, color: AppColors.onSurfaceVariant).copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.w(context)),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              setState(() {
+                                _currentRating = tempRating;
+                                _hasSubmitted = true;
+                              });
+                              if (widget.onRatingChanged != null) {
+                                widget.onRatingChanged!(tempRating);
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Penilaian $tempRating bintang berhasil disimpan permanen!'),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
+                                  backgroundColor: AppColors.primary,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 12.h(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(14.w(context)),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Simpan',
+                                  style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary).copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(12.w(context)),
-        border: Border.all(color: AppColors.outlineVariant, width: 1),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(PhosphorIcons.chartBar(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
-                SizedBox(width: 6.w(context)),
-                Flexible(
-                  child: Text(
-                    'Tensi Penilaian ($_currentRating/5)',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+    // 1. Tampilan jika SUDAH dinilai: berbentuk bar bintang terkunci (read-only)
+    if (_hasSubmitted) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundLight,
+          borderRadius: BorderRadius.circular(12.w(context)),
+          border: Border.all(
+            color: AppColors.secondary.withValues(alpha: 0.6),
+            width: 1,
           ),
-          SizedBox(width: 8.w(context)),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(5, (index) {
-              final starIndex = index + 1;
-              final isFilled = starIndex <= _currentRating;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _currentRating = starIndex;
-                  });
-                  if (widget.onRatingChanged != null) {
-                    widget.onRatingChanged!(starIndex);
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Penilaian $starIndex bintang berhasil disimpan!'),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
-                      backgroundColor: AppColors.primary,
-                      duration: const Duration(seconds: 2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                    color: AppColors.secondary,
+                    size: 16.w(context),
+                  ),
+                  SizedBox(width: 6.w(context)),
+                  Flexible(
+                    child: Text(
+                      'Penilaian Anda ($_currentRating/5)',
+                      style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  );
-                },
-                child: Padding(
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 8.w(context)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(5, (index) {
+                final starIndex = index + 1;
+                final isFilled = starIndex <= _currentRating;
+                return Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
                   child: Icon(
                     isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
                     color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.4),
                     size: 18.w(context),
                   ),
-                ),
-              );
-            }),
-          ),
-        ],
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 2. Tampilan jika BELUM dinilai: Tombol CTA yang jelas, saat diklik baru muncul pop-up modal
+    return GestureDetector(
+      onTap: () => _showRatingModal(context),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 11.h(context)),
+        decoration: BoxDecoration(
+          color: AppColors.primaryContainer.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12.w(context)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(PhosphorIcons.star(PhosphorIconsStyle.bold), color: AppColors.primary, size: 18.w(context)),
+            SizedBox(width: 8.w(context)),
+            Text(
+              'Beri Penilaian Kelas Ini',
+              style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(width: 4.w(context)),
+            Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.primary, size: 14.w(context)),
+          ],
+        ),
       ),
     );
   }
