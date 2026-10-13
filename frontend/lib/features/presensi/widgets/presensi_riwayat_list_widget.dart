@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/anise_state_feedback.dart';
 import '../../../../core/widgets/item_list_tile.dart';
 import '../providers/presensi_provider.dart';
 
@@ -17,14 +18,10 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
     return logDataAsync.when(
       data: (logData) {
         if (logData.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 24.h(context)),
-              child: Text(
-                'Belum ada riwayat presensi di periode ini.',
-                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant),
-              ),
-            ),
+          return const AniseStateFeedback(
+            title: 'Belum Ada Riwayat',
+            subtitle: 'Tidak ada catatan kehadiran pada bulan & tahun ini.',
+            icon: PhosphorIconsFill.calendarBlank,
           );
         }
 
@@ -36,31 +33,74 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
 
             final bool isLate = log['isLate'] as bool? ?? false;
             final String status = log['status']?.toString() ?? 'Hadir';
-            final bool isSiswa = log['role'] == 'SISWA';
             final String validator = log['validator']?.toString() ?? '';
+            final String waktu = log['waktu']?.toString() ?? '-';
+            final String? catatan = log['catatan']?.toString();
 
-            final Color statusColor = isLate
-                ? AppColors.error
-                : (status == 'Hadir' ? AppColors.secondary : AppColors.onBackground);
+            Color statusColor;
+            IconData statusIcon;
+            Color badgeColor;
+
+            final statusLower = status.toLowerCase();
+            if (isLate || statusLower.contains('terlambat')) {
+              statusColor = AppColors.error;
+              statusIcon = PhosphorIcons.warningCircle(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.error;
+            } else if (statusLower.contains('sakit')) {
+              statusColor = AppColors.info;
+              statusIcon = PhosphorIcons.firstAid(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.info;
+            } else if (statusLower.contains('izin')) {
+              statusColor = AppColors.warning;
+              statusIcon = PhosphorIcons.envelopeSimple(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.warning;
+            } else if (statusLower.contains('alpha')) {
+              statusColor = AppColors.error;
+              statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.error;
+            } else if (statusLower.contains('pulang') || statusLower == 'pa') {
+              statusColor = AppColors.warning;
+              statusIcon = PhosphorIcons.clockAfternoon(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.warning;
+            } else if (statusLower == 'kembali' || statusLower == 'k') {
+              statusColor = AppColors.secondary;
+              statusIcon = PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.bold);
+              badgeColor = AppColors.secondary;
+            } else {
+              // Hadir Tepat Waktu
+              statusColor = AppColors.secondary;
+              statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
+              badgeColor = AppColors.secondary;
+            }
+
+            // Atur metadata icon & text (tampilkan catatan jika waktu kosong)
+            IconData metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
+            String metaText = 'Jam Masuk: $waktu';
+
+            if (waktu != '-' && waktu.isNotEmpty) {
+              metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
+              metaText = 'Jam Masuk: $waktu';
+            } else if (catatan != null && catatan.isNotEmpty) {
+              metaIcon = PhosphorIcons.notepad(PhosphorIconsStyle.regular);
+              metaText = catatan;
+            }
 
             return ItemListTile(
               category: log['hari']?.toString(),
               subcategory: log['lokasi'] != null ? 'Lokasi: ${log['lokasi']}' : null,
               title: log['tanggal']?.toString() ?? '',
-              metadataIcon: PhosphorIcons.clock(PhosphorIconsStyle.regular),
-              metadataText: 'Jam Masuk: ${log['waktu'] ?? '-'}',
+              metadataIcon: metaIcon,
+              metadataText: metaText,
               statusText: 'Status: $status',
-              statusIcon: isLate
-                  ? PhosphorIcons.warningCircle(PhosphorIconsStyle.fill)
-                  : PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+              statusIcon: statusIcon,
               statusColor: statusColor,
               showDivider: !isLast,
               dividerThickness: 2.0.h(context),
-              trailing: (isSiswa && status != 'Hadir' && validator.isNotEmpty)
+              trailing: (statusLower != 'hadir' && validator.isNotEmpty)
                   ? Container(
                       padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
+                        color: badgeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8.w(context)),
                       ),
                       child: Row(
@@ -69,13 +109,18 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
                           Icon(
                             PhosphorIcons.shieldCheck(PhosphorIconsStyle.fill),
                             size: 13.w(context),
-                            color: AppColors.error,
+                            color: badgeColor,
                           ),
                           SizedBox(width: 4.w(context)),
-                          Text(
-                            validator,
-                            style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(
-                              fontWeight: FontWeight.w600,
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: 160.w(context)),
+                            child: Text(
+                              validator,
+                              style: AppTextStyles.labelSmall(context, color: badgeColor).copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -88,18 +133,16 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
       },
       loading: () => Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 24.h(context)),
+          padding: EdgeInsets.symmetric(vertical: 32.h(context)),
           child: const CircularProgressIndicator(color: AppColors.primary),
         ),
       ),
-      error: (e, st) => Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 24.h(context)),
-          child: Text(
-            'Gagal memuat riwayat: $e',
-            style: AppTextStyles.bodyMedium(context, color: AppColors.error),
-          ),
-        ),
+      error: (e, st) => AniseStateFeedback(
+        title: 'Gagal Memuat Riwayat',
+        subtitle: e.toString(),
+        isError: true,
+        actionButtonText: 'Coba Lagi',
+        onActionPressed: () => ref.invalidate(presensiDataProvider),
       ),
     );
   }

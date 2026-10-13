@@ -21,9 +21,13 @@ class PresensiHeaderWidget extends ConsumerWidget {
 
     final selectedMonthName = (currentMonthIndex >= 0 && currentMonthIndex < _months.length)
         ? _months[currentMonthIndex]
-        : _months[DateTime.now().month - 1];
+        : _months[(DateTime.now().month - 1).clamp(0, 11)];
 
-    final validYear = _years.contains(currentYear) ? currentYear : _years[2];
+    final yearList = List<String>.from(_years);
+    if (!yearList.contains(currentYear)) {
+      yearList.add(currentYear);
+      yearList.sort();
+    }
 
     return Row(
       children: [
@@ -52,7 +56,7 @@ class PresensiHeaderWidget extends ConsumerWidget {
         // 2. Dropdown Baku Tahun
         Expanded(
           child: AniseDropdown<String>(
-            value: validYear,
+            value: currentYear,
             onChanged: (String? newValue) {
               if (newValue != null) {
                 final parsed = int.tryParse(newValue);
@@ -61,7 +65,7 @@ class PresensiHeaderWidget extends ConsumerWidget {
                 }
               }
             },
-            items: _years.map<DropdownMenuItem<String>>((String value) {
+            items: yearList.map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
                 value: value,
                 child: Text('Tahun: $value', overflow: TextOverflow.ellipsis),

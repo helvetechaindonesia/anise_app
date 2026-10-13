@@ -108,25 +108,56 @@ class AttendanceController extends Controller
         $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
 
         // 2. Ketidakhadiran dari student_leaves & attendances
-        $sakitCount = DB::table('student_leaves')
-            ->where('student_id', $user->id)
-            ->where('type', 'SAKIT')
-            ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
-            ->whereYear('start_date', $year)
-            ->whereMonth('start_date', $month)
-            ->count();
+        $sakitCount = 0;
+        $izinCount = 0;
+        $approvedLeaves = collect();
 
-        $izinCount = DB::table('student_leaves')
-            ->where('student_id', $user->id)
-            ->where('type', 'IZIN')
-            ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
-            ->whereYear('start_date', $year)
-            ->whereMonth('start_date', $month)
-            ->count();
+        if (Schema::hasTable('student_leaves')) {
+            $approvedLeaves = DB::table('student_leaves')
+                ->where('student_id', $user->id)
+                ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
+                ->where(function ($q) use ($year, $month) {
+                    $q->where(function ($sub) use ($year, $month) {
+                        $sub->whereYear('start_date', $year)->whereMonth('start_date', $month);
+                    })->orWhere(function ($sub) use ($year, $month) {
+                        $sub->whereYear('end_date', $year)->whereMonth('end_date', $month);
+                    });
+                })
+                ->get();
+
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    if ((int)$c->year === $year && (int)$c->month === $month) {
+                        $type = strtoupper($leave->type ?? '');
+                        if ($type === 'SAKIT') {
+                            $sakitCount++;
+                        } elseif ($type === 'IZIN') {
+                            $izinCount++;
+                        }
+                    }
+                }
+            }
+        }
 
         $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
-        $formattedLogs = $logs->map(function ($log) use ($user) {
+        // Preload late reports by date if discipline_reports table exists
+        $lateReports = collect();
+        if (Schema::hasTable('discipline_reports')) {
+            $lateReports = DB::table('discipline_reports')
+                ->leftJoin('users', 'discipline_reports.approved_by', '=', 'users.id')
+                ->where('discipline_reports.student_id', $user->id)
+                ->select('discipline_reports.*', 'users.full_name as validator_name')
+                ->get()
+                ->keyBy(function ($item) {
+                    return Carbon::parse($item->violation_time ?? $item->created_at)->format('Y-m-d');
+                });
+        }
+
+        $formattedLogs = $logs->map(function ($log) use ($user, $lateReports) {
             $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K']);
             $statusName = $log->status;
             
@@ -153,15 +184,11 @@ class AttendanceController extends Controller
                 $statusName = $statusMap[$log->status] ?? $log->status;
             }
 
+            $dateKey = Carbon::parse($log->tanggal)->format('Y-m-d');
             $validator = null;
             if (in_array($log->status, ['K', 'PA', 'TERLAMBAT', 'Terlambat'])) {
-                if (Schema::hasTable('discipline_reports')) {
-                    $report = DB::table('discipline_reports')
-                        ->join('users', 'discipline_reports.approved_by', '=', 'users.id')
-                        ->where('discipline_reports.student_id', $user->id)
-                        ->select('users.full_name')
-                        ->first();
-                    $validator = $report ? $report->full_name : 'Budi Santoso, S.Kom. (Wali Kelas)';
+                if (isset($lateReports[$dateKey])) {
+                    $validator = ($lateReports[$dateKey]->validator_name ?? 'Wali Kelas') . ' (Wali Kelas)';
                 } else {
                     $validator = 'Budi Santoso, S.Kom. (Wali Kelas)';
                 }
@@ -176,9 +203,45 @@ class AttendanceController extends Controller
                 'status' => $statusName,
                 'isLate' => $isLate,
                 'validator' => $validator,
-                'role' => $user->role
+                'role' => $user->role,
+                'raw_date' => $log->tanggal,
             ];
         });
+
+        // 3. Gabungkan Izin & Sakit yang disetujui ke dalam riwayat harian
+        $mergedLogs = collect($formattedLogs);
+        if ($approvedLeaves->isNotEmpty()) {
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    if ((int)$c->year === $year && (int)$c->month === $month) {
+                        $dateStr = $c->format('Y-m-d');
+                        if (!$logs->contains('tanggal', $dateStr)) {
+                            $leaveStatus = ucfirst(strtolower($leave->type));
+                            $mergedLogs->push([
+                                'hari' => $c->locale('id')->dayName,
+                                'tanggal' => $c->translatedFormat('d F Y'),
+                                'waktu' => '-',
+                                'lokasi' => 'Surat Elektronik (' . ($leave->status ?? 'ACC') . ')',
+                                'catatan' => $leave->reason ?? ('Pengajuan ' . $leaveStatus),
+                                'status' => $leaveStatus,
+                                'isLate' => false,
+                                'validator' => 'Budi Santoso, S.Kom. (Wali Kelas)',
+                                'role' => $user->role,
+                                'raw_date' => $dateStr,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Urutkan riwayat dari tanggal paling baru ke paling lama
+        $sortedLogs = $mergedLogs->sortByDesc(function ($item) {
+            return $item['raw_date'] ?? Carbon::parse($item['tanggal'])->format('Y-m-d');
+        })->values();
 
         return response()->json([
             'month' => $month,
@@ -192,7 +255,7 @@ class AttendanceController extends Controller
                 'izin' => $izinCount,
                 'alpha' => $alphaCount,
             ],
-            'logs' => $formattedLogs,
+            'logs' => $sortedLogs,
         ]);
     }
 

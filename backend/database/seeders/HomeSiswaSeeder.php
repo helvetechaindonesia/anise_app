@@ -308,21 +308,24 @@ class HomeSiswaSeeder extends Seeder
 
         // Catat Laporan Tilang Telat untuk 6 Oktober 2026
         if ($budiId) {
-            \Illuminate\Support\Facades\DB::table('laporan_telat_siswa')->updateOrInsert(
-                [
-                    'siswa_id' => $siswa->id,
-                    'waktu_telat' => '2026-10-06 07:28:44',
-                ],
-                [
-                    'id' => (string) Str::uuid(),
-                    'pelapor_id' => $budiId,
-                    'alasan' => 'Ban motor bocor di jalan raya Peunaron',
-                    'status' => 'ACC_GURU_WALI',
-                    'approved_by' => $budiId,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+            if (\Illuminate\Support\Facades\Schema::hasTable('discipline_reports')) {
+                \Illuminate\Support\Facades\DB::table('discipline_reports')->updateOrInsert(
+                    [
+                        'student_id' => $siswa->id,
+                        'violation_time' => '2026-10-06 07:28:44',
+                    ],
+                    [
+                        'id' => (string) Str::uuid(),
+                        'reporter_id' => $budiId,
+                        'category' => 'TERLAMBAT',
+                        'description' => 'Ban motor bocor di jalan raya Peunaron',
+                        'status' => 'APPROVED',
+                        'approved_by' => $budiId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+            }
         }
 
         // Catat Surat Izin Sakit untuk 9 Oktober 2026

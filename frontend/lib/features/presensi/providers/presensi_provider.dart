@@ -13,41 +13,26 @@ final presensiDataProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final month = ref.watch(selectedMonthProvider);
   final year = ref.watch(selectedYearProvider);
 
-  try {
-    final response = await dio.get('/attendance', queryParameters: {
-      'month': month,
-      'year': year,
-    });
+  final response = await dio.get('/attendance', queryParameters: {
+    'month': month,
+    'year': year,
+  });
 
-    if (response.data is Map<String, dynamic>) {
-      return response.data as Map<String, dynamic>;
-    }
-    return {
-      'summary': {
-        'hadir_penuh': 0,
-        'terlambat': 0,
-        'pulang_awal': 0,
-        'kembali': 0,
-        'sakit': 0,
-        'izin': 0,
-        'alpha': 0,
-      },
-      'logs': response.data as List<dynamic>,
-    };
-  } catch (e) {
-    return {
-      'summary': {
-        'hadir_penuh': 0,
-        'terlambat': 0,
-        'pulang_awal': 0,
-        'kembali': 0,
-        'sakit': 0,
-        'izin': 0,
-        'alpha': 0,
-      },
-      'logs': <dynamic>[],
-    };
+  if (response.data is Map<String, dynamic>) {
+    return response.data as Map<String, dynamic>;
   }
+  return {
+    'summary': {
+      'hadir_penuh': 0,
+      'terlambat': 0,
+      'pulang_awal': 0,
+      'kembali': 0,
+      'sakit': 0,
+      'izin': 0,
+      'alpha': 0,
+    },
+    'logs': (response.data as List<dynamic>?) ?? [],
+  };
 });
 
 /// Provider riwayat log presensi harian

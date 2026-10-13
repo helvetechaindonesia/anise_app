@@ -116,7 +116,7 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
     );
 
     try {
-      final XFile file = await _controller!.takePicture();
+      await _controller!.takePicture();
       
       // Ambil lokasi saat ini
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);

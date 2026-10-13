@@ -138,56 +138,79 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       appBar: AniseAppBar(
         title: 'Presensi',
         onBackPressed: () => Navigator.pop(context),
+        actions: [
+          IconButton(
+            icon: Icon(
+              PhosphorIcons.arrowsClockwise(PhosphorIconsStyle.bold),
+              color: AppColors.onBackground,
+              size: 20.w(context),
+            ),
+            tooltip: 'Segarkan Data',
+            onPressed: () {
+              ref.invalidate(presensiDataProvider);
+            },
+          ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: 16.h(context)),
-              // 1. Filter Dropdown Bulan & Tahun (Auto-Aktif Bulan/Tahun ini)
-              const PresensiHeaderWidget(),
-              SizedBox(height: 24.h(context)),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          onRefresh: () async {
+            ref.invalidate(presensiDataProvider);
+            try {
+              await ref.read(presensiDataProvider.future);
+            } catch (_) {}
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 16.h(context)),
+                // 1. Filter Dropdown Bulan & Tahun (Auto-Aktif Bulan/Tahun ini)
+                const PresensiHeaderWidget(),
+                SizedBox(height: 24.h(context)),
 
-              // 2. Kartu Rekapitulasi Statistik Kehadiran Bulanan
-              const PresensiRekapWidget(),
-              SizedBox(height: 28.h(context)),
+                // 2. Kartu Rekapitulasi Statistik Kehadiran Bulanan
+                const PresensiRekapWidget(),
+                SizedBox(height: 28.h(context)),
 
-              // 3. Judul Seksi Log Harian
-              Row(
-                children: [
-                  Icon(
-                    PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold),
-                    color: AppColors.onBackground,
-                    size: 20.w(context),
-                  ),
-                  SizedBox(width: 8.w(context)),
-                  Text(
-                    'Log Catatan Kehadiran',
-                    style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-                      fontWeight: FontWeight.w700,
+                // 3. Judul Seksi Log Harian
+                Row(
+                  children: [
+                    Icon(
+                      PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold),
+                      color: AppColors.onBackground,
+                      size: 20.w(context),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16.h(context)),
+                    SizedBox(width: 8.w(context)),
+                    Text(
+                      'Log Catatan Kehadiran',
+                      style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16.h(context)),
 
-              // 4. Daftar Riwayat Baku (ItemListTile Model B)
-              const PresensiRiwayatListWidget(),
-              SizedBox(height: 32.h(context)),
+                // 4. Daftar Riwayat Baku (ItemListTile Model B)
+                const PresensiRiwayatListWidget(),
+                SizedBox(height: 32.h(context)),
 
-              // 5. Tombol Unduh Rekap Baku (PillButton)
-              AniseButton(
-                text: _isDownloading ? 'Menyiapkan Unduhan...' : 'Unduh Rekap Bulanan',
-                icon: PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold),
-                variant: AniseButtonVariant.primary,
-                isLoading: _isDownloading,
-                onPressed: _handleDownload,
-              ),
-              SizedBox(height: 40.h(context)),
-            ],
+                // 5. Tombol Unduh Rekap Baku (PillButton)
+                AniseButton(
+                  text: _isDownloading ? 'Menyiapkan Unduhan...' : 'Unduh Rekap Bulanan',
+                  icon: PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold),
+                  variant: AniseButtonVariant.primary,
+                  isLoading: _isDownloading,
+                  onPressed: _isDownloading ? null : _handleDownload,
+                ),
+                SizedBox(height: 40.h(context)),
+              ],
+            ),
           ),
         ),
       ),
