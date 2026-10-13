@@ -32,7 +32,7 @@ class DevController extends Controller
         try {
             $seeder = new \Database\Seeders\HomeSiswaSeeder();
             $seeder->run();
-            return $this->success(null, 'Data asli Home Siswa (7 Guru Pengajar & 5 Tugas Aktif) berhasil disuntikkan ke database!');
+            return $this->success(null, 'Data asli Home Siswa (7 Guru Pengajar, 5 Tugas Aktif, dan Riwayat Presensi Lengkap) berhasil disuntikkan ke database!');
         } catch (\Throwable $e) {
             return $this->error('Gagal menyuntikkan data: ' . $e->getMessage(), 500);
         }

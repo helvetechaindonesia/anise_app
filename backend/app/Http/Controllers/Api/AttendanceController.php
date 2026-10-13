@@ -86,30 +86,85 @@ class AttendanceController extends Controller
     public function getRiwayatPresensi(Request $request)
     {
         $user = $request->user();
-        $logs = DB::table('attendances')->where('user_id', $user->id)->orderBy('tanggal', 'desc')->take(10)->get();
-            
+        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+
+        $month = (int) $request->query('month', now()->month);
+        $year = (int) $request->query('year', now()->year);
+
+        $logsQuery = DB::table('attendances')
+            ->where('user_id', $user->id)
+            ->whereYear('tanggal', $year)
+            ->whereMonth('tanggal', $month)
+            ->orderBy('tanggal', 'desc');
+
+        $logs = $logsQuery->get();
+
+        // 1. Rekapitulasi Statistik Kehadiran Bulanan
+        $hadirPenuhCount = $logs->whereIn('status', ['MASUK', 'Hadir', 'Hadir Tepat', 'PULANG', 'Pulang Tepat'])->count();
+        $terlambatCount = $logs->whereIn('status', ['TERLAMBAT', 'Terlambat', 'TAM'])->count();
+        $pulangAwalCount = $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
+        $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
+
+        // 2. Ketidakhadiran dari student_leaves & attendances
+        $sakitCount = DB::table('student_leaves')
+            ->where('student_id', $user->id)
+            ->where('type', 'SAKIT')
+            ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
+            ->whereYear('start_date', $year)
+            ->whereMonth('start_date', $month)
+            ->count();
+
+        $izinCount = DB::table('student_leaves')
+            ->where('student_id', $user->id)
+            ->where('type', 'IZIN')
+            ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
+            ->whereYear('start_date', $year)
+            ->whereMonth('start_date', $month)
+            ->count();
+
+        $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
+
         $formattedLogs = $logs->map(function ($log) use ($user) {
-            $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TAP', 'K']);
+            $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K']);
             $statusName = $log->status;
             
             if ($user->role === 'SISWA') {
-                $statusMap = ['MASUK' => 'Hadir', 'K' => 'Kembali', 'PA' => 'Pulang Awal', 'TERLAMBAT' => 'Terlambat'];
+                $statusMap = [
+                    'MASUK' => 'Hadir', 
+                    'Hadir' => 'Hadir',
+                    'K' => 'Kembali', 
+                    'PA' => 'Pulang Awal', 
+                    'TERLAMBAT' => 'Terlambat',
+                    'Terlambat' => 'Terlambat',
+                    'SAKIT' => 'Sakit',
+                    'IZIN' => 'Izin',
+                    'ALPHA' => 'Alpha',
+                ];
                 $statusName = $statusMap[$log->status] ?? $log->status;
             } else {
-                $statusMap = ['MASUK' => 'Hadir Tepat', 'K' => 'Kembali', 'PA' => 'Pulang Awal', 'PULANG' => 'Pulang Tepat'];
+                $statusMap = [
+                    'MASUK' => 'Hadir Tepat', 
+                    'K' => 'Kembali', 
+                    'PA' => 'Pulang Awal', 
+                    'PULANG' => 'Pulang Tepat'
+                ];
                 $statusName = $statusMap[$log->status] ?? $log->status;
             }
 
             $validator = null;
-            if ($user->role === 'SISWA' && in_array($log->status, ['K', 'PA', 'TERLAMBAT'])) {
-                $report = DB::table('laporan_telat_siswa')->join('users', 'laporan_telat_siswa.approved_by', '=', 'users.id')->where('siswa_id', $user->id)->select('users.full_name')->first();
-                $validator = $report ? $report->full_name : 'Guru Wali (Auto)';
+            if ($user->role === 'SISWA' && in_array($log->status, ['K', 'PA', 'TERLAMBAT', 'Terlambat'])) {
+                $report = DB::table('laporan_telat_siswa')
+                    ->join('users', 'laporan_telat_siswa.approved_by', '=', 'users.id')
+                    ->where('siswa_id', $user->id)
+                    ->select('users.full_name')
+                    ->first();
+                $validator = $report ? $report->full_name : 'Budi Santoso, S.Kom. (Wali Kelas)';
             }
 
             return [
                 'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
-                'tanggal' => Carbon::parse($log->tanggal)->format('d M Y'),
-                'waktu' => Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB',
+                'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
+                'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-',
                 'lokasi' => 'Gerbang Utama',
                 'catatan' => 'Status: ' . $statusName,
                 'status' => $statusName,
@@ -119,7 +174,20 @@ class AttendanceController extends Controller
             ];
         });
 
-        return response()->json($formattedLogs);
+        return response()->json([
+            'month' => $month,
+            'year' => $year,
+            'summary' => [
+                'hadir_penuh' => $hadirPenuhCount,
+                'terlambat' => $terlambatCount,
+                'pulang_awal' => $pulangAwalCount,
+                'kembali' => $kembaliCount,
+                'sakit' => $sakitCount,
+                'izin' => $izinCount,
+                'alpha' => $alphaCount,
+            ],
+            'logs' => $formattedLogs,
+        ]);
     }
 
     public function submitLaporanTelat(Request $request)

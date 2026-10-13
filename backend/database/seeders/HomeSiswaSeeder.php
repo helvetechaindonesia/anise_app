@@ -274,5 +274,73 @@ class HomeSiswaSeeder extends Seeder
                 );
             }
         }
+
+        // 8. Seeding Data Presensi Asli Andi Wijaya (Oktober 2026)
+        $waliKelas = User::where('email', 'guru@sipena.sch.id')->first();
+        $budiId = $waliKelas ? $waliKelas->id : null;
+
+        $attendanceDates = [
+            ['date' => '2026-10-01', 'time' => '06:45:12', 'status' => 'MASUK'],
+            ['date' => '2026-10-02', 'time' => '06:40:05', 'status' => 'MASUK'],
+            ['date' => '2026-10-05', 'time' => '06:50:22', 'status' => 'MASUK'],
+            ['date' => '2026-10-06', 'time' => '07:28:44', 'status' => 'TERLAMBAT'],
+            ['date' => '2026-10-07', 'time' => '06:48:19', 'status' => 'MASUK'],
+            ['date' => '2026-10-08', 'time' => '06:52:30', 'status' => 'MASUK'],
+            ['date' => '2026-10-12', 'time' => '06:43:10', 'status' => 'MASUK'],
+            ['date' => '2026-10-13', 'time' => '06:50:00', 'status' => 'MASUK'],
+        ];
+
+        foreach ($attendanceDates as $att) {
+            \Illuminate\Support\Facades\DB::table('attendances')->updateOrInsert(
+                [
+                    'user_id' => $siswa->id,
+                    'tanggal' => $att['date'],
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                    'jam_masuk' => $att['date'] . ' ' . $att['time'],
+                    'status' => $att['status'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
+        // Catat Laporan Tilang Telat untuk 6 Oktober 2026
+        if ($budiId) {
+            \Illuminate\Support\Facades\DB::table('laporan_telat_siswa')->updateOrInsert(
+                [
+                    'siswa_id' => $siswa->id,
+                    'waktu_telat' => '2026-10-06 07:28:44',
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                    'pelapor_id' => $budiId,
+                    'alasan' => 'Ban motor bocor di jalan raya Peunaron',
+                    'status' => 'ACC_GURU_WALI',
+                    'approved_by' => $budiId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
+        // Catat Surat Izin Sakit untuk 9 Oktober 2026
+        \Illuminate\Support\Facades\DB::table('student_leaves')->updateOrInsert(
+            [
+                'student_id' => $siswa->id,
+                'start_date' => '2026-10-09',
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'type' => 'SAKIT',
+                'reason' => 'Demam tinggi dan istirahat dokter klinik Peunaron',
+                'end_date' => '2026-10-09',
+                'status' => 'APPROVED',
+                'approved_by' => $budiId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
     }
 }
