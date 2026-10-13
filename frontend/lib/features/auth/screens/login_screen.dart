@@ -128,6 +128,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       return;
     }
 
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(username)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Format email tidak valid (contoh: siswa@sipena.sch.id)', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final success = await ref.read(authProvider.notifier).login(username, password);
 
     if (success && mounted) {
@@ -499,8 +511,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               ),
                             ],
                           ),
-                          Spacing.component(context),
-                          
                           Spacing.component(context),
                           
                           // Submit Button (PillButton)

@@ -7,6 +7,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_text_field.dart';
 import '../../../core/widgets/anise_button.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/decorative_background.dart';
 
 class LupaSandiScreen extends StatefulWidget {
@@ -32,6 +33,17 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Alamat email wajib diisi', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Format email tidak valid (contoh: siswa@sipena.sch.id)', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
           backgroundColor: AppColors.error,
         ),
       );
@@ -182,81 +194,57 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: const AniseAppBar(
+        title: 'Lupa Kata Sandi',
+      ),
       body: DecorativeBackground(
         child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: EdgeInsets.all(24.w(context)),
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: EdgeInsets.all(8.w(context)),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 32.w(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 16.h(context)),
+                Container(
+                  padding: EdgeInsets.all(16.w(context)),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(PhosphorIcons.lockKey(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 48.w(context)),
                 ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 32.w(context)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 32.h(context)),
-                      Container(
-                        padding: EdgeInsets.all(16.w(context)),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(PhosphorIcons.lockKey(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 48.w(context)),
-                      ),
-                      SizedBox(height: 32.h(context)),
-                      Text(
-                        'Lupa\nKata Sandi?',
-                        style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground),
-                      ),
-                      SizedBox(height: 16.h(context)),
-                      Text(
-                        'Masukkan alamat email yang terdaftar. Sistem akan memverifikasi akun Anda dan secara otomatis mengirimkan kata sandi ke nomor WhatsApp yang terdaftar pada akun tersebut.',
-                        style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
-                      ),
-                      SizedBox(height: 48.h(context)),
-                      Text(
-                        'Alamat Email',
-                        style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground),
-                      ),
-                      SizedBox(height: 12.h(context)),
-                      AniseTextField(
-                        controller: _emailController,
-                        hintText: 'contoh: siswa@sipena.sch.id',
-                        icon: PhosphorIcons.envelopeSimple(),
-                      ),
-                      SizedBox(height: 32.h(context)),
-                      AniseButton(
-                        text: 'Kirim Kata Sandi ke WhatsApp',
-                        icon: PhosphorIcons.whatsappLogo(PhosphorIconsStyle.fill),
-                        variant: AniseButtonVariant.primary,
-                        isLoading: _isLoading,
-                        onPressed: _handleForgotPassword,
-                      ),
-                    ],
-                  ),
+                SizedBox(height: 24.h(context)),
+                Text(
+                  'Lupa\nKata Sandi?',
+                  style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground),
                 ),
-              ),
-            ],
+                SizedBox(height: 16.h(context)),
+                Text(
+                  'Masukkan alamat email yang terdaftar. Sistem akan memverifikasi akun Anda dan secara otomatis mengirimkan kata sandi ke nomor WhatsApp yang terdaftar pada akun tersebut.',
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
+                ),
+                SizedBox(height: 36.h(context)),
+                Text(
+                  'Alamat Email',
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground),
+                ),
+                SizedBox(height: 12.h(context)),
+                AniseTextField(
+                  controller: _emailController,
+                  hintText: 'contoh: siswa@sipena.sch.id',
+                  icon: PhosphorIcons.envelopeSimple(),
+                ),
+                SizedBox(height: 32.h(context)),
+                AniseButton(
+                  text: 'Kirim Kata Sandi ke WhatsApp',
+                  icon: PhosphorIcons.whatsappLogo(PhosphorIconsStyle.fill),
+                  variant: AniseButtonVariant.primary,
+                  isLoading: _isLoading,
+                  onPressed: _handleForgotPassword,
+                ),
+                SizedBox(height: 24.h(context)),
+              ],
+            ),
           ),
         ),
       ),

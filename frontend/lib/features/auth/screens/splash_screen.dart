@@ -3,19 +3,23 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:math' as math;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/utils/shared_prefs.dart';
+import '../providers/auth_provider.dart';
+import '../../home/screens/main_navigation_screen.dart';
 import 'login_screen.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   
   final AudioPlayer _swooshPlayer = AudioPlayer();
@@ -123,21 +127,40 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     // Mulai animasi
-    _controller.forward().then((_) {
-      // Tunggu 0.5 detik setelah semua selesai sebelum menavigasi ke Login
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 800),
-            ),
-          );
+    _controller.forward().then((_) async {
+      // Periksa sesi login yang tersimpan (validitas 7 hari dicek di SharedPrefs)
+      final token = await SharedPrefs.getToken();
+      bool isAuthenticated = false;
+
+      if (token != null && token.isNotEmpty) {
+        try {
+          await ref.read(authProvider.notifier).checkAuth();
+          final authState = ref.read(authProvider);
+          if (authState.status == AuthStatus.authenticated && authState.user != null) {
+            isAuthenticated = true;
+          }
+        } catch (_) {
+          isAuthenticated = false;
         }
-      });
+      }
+
+      // Tunggu jeda halus 400ms setelah animasi selesai sebelum transisi layar
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+
+      final targetScreen = isAuthenticated
+          ? const MainNavigationScreen()
+          : const LoginScreen();
+
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
     });
     
     // Mainkan sound effects sesuai timing fase animasi
