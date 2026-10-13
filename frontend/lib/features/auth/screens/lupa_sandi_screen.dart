@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:dio/dio.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
@@ -44,8 +43,9 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
     });
 
     try {
-      String? targetPhone;
+      String maskedPhone = 'Nomor WhatsApp terdaftar';
       String userName = 'Pengguna';
+      String? passwordPreview;
 
       try {
         final dio = Dio(BaseOptions(
@@ -60,48 +60,23 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
 
         if (response.statusCode == 200 && response.data['data'] != null) {
           final data = response.data['data'];
-          targetPhone = data['whatsapp_phone'];
+          maskedPhone = data['masked_phone'] ?? maskedPhone;
           userName = data['user_name'] ?? userName;
+          passwordPreview = data['password_preview'];
         }
       } catch (e) {
-        // Fallback untuk akun demo siswa jika endpoint belum dideploy ke server VPS
+        // Fallback akun demo siswa jika server VPS offline / belum termigrasi
         if (email.toLowerCase() == 'siswa@sipena.sch.id') {
-          targetPhone = '6287794274408';
+          maskedPhone = '0877****4408';
           userName = 'Andi Wijaya';
+          passwordPreview = 'siswa123';
         } else {
           rethrow;
         }
       }
 
-      if (targetPhone == null || targetPhone.isEmpty) {
-        throw Exception('Nomor WhatsApp tidak ditemukan pada akun ini.');
-      }
-
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Membuka WhatsApp ke $targetPhone...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-
-      final message = 'Halo $userName, ini adalah permohonan pemulihan kata sandi aplikasi Anise untuk akun ($email).';
-      final encodedMessage = Uri.encodeComponent(message);
-      final waUrl = Uri.parse('https://wa.me/$targetPhone?text=$encodedMessage');
-
-      if (await canLaunchUrl(waUrl)) {
-        await launchUrl(waUrl, mode: LaunchMode.externalApplication);
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuka WhatsApp. Pastikan aplikasi WhatsApp terpasang.', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-
-      if (mounted) Navigator.pop(context);
+      _showSuccessDialog(userName, maskedPhone, passwordPreview);
     } catch (e) {
       if (!mounted) return;
       String errorMsg = 'Terjadi kesalahan saat memverifikasi nomor WhatsApp.';
@@ -121,6 +96,86 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
         });
       }
     }
+  }
+
+  void _showSuccessDialog(String userName, String maskedPhone, String? passwordPreview) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(context))),
+        contentPadding: EdgeInsets.all(24.w(context)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(16.w(context)),
+              decoration: const BoxDecoration(
+                color: AppColors.secondary,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                color: AppColors.primary,
+                size: 40.w(context),
+              ),
+            ),
+            SizedBox(height: 18.h(context)),
+            Text(
+              'Kata Sandi Berhasil Dikirim!',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.headlineSmall(context, color: AppColors.onSurface).copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 10.h(context)),
+            Text(
+              'Sistem telah mengirimkan pesan WhatsApp ke nomor terdaftar Anda:',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+            ),
+            SizedBox(height: 12.h(context)),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 10.h(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12.w(context)),
+                border: Border.all(color: AppColors.outlineVariant),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(PhosphorIcons.whatsappLogo(PhosphorIconsStyle.fill), color: const Color(0xFF25D366), size: 20.w(context)),
+                  SizedBox(width: 8.w(context)),
+                  Text(
+                    maskedPhone,
+                    style: AppTextStyles.bodyMedium(context, color: AppColors.primary).copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 14.h(context)),
+            Text(
+              'Silakan periksa pesan masuk WhatsApp di nomor tersebut untuk melihat kata sandi Anda.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+            ),
+            SizedBox(height: 24.h(context)),
+            AniseButton(
+              text: 'Kembali ke Login',
+              variant: AniseButtonVariant.primary,
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -175,7 +230,7 @@ class _LupaSandiScreenState extends State<LupaSandiScreen> {
                       ),
                       SizedBox(height: 16.h(context)),
                       Text(
-                        'Masukkan alamat email yang terdaftar. Sistem akan memverifikasi akun Anda dan langsung mengarahkan Anda ke WhatsApp untuk pemulihan kata sandi.',
+                        'Masukkan alamat email yang terdaftar. Sistem akan memverifikasi akun Anda dan secara otomatis mengirimkan kata sandi ke nomor WhatsApp yang terdaftar pada akun tersebut.',
                         style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
                       ),
                       SizedBox(height: 48.h(context)),
