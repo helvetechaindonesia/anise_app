@@ -41,4 +41,8 @@ class Schedule extends Model
         return $this->belongsTo(\App\Models\AcademicYear::class, 'academic_year_id');
     }
 
+    public function journals()
+    {
+        return $this->hasMany(\App\Models\Journal::class, 'schedule_id');
+    }
 }

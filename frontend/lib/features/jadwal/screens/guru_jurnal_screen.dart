@@ -5,7 +5,6 @@ import '../../notifications/screens/notification_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
-import 'guru_input_jurnal_screen.dart';
 import 'guru_terbit_jurnal_screen.dart';
 import '../providers/jurnal_provider.dart';
 import 'package:intl/intl.dart';

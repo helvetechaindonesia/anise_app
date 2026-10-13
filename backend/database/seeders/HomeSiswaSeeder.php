@@ -228,6 +228,10 @@ class HomeSiswaSeeder extends Seeder
                 ['name' => $gData['subject_name']]
             );
 
+            $times = explode('-', $gData['time'] ?? '07:30 - 09:30');
+            $startTime = trim($times[0]) . (strlen(trim($times[0])) === 5 ? ':00' : '');
+            $endTime = trim($times[1] ?? '09:30') . (strlen(trim($times[1] ?? '09:30')) === 5 ? ':00' : '');
+
             // 7D. Buat Jadwal Pelajaran (Schedule) untuk Kelas Siswa
             $schedule = Schedule::firstOrCreate(
                 [
@@ -238,13 +242,18 @@ class HomeSiswaSeeder extends Seeder
                 [
                     'teacher_id' => $guruUser->id,
                     'day_of_week' => $gData['day'],
-                    'start_time' => '07:30:00',
-                    'end_time' => '09:30:00',
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
                 ]
             );
 
             // Selaraskan Guru pengampu di Schedule
-            $schedule->update(['teacher_id' => $guruUser->id]);
+            $schedule->update([
+                'teacher_id' => $guruUser->id,
+                'day_of_week' => $gData['day'],
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+            ]);
 
             // 7E. Buat Jurnal Mengajar Guru jika ada tugas
             if (!empty($gData['task'])) {

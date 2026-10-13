@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 
@@ -258,8 +256,28 @@ class ImageGridWidget extends StatelessWidget {
   }
 }
 
-class RatingSectionWidget extends StatelessWidget {
-  const RatingSectionWidget({Key? key}) : super(key: key);
+class RatingSectionWidget extends StatefulWidget {
+  final int initialRating;
+  final ValueChanged<int>? onRatingChanged;
+
+  const RatingSectionWidget({
+    Key? key,
+    this.initialRating = 5,
+    this.onRatingChanged,
+  }) : super(key: key);
+
+  @override
+  State<RatingSectionWidget> createState() => _RatingSectionWidgetState();
+}
+
+class _RatingSectionWidgetState extends State<RatingSectionWidget> {
+  late int _currentRating;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentRating = widget.initialRating;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -268,22 +286,50 @@ class RatingSectionWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundLight,
         borderRadius: BorderRadius.circular(12.w(context)),
+        border: Border.all(color: AppColors.outlineVariant, width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Tensi Penilaian',
-            style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
+          Row(
+            children: [
+              Icon(PhosphorIcons.chartBar(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
+              SizedBox(width: 6.w(context)),
+              Text(
+                'Tensi Penilaian ($_currentRating/5)',
+                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
           Row(
             children: List.generate(5, (index) {
-              return Padding(
-                padding: EdgeInsets.only(left: 4.w(context)),
-                child: Icon(
-                  PhosphorIcons.star(PhosphorIconsStyle.fill),
-                  color: AppColors.warning,
-                  size: 20.w(context),
+              final starIndex = index + 1;
+              final isFilled = starIndex <= _currentRating;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _currentRating = starIndex;
+                  });
+                  if (widget.onRatingChanged != null) {
+                    widget.onRatingChanged!(starIndex);
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Penilaian $starIndex bintang berhasil disimpan!'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
+                      backgroundColor: AppColors.primary,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: EdgeInsets.only(left: 4.w(context)),
+                  child: Icon(
+                    isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
+                    color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
+                    size: 20.w(context),
+                  ),
                 ),
               );
             }),

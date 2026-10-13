@@ -40,4 +40,18 @@ class Journal extends Model
         return $this->belongsTo(\App\Models\Subject::class, 'subject_id');
     }
 
+    public function tasks()
+    {
+        return $this->hasMany(\App\Models\JournalTask::class, 'journal_id');
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(\App\Models\JournalReview::class, 'journal_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(\App\Models\JournalComment::class, 'journal_id');
+    }
 }

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import 'schedule_card_components.dart';
@@ -10,6 +8,7 @@ import 'schedule_card_components.dart';
 enum ScheduleStatus { selesai, live }
 
 class ScheduleCard extends StatefulWidget {
+  final String? journalId;
   final ScheduleStatus status;
   final String timeRange;
   final String uploadTime;
@@ -24,9 +23,12 @@ class ScheduleCard extends StatefulWidget {
   final bool hasImages;
   final int likes;
   final int comments;
+  final int initialRating;
+  final ValueChanged<int>? onRatingChanged;
 
   const ScheduleCard({
     Key? key,
+    this.journalId,
     required this.status,
     required this.timeRange,
     required this.uploadTime,
@@ -41,6 +43,8 @@ class ScheduleCard extends StatefulWidget {
     this.hasImages = false,
     required this.likes,
     required this.comments,
+    this.initialRating = 5,
+    this.onRatingChanged,
   }) : super(key: key);
 
   @override
@@ -79,9 +83,22 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.outline.withValues(alpha: 0.5), width: 1)),
+        borderRadius: BorderRadius.circular(16.w(context)),
+        border: Border.all(
+          color: isLive ? AppColors.secondary : AppColors.outlineVariant,
+          width: isLive ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isLive
+                ? AppColors.secondary.withValues(alpha: 0.12)
+                : AppColors.onBackground.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      padding: EdgeInsets.only(top: 20.h(context), bottom: 16.h(context), left: 20.w(context), right: 20.w(context)),
+      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 16.h(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,7 +172,10 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
           ],
           if (!isLive) ...[
             SizedBox(height: 16.h(context)),
-            const RatingSectionWidget(),
+            RatingSectionWidget(
+              initialRating: widget.initialRating,
+              onRatingChanged: widget.onRatingChanged,
+            ),
           ],
           if (isLive) ...[
             SizedBox(height: 16.h(context)),
@@ -315,75 +335,198 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
   }
 
   void _showCommentBottomSheet(BuildContext context) {
+    final commentController = TextEditingController();
+    final List<Map<String, String>> localComments = [];
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.transparent,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24.w(context)),
-              topRight: Radius.circular(24.w(context)),
-            ),
-          ),
-          child: Column(
-            children: [
-              SizedBox(height: 12.h(context)),
-              Container(width: 40.w(context), height: 4.h(context), decoration: BoxDecoration(color: AppColors.outline, borderRadius: BorderRadius.circular(2))),
-              SizedBox(height: 16.h(context)),
-              Text(
-                'Komentar ()',
-                style: AppTextStyles.bodyLarge(context, color: AppColors.onSurface),
-              ),
-              Divider(color: AppColors.outline),
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(PhosphorIcons.chatTeardrop(PhosphorIconsStyle.light), size: 48.w(context), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                      SizedBox(height: 16.h(context)),
-                      Text(
-                        'Belum ada komentar terbaru',
-                        style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
-                      ),
-                    ],
-                  ),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final totalCount = widget.comments + localComments.length;
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24.w(context)),
+                  topRight: Radius.circular(24.w(context)),
                 ),
               ),
-              Container(
-                padding: EdgeInsets.only(
-                  left: 16.w(context),
-                  right: 16.w(context),
-                  top: 12.h(context),
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16.h(context),
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: [BoxShadow(color: AppColors.onBackground.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 10.h(context)),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(20.w(context)),
-                        ),
-                        child: Text('Tulis komentar...', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
-                      ),
+              child: Column(
+                children: [
+                  SizedBox(height: 12.h(context)),
+                  Container(
+                    width: 40.w(context),
+                    height: 4.h(context),
+                    decoration: BoxDecoration(
+                      color: AppColors.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    SizedBox(width: 12.w(context)),
-                    Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.fill), color: AppColors.primary, size: 24.w(context)),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 16.h(context)),
+                  Text(
+                    'Komentar ($totalCount)',
+                    style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: 12.h(context)),
+                  Divider(color: AppColors.outlineVariant, height: 1),
+                  Expanded(
+                    child: localComments.isEmpty && widget.comments == 0
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  PhosphorIcons.chatTeardrop(PhosphorIconsStyle.light),
+                                  size: 48.w(context),
+                                  color: AppColors.onSurface.withValues(alpha: 0.3),
+                                ),
+                                SizedBox(height: 16.h(context)),
+                                Text(
+                                  'Belum ada komentar terbaru',
+                                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
+                                ),
+                                SizedBox(height: 4.h(context)),
+                                Text(
+                                  'Jadilah yang pertama memberikan tanggapan!',
+                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
+                            itemCount: localComments.length,
+                            separatorBuilder: (context, index) => SizedBox(height: 12.h(context)),
+                            itemBuilder: (context, idx) {
+                              final item = localComments[idx];
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16.w(context),
+                                    backgroundColor: AppColors.primaryContainer,
+                                    child: Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimaryContainer),
+                                  ),
+                                  SizedBox(width: 12.w(context)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              item['user'] ?? 'Siswa',
+                                              style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                            ),
+                                            Text(
+                                              item['time'] ?? 'Baru saja',
+                                              style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 4.h(context)),
+                                        Text(
+                                          item['text'] ?? '',
+                                          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.only(
+                      left: 16.w(context),
+                      right: 16.w(context),
+                      top: 12.h(context),
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 16.h(context),
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.onBackground.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, -5),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(24.w(context)),
+                              border: Border.all(color: AppColors.outlineVariant, width: 1),
+                            ),
+                            child: TextField(
+                              controller: commentController,
+                              style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                              decoration: InputDecoration(
+                                hintText: 'Tulis tanggapan atau komentar...',
+                                hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 10.h(context)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12.w(context)),
+                        GestureDetector(
+                          onTap: () {
+                            final text = commentController.text.trim();
+                            if (text.isNotEmpty) {
+                              setSheetState(() {
+                                localComments.insert(0, {
+                                  'user': 'Saya',
+                                  'text': text,
+                                  'time': 'Baru saja',
+                                });
+                                commentController.clear();
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Komentar berhasil dikirim!'),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
+                                  backgroundColor: AppColors.primary,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(10.w(context)),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.fill),
+                              color: AppColors.onPrimary,
+                              size: 18.w(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

@@ -263,35 +263,170 @@ class JournalController extends Controller
             
             $classId = $classStudent->class_id;
 
-            $journals = \App\Models\Journal::whereHas('schedule', function ($q) use ($classId) {
-                $q->where('class_id', $classId);
+            // 1. Ambil seluruh jadwal reguler untuk kelas siswa
+            $schedules = \App\Models\Schedule::where('class_id', $classId)
+                ->with(['subject', 'teacher.guruProfile'])
+                ->get();
+
+            // 2. Ambil seluruh jurnal mengajar untuk kelas siswa
+            $journals = \App\Models\Journal::where(function ($query) use ($classId) {
+                $query->where('class_id', $classId)
+                      ->orWhereHas('schedule', function ($q) use ($classId) {
+                          $q->where('class_id', $classId);
+                      });
             })
-            ->with(['schedule.subject', 'schedule.teacher.guruProfile', 'tasks'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($journal) {
+            ->with(['schedule.subject', 'schedule.teacher.guruProfile', 'tasks', 'comments', 'reviews'])
+            ->orderBy('teaching_date', 'desc')
+            ->get();
+
+            $result = [];
+
+            // A. Petakan data Jurnal yang sudah terbit
+            foreach ($journals as $journal) {
                 $sched = $journal->schedule;
-                $teacherName = $sched->teacher->guruProfile ? $sched->teacher->guruProfile->full_name : $sched->teacher->username;
+                $teacher = $sched ? $sched->teacher : $journal->teacher;
+                $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
                 
-                return [
+                $subjectName = $sched?->subject?->name ?? ($journal->subject?->name ?? 'Mata Pelajaran');
+                $startTime = $sched ? $sched->start_time : '07:30:00';
+                $endTime = $sched ? $sched->end_time : '09:30:00';
+                
+                $dayOfWeek = $sched ? $sched->day_of_week : null;
+                if ($dayOfWeek === null && $journal->teaching_date) {
+                    $dayOfWeek = Carbon::parse($journal->teaching_date)->dayOfWeekIso;
+                }
+
+                $task = $journal->tasks->first();
+                $hasTask = $journal->tasks->count() > 0 || (bool)$journal->has_task;
+                $taskTitle = $task ? $task->title : ($hasTask ? 'Tugas: ' . $journal->topic_material : null);
+
+                $likesCount = 0;
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                        $likesCount = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                            ->where('journal_id', $journal->id)
+                            ->where('interaction_type', 'LIKE')
+                            ->count();
+                    }
+                } catch (\Exception $e) {}
+
+                $commentsCount = $journal->comments ? $journal->comments->count() : 0;
+                $avgRating = $journal->reviews ? ($journal->reviews->avg('rating') ?: 5.0) : 5.0;
+
+                $result[] = [
                     'id' => $journal->id,
+                    'schedule_id' => $journal->schedule_id,
+                    'type' => 'journal',
                     'topic' => $journal->topic_material,
-                    'description' => $journal->description,
-                    'created_at' => $journal->created_at,
-                    'teaching_date' => $journal->teaching_date,
-                    'subject' => $sched->subject->name,
+                    'description' => $journal->description ?: $journal->topic_material,
+                    'created_at' => $journal->created_at ? $journal->created_at->toIso8601String() : null,
+                    'teaching_date' => $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : null,
+                    'subject' => $subjectName,
                     'teacher' => $teacherName,
+                    'teacher_image' => $teacher?->profile_picture ?? null,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'day_of_week' => $dayOfWeek,
+                    'has_task' => $hasTask,
+                    'task_title' => $taskTitle,
+                    'attachment_url' => $journal->attachment_url,
+                    'likes' => $likesCount,
+                    'comments' => $commentsCount,
+                    'rating' => (float)$avgRating
+                ];
+            }
+
+            // B. Petakan Jadwal Reguler mingguan (Template mata pelajaran)
+            foreach ($schedules as $sched) {
+                $teacher = $sched->teacher;
+                $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
+                $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
+
+                $result[] = [
+                    'id' => 'sched_' . $sched->id,
+                    'schedule_id' => $sched->id,
+                    'type' => 'schedule',
+                    'topic' => 'Jadwal Rutin: ' . $subjectName,
+                    'description' => 'Materi pembelajaran belum dipublikasikan oleh guru mata pelajaran.',
+                    'created_at' => $sched->created_at ? $sched->created_at->toIso8601String() : null,
+                    'teaching_date' => null,
+                    'subject' => $subjectName,
+                    'teacher' => $teacherName,
+                    'teacher_image' => $teacher?->profile_picture ?? null,
                     'start_time' => $sched->start_time,
                     'end_time' => $sched->end_time,
                     'day_of_week' => $sched->day_of_week,
-                    'has_task' => $journal->tasks->count() > 0
+                    'has_task' => false,
+                    'task_title' => null,
+                    'attachment_url' => null,
+                    'likes' => 0,
+                    'comments' => 0,
+                    'rating' => 5.0
                 ];
-            });
+            }
 
             return response()->json([
                 'status' => 'success',
-                'data' => $journals
+                'data' => $result
             ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function toggleLike(Request $request, $journalId)
+    {
+        try {
+            $user = Auth::user();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $existing = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('journal_id', $journalId)
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'LIKE')
+                    ->first();
+
+                if ($existing) {
+                    \Illuminate\Support\Facades\DB::table('journal_interactions')->where('id', $existing->id)->delete();
+                    $liked = false;
+                } else {
+                    \Illuminate\Support\Facades\DB::table('journal_interactions')->insert([
+                        'id' => (string) \Illuminate\Support\Str::uuid(),
+                        'journal_id' => $journalId,
+                        'student_id' => $user->id,
+                        'interaction_type' => 'LIKE',
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    $liked = true;
+                }
+
+                $count = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('journal_id', $journalId)
+                    ->where('interaction_type', 'LIKE')
+                    ->count();
+
+                return response()->json(['status' => 'success', 'data' => ['liked' => $liked, 'likes_count' => $count]]);
+            }
+
+            return response()->json(['status' => 'success', 'data' => ['liked' => true, 'likes_count' => 1]]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function submitComment(Request $request, $journalId)
+    {
+        try {
+            $request->validate(['comment_text' => 'required|string|max:500']);
+            $user = Auth::user();
+
+            $comment = \App\Models\JournalComment::create([
+                'journal_id' => $journalId,
+                'user_id' => $user->id,
+                'comment_text' => $request->comment_text
+            ]);
+
+            return response()->json(['status' => 'success', 'data' => $comment]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }

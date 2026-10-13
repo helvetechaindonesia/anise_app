@@ -89,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
         });
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [JournalController::class, 'getSiswaJournals']);
+            Route::post('/{journalId}/like', [JournalController::class, 'toggleLike']);
+            Route::post('/{journalId}/comments', [JournalController::class, 'submitComment']);
         });
     });
 
