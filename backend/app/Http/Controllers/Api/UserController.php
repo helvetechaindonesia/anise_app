@@ -107,12 +107,42 @@ class UserController extends Controller
         return $this->success(Jabatan::orderBy('created_at', 'desc')->get());
     }
 
+    public function storeJabatan(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'task_area' => 'nullable|string|max:255',
+        ]);
+
+        $jabatan = Jabatan::create([
+            'name' => strtoupper(str_replace(' ', '_', trim($request->name))),
+            'task_area' => $request->task_area,
+        ]);
+
+        return $this->success($jabatan, 'Jabatan berhasil dibuat', 201);
+    }
+
     public function updateJabatan(Request $request, $id)
     {
         $jabatan = Jabatan::findOrFail($id);
-        $request->validate(['name' => 'required|string|max:255']);
-        $jabatan->update(['name' => $request->name]);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'task_area' => 'nullable|string|max:255',
+        ]);
+
+        $updateData = ['name' => strtoupper(str_replace(' ', '_', trim($request->name)))];
+        if ($request->has('task_area')) {
+            $updateData['task_area'] = $request->task_area;
+        }
+
+        $jabatan->update($updateData);
         return $this->success($jabatan);
+    }
+
+    public function deleteJabatan($id)
+    {
+        Jabatan::findOrFail($id)->delete();
+        return $this->success(null, 'Jabatan berhasil dihapus');
     }
 
     public function getWaliKelas()

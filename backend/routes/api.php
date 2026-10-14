@@ -170,6 +170,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::prefix('curriculum')->middleware('role:TATA_USAHA')->group(function () {
         Route::get('/classes', [CurriculumController::class, 'getClasses']);
+        Route::post('/classes', [CurriculumController::class, 'storeClass']);
         Route::put('/classes/{id}', [CurriculumController::class, 'updateClass']);
         Route::delete('/classes/{id}', [CurriculumController::class, 'deleteClass']);
         
@@ -202,7 +203,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('/roles/{id}', [UserController::class, 'updateRole']);
             
             Route::get('/jabatans', [UserController::class, 'getJabatans']);
+            Route::post('/jabatans', [UserController::class, 'storeJabatan']);
             Route::put('/jabatans/{id}', [UserController::class, 'updateJabatan']);
+            Route::delete('/jabatans/{id}', [UserController::class, 'deleteJabatan']);
             
             Route::get('/wali-kelas', [UserController::class, 'getWaliKelas']);
             Route::get('/guru-wali', [UserController::class, 'getGuruWali']);
@@ -230,6 +233,44 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
         Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+    });
+
+    // ==========================================
+    // 15B. MASTER DATA & PARSER ALIASES (TU Only)
+    // ==========================================
+    Route::prefix('master')->middleware('role:TATA_USAHA')->group(function () {
+        // Kelas (Rombel)
+        Route::get('/kelas', [CurriculumController::class, 'getClasses']);
+        Route::post('/kelas', [CurriculumController::class, 'storeClass']);
+        Route::put('/kelas/{id}', [CurriculumController::class, 'updateClass']);
+        Route::delete('/kelas/{id}', [CurriculumController::class, 'deleteClass']);
+
+        // Roles
+        Route::get('/roles', [UserController::class, 'getRoles']);
+        Route::put('/roles/{id}', [UserController::class, 'updateRole']);
+
+        // Jabatans
+        Route::get('/jabatans', [UserController::class, 'getJabatans']);
+        Route::post('/jabatans', [UserController::class, 'storeJabatan']);
+        Route::put('/jabatans/{id}', [UserController::class, 'updateJabatan']);
+        Route::delete('/jabatans/{id}', [UserController::class, 'deleteJabatan']);
+
+        // Geofence
+        Route::get('/school-settings/geofence', [SchoolController::class, 'getGeofenceSettings']);
+        Route::post('/school-settings/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+
+        // Kurikulum aliases for tu_kurikulum_screen
+        Route::get('/wali-kelas', [UserController::class, 'getWaliKelas']);
+        Route::get('/guru-wali', [UserController::class, 'getGuruWali']);
+        Route::get('/penugasan', [CurriculumController::class, 'getStructuralAssignments']);
+        Route::get('/mapel', [CurriculumController::class, 'getSubjects']);
+        Route::get('/schedules', [CurriculumController::class, 'getSchedules']);
+    });
+
+    Route::prefix('parse')->middleware('role:TATA_USAHA')->group(function () {
+        Route::post('/master-kelas', [ExcelParserController::class, 'parseMasterKelas']);
+        Route::post('/master-role', [ExcelParserController::class, 'parseMasterRole']);
+        Route::post('/master-jabatan', [ExcelParserController::class, 'parseMasterJabatan']);
     });
 
     // ==========================================

@@ -5,6 +5,9 @@ import 'package:dio/dio.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/anise_button.dart';
+import '../../../../core/widgets/decorative_background.dart';
 
 class TUGeofenceSettingsScreen extends ConsumerStatefulWidget {
   const TUGeofenceSettingsScreen({Key? key}) : super(key: key);
@@ -16,7 +19,7 @@ class TUGeofenceSettingsScreen extends ConsumerStatefulWidget {
 class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScreen> {
   final TextEditingController _latController = TextEditingController();
   final TextEditingController _lngController = TextEditingController();
-  String _selectedRadius = '50';
+  String _selectedRadius = '100';
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -28,32 +31,60 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
     _fetchSettings();
   }
 
+  @override
+  void dispose() {
+    _latController.dispose();
+    _lngController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchSettings() async {
+    setState(() => _isLoading = true);
     try {
       final dio = ref.read(dioProvider);
       final response = await dio.get('/master/school-settings/geofence');
-      final data = response.data as Map<String, dynamic>;
       
+      Map<String, dynamic> data = {};
+      if (response.data is Map) {
+        if (response.data['data'] is Map) {
+          data = Map<String, dynamic>.from(response.data['data']);
+        } else {
+          data = Map<String, dynamic>.from(response.data);
+        }
+      }
+
       setState(() {
-        _latController.text = data['geofence_lat'] ?? '';
-        _lngController.text = data['geofence_lng'] ?? '';
-        if (data['geofence_radius'] != null && _radiusOptions.contains(data['geofence_radius'])) {
-          _selectedRadius = data['geofence_radius'];
+        _latController.text = data['geofence_lat']?.toString() ?? '-6.200000';
+        _lngController.text = data['geofence_lng']?.toString() ?? '106.816666';
+        final rad = data['geofence_radius']?.toString();
+        if (rad != null && _radiusOptions.contains(rad)) {
+          _selectedRadius = rad;
         }
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil data: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengambil data geofence: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _saveSettings() async {
-    if (_latController.text.isEmpty || _lngController.text.isEmpty) {
+    final latText = _latController.text.trim();
+    final lngText = _lngController.text.trim();
+
+    if (latText.isEmpty || lngText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Latitude dan Longitude harus diisi!'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Latitude dan Longitude harus diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
@@ -63,21 +94,27 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
     try {
       final dio = ref.read(dioProvider);
       await dio.post('/master/school-settings/geofence', data: {
-        'lat': double.parse(_latController.text),
-        'lng': double.parse(_lngController.text),
+        'lat': double.parse(latText),
+        'lng': double.parse(lngText),
         'radius': int.parse(_selectedRadius),
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengaturan Geofence berhasil disimpan!'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Pengaturan Geofence berhasil disimpan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+            backgroundColor: AppColors.success,
+          ),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Gagal menyimpan: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -91,77 +128,101 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: AppColors.backgroundLight,
-        title: Text('Pengaturan Geofence', style: AppTextStyles.titleMedium(context)),
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Radius & Titik Presensi',
+          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
+        ),
         leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold)),
+          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Titik Pusat Sekolah', style: AppTextStyles.titleSmall(context)),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _latController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                    decoration: InputDecoration(
-                      labelText: 'Latitude',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _lngController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                    decoration: InputDecoration(
-                      labelText: 'Longitude',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text('Radius Jangkauan Presensi (meter)', style: AppTextStyles.titleSmall(context)),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedRadius,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: Icon(PhosphorIcons.rss(PhosphorIconsStyle.bold)),
-                    ),
-                    items: _radiusOptions.map((String radius) {
-                      return DropdownMenuItem<String>(
-                        value: radius,
-                        child: Text('$radius Meter'),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) setState(() => _selectedRadius = newValue);
-                    },
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveSettings,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      body: DecorativeBackground(
+        child: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 16.h(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(16.w(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(16.w(context)),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(PhosphorIcons.info(PhosphorIconsStyle.fill), color: AppColors.primary, size: 28.w(context)),
+                            SizedBox(width: 12.w(context)),
+                            Expanded(
+                              child: Text(
+                                'Pengaturan ini menentukan pusat koordinat GPS sekolah dan jarak toleransi maksimal saat guru atau siswa melakukan presensi.',
+                                style: AppTextStyles.bodySmall(context, color: AppColors.onBackground),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: _isSaving
-                          ? CircularProgressIndicator(color: AppColors.onPrimary)
-                          : Text('Simpan Pengaturan', style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary)),
-                    ),
-                  )
-                ],
-              ),
-            ),
+                      SizedBox(height: 24.h(context)),
+                      Text('Titik Pusat Sekolah (GPS)', style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
+                      SizedBox(height: 12.h(context)),
+                      TextField(
+                        controller: _latController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        decoration: InputDecoration(
+                          labelText: 'Latitude',
+                          hintText: 'Contoh: -6.200000',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                          prefixIcon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary),
+                        ),
+                      ),
+                      SizedBox(height: 16.h(context)),
+                      TextField(
+                        controller: _lngController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        decoration: InputDecoration(
+                          labelText: 'Longitude',
+                          hintText: 'Contoh: 106.816666',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                          prefixIcon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary),
+                        ),
+                      ),
+                      SizedBox(height: 24.h(context)),
+                      Text('Radius Jangkauan Presensi (meter)', style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
+                      SizedBox(height: 12.h(context)),
+                      DropdownButtonFormField<String>(
+                        value: _selectedRadius,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                          prefixIcon: Icon(PhosphorIcons.rss(PhosphorIconsStyle.bold), color: AppColors.primary),
+                        ),
+                        items: _radiusOptions.map((String radius) {
+                          return DropdownMenuItem<String>(
+                            value: radius,
+                            child: Text('$radius Meter'),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) setState(() => _selectedRadius = newValue);
+                        },
+                      ),
+                      SizedBox(height: 40.h(context)),
+                      AniseButton(
+                        text: 'Simpan Pengaturan Geofence',
+                        onPressed: _isSaving ? null : _saveSettings,
+                        isLoading: _isSaving,
+                        icon: PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

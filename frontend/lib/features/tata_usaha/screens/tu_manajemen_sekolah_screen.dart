@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+
 import 'tu_geofence_settings_screen.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/decorative_background.dart';
+import '../../../core/widgets/anise_state_feedback.dart';
+import '../../../core/widgets/anise_button.dart';
 import '../../../core/network/dio_client.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+import '../../../core/utils/responsive.dart';
 
 class TuManajemenSekolahScreen extends ConsumerStatefulWidget {
   const TuManajemenSekolahScreen({Key? key}) : super(key: key);
@@ -31,6 +35,9 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchMasterData();
     });
@@ -60,7 +67,10 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data master: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Gagal memuat data master: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -73,6 +83,17 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     super.dispose();
   }
 
+  String get _currentTabName {
+    switch (_tabController.index) {
+      case 1: return 'Kelas';
+      case 2: return 'Jabatan';
+      default: return 'Role';
+    }
+  }
+
+  // =========================================================================
+  // EXCEL PICKER & UPLOAD
+  // =========================================================================
   Future<void> _pickExcelFile(String title) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -89,29 +110,27 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           _isUploading = true;
         });
         
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                const SizedBox(width: 16),
-                Expanded(child: Text('Mengunggah dan membaca file $fileName...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary))),
-              ],
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                  const SizedBox(width: 16),
+                  Expanded(child: Text('Mengunggah berkas $fileName...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary))),
+                ],
+              ),
+              backgroundColor: AppColors.primary,
+              duration: const Duration(days: 1),
             ),
-            backgroundColor: AppColors.primary,
-            duration: const Duration(days: 1), // Biarkan terbuka selama upload
-          ),
-        );
+          );
+        }
 
         String endpoint = '';
         if (title == 'Master Kelas') endpoint = '/parse/master-kelas';
         else if (title == 'Master Role') endpoint = '/parse/master-role';
         else if (title == 'Master Jabatan') endpoint = '/parse/master-jabatan';
-
-        if (endpoint.isEmpty) {
-            throw Exception('Endpoint belum tersedia untuk $title');
-        }
 
         FormData formData = FormData.fromMap({
           'file': await MultipartFile.fromFile(filePath, filename: fileName),
@@ -124,60 +143,568 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           _isUploading = false;
         });
         
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        
-        if (response.statusCode == 200) {
-           String message = response.data['message'] ?? 'Data berhasil disimpan!';
-           
-           ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-               content: Text(message, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-               backgroundColor: AppColors.success,
-             ),
-           );
-
-           // Auto-refresh the data list
-           _fetchMasterData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            String message = response.data['message'] ?? 'Data berhasil disimpan!';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                backgroundColor: AppColors.success,
+              ),
+            );
+            _fetchMasterData();
+          }
         }
-
       }
     } on DioException catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      
-      String errorMsg = e.message ?? 'Unknown error';
-      if (e.response != null) {
-          if (e.response?.data is Map && e.response?.data['message'] != null) {
-              errorMsg = e.response?.data['message'];
-          } else {
-              errorMsg = 'Status: ${e.response?.statusCode}';
-          }
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        String errorMsg = e.response?.data is Map && e.response?.data['message'] != null
+            ? e.response?.data['message']
+            : (e.message ?? 'Gagal mengunggah berkas');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal unggah: $errorMsg', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal unggah: $errorMsg', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 4),
-        ),
-      );
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  // =========================================================================
+  // TAMBAH DATA MANUAL BOTTOM SHEET
+  // =========================================================================
+  void _openAddModal(BuildContext context) {
+    if (_tabController.index == 1) {
+      _showAddKelasModal(context);
+    } else if (_tabController.index == 2) {
+      _showAddJabatanModal(context);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 4),
+          content: Text('Role pengguna dikelola secara baku oleh sistem.', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+          backgroundColor: AppColors.secondary,
         ),
       );
     }
   }
 
+  void _showAddKelasModal(BuildContext context) {
+    final nameController = TextEditingController();
+    int selectedGrade = 10;
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final roman = selectedGrade == 10 ? 'X' : selectedGrade == 11 ? 'XI' : 'XII';
+          final previewName = nameController.text.trim().isEmpty 
+              ? '$roman [Nama Rombel]' 
+              : '$roman ${nameController.text.trim().toUpperCase()}';
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 24.w(context),
+              right: 24.w(context),
+              top: 20.h(context),
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44.w(context),
+                    height: 5.h(context),
+                    decoration: BoxDecoration(
+                      color: AppColors.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 18.h(context)),
+                Row(
+                  children: [
+                    Icon(PhosphorIcons.chalkboard(PhosphorIconsStyle.bold), color: AppColors.primary, size: 24.w(context)),
+                    SizedBox(width: 10.w(context)),
+                    Text('Tambah Kelas Baru (Rombel)', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+                  ],
+                ),
+                SizedBox(height: 16.h(context)),
+
+                // Tingkat Kelas
+                Text('Pilih Tingkat Kelas:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                SizedBox(height: 8.h(context)),
+                Row(
+                  children: [10, 11, 12].map((grade) {
+                    final isSelected = selectedGrade == grade;
+                    final gradeRoman = grade == 10 ? 'Kelas X' : grade == 11 ? 'Kelas XI' : 'Kelas XII';
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4.w(context)),
+                        child: ChoiceChip(
+                          label: Center(
+                            child: Text(
+                              gradeRoman,
+                              style: AppTextStyles.labelMedium(context, color: isSelected ? AppColors.onPrimary : AppColors.onSurface),
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: AppColors.primary,
+                          backgroundColor: AppColors.surface,
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.3),
+                          ),
+                          onSelected: (val) {
+                            if (val) setModalState(() => selectedGrade = grade);
+                          },
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                SizedBox(height: 16.h(context)),
+
+                // Nama Rombel
+                Text('Nama Rombel / Jurusan:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                SizedBox(height: 8.h(context)),
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => setModalState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: RPL 1, MIPA 2, TKJ 1',
+                    prefixIcon: Icon(PhosphorIcons.identificationBadge(PhosphorIconsStyle.bold), color: AppColors.primary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  ),
+                ),
+                SizedBox(height: 14.h(context)),
+
+                // Live Preview Badge
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(10.w(context)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.primary, size: 18.w(context)),
+                      SizedBox(width: 8.w(context)),
+                      Expanded(
+                        child: Text(
+                          'Nama Resmi di Sistem: $previewName',
+                          style: AppTextStyles.bodySmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 24.h(context)),
+
+                // Tombol Simpan
+                AniseButton(
+                  text: 'Simpan Kelas',
+                  isLoading: isSubmitting,
+                  icon: PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final rawName = nameController.text.trim();
+                          if (rawName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Nama Rombel wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setModalState(() => isSubmitting = true);
+                          try {
+                            final dio = ref.read(dioProvider);
+                            await dio.post('/master/kelas', data: {
+                              'grade_level': selectedGrade.toString(),
+                              'name': rawName.toUpperCase(),
+                            });
+
+                            if (mounted) {
+                              Navigator.pop(sheetContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Kelas $previewName berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              _fetchMasterData();
+                            }
+                          } catch (e) {
+                            setModalState(() => isSubmitting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Gagal menyimpan kelas: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddJabatanModal(BuildContext context) {
+    final nameController = TextEditingController();
+    final areaController = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              left: 24.w(context),
+              right: 24.w(context),
+              top: 20.h(context),
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44.w(context),
+                    height: 5.h(context),
+                    decoration: BoxDecoration(
+                      color: AppColors.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 18.h(context)),
+                Row(
+                  children: [
+                    Icon(PhosphorIcons.briefcase(PhosphorIconsStyle.bold), color: AppColors.primary, size: 24.w(context)),
+                    SizedBox(width: 10.w(context)),
+                    Text('Tambah Jabatan Struktural', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+                  ],
+                ),
+                SizedBox(height: 16.h(context)),
+
+                Text('Nama Jabatan:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                SizedBox(height: 8.h(context)),
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: KAPROGLI, WAKASEK_HUBIN',
+                    prefixIcon: Icon(PhosphorIcons.identificationBadge(PhosphorIconsStyle.bold), color: AppColors.primary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  ),
+                ),
+                SizedBox(height: 16.h(context)),
+
+                Text('Area Tugas / Keterangan:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                SizedBox(height: 8.h(context)),
+                TextField(
+                  controller: areaController,
+                  decoration: InputDecoration(
+                    hintText: 'Contoh: Hubungan Industri dan BKK',
+                    prefixIcon: Icon(PhosphorIcons.tag(PhosphorIconsStyle.bold), color: AppColors.primary),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  ),
+                ),
+                SizedBox(height: 24.h(context)),
+
+                AniseButton(
+                  text: 'Simpan Jabatan',
+                  isLoading: isSubmitting,
+                  icon: PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final rawName = nameController.text.trim();
+                          if (rawName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Nama jabatan wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setModalState(() => isSubmitting = true);
+                          try {
+                            final dio = ref.read(dioProvider);
+                            await dio.post('/master/jabatans', data: {
+                              'name': rawName,
+                              'task_area': areaController.text.trim(),
+                            });
+
+                            if (mounted) {
+                              Navigator.pop(sheetContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Jabatan $rawName berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              _fetchMasterData();
+                            }
+                          } catch (e) {
+                            setModalState(() => isSubmitting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Gagal menyimpan jabatan: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // =========================================================================
+  // EDIT & DELETE ACTIONS
+  // =========================================================================
+  void _confirmDelete(BuildContext context, String type, Map<String, dynamic> item) {
+    final itemName = item['name'] ?? 'Data';
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+        title: Row(
+          children: [
+            Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.error, size: 24.w(context)),
+            SizedBox(width: 10.w(context)),
+            Text('Hapus $type?', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus $type "$itemName"? Tindakan ini tidak dapat dibatalkan.',
+          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Batal', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                final dio = ref.read(dioProvider);
+                String endpoint = '';
+                if (type == 'Kelas') endpoint = '/master/kelas/${item['id']}';
+                else if (type == 'Jabatan') endpoint = '/master/jabatans/${item['id']}';
+
+                if (endpoint.isNotEmpty) {
+                  await dio.delete(endpoint);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$type "$itemName" berhasil dihapus', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                    _fetchMasterData();
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus $type: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
+            ),
+            child: Text('Ya, Hapus', style: AppTextStyles.labelMedium(context, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, String type, Map<String, dynamic> item) {
+    final TextEditingController nameController = TextEditingController(text: item['name'] ?? '');
+    final TextEditingController areaController = TextEditingController(text: item['task_area'] ?? '');
+    int selectedGrade = int.tryParse(item['grade_level']?.toString() ?? '10') ?? 10;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (context, setEditState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+              title: Text('Edit $type', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (type == 'Kelas') ...[
+                      Text('Tingkat Kelas:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                      SizedBox(height: 8.h(context)),
+                      Row(
+                        children: [10, 11, 12].map((grade) {
+                          final isSelected = selectedGrade == grade;
+                          final gradeRoman = grade == 10 ? 'X' : grade == 11 ? 'XI' : 'XII';
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
+                              child: ChoiceChip(
+                                label: Text(gradeRoman, style: AppTextStyles.labelSmall(context, color: isSelected ? AppColors.onPrimary : AppColors.onSurface)),
+                                selected: isSelected,
+                                selectedColor: AppColors.primary,
+                                onSelected: (val) {
+                                  if (val) setEditState(() => selectedGrade = grade);
+                                },
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 12.h(context)),
+                    ],
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Nama $type',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                      ),
+                    ),
+                    if (type == 'Jabatan') ...[
+                      SizedBox(height: 12.h(context)),
+                      TextField(
+                        controller: areaController,
+                        decoration: InputDecoration(
+                          labelText: 'Area Tugas',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+                  child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    setEditState(() => isSaving = true);
+                    try {
+                      final dio = ref.read(dioProvider);
+                      String endpoint = '';
+                      Map<String, dynamic> payload = {'name': nameController.text.trim()};
+                      
+                      if (type == 'Role') {
+                        endpoint = '/master/roles/${item['id']}';
+                      } else if (type == 'Kelas') {
+                        endpoint = '/master/kelas/${item['id']}';
+                        payload['grade_level'] = selectedGrade.toString();
+                      } else if (type == 'Jabatan') {
+                        endpoint = '/master/jabatans/${item['id']}';
+                        payload['task_area'] = areaController.text.trim();
+                      }
+
+                      await dio.put(endpoint, data: payload);
+                      
+                      if (mounted) {
+                        Navigator.pop(dialogContext);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('$type berhasil diperbarui', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)), backgroundColor: AppColors.success),
+                        );
+                        _fetchMasterData();
+                      }
+                    } catch (e) {
+                      setEditState(() => isSaving = false);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Gagal memperbarui: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)), backgroundColor: AppColors.error),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
+                  ),
+                  child: isSaving 
+                    ? SizedBox(width: 16.w(context), height: 16.w(context), child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text('Simpan Perubahan', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    );
+  }
+
+  // =========================================================================
+  // BUILD METHOD & UI
+  // =========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,6 +723,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         ),
         actions: [
           IconButton(
+            tooltip: 'Pengaturan Geofence Presensi',
             icon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const TUGeofenceSettingsScreen()));
@@ -209,6 +737,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
             children: [
               _buildSearchBar(context),
               _buildTabBar(context),
+              _buildQuickActionBar(context),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -224,91 +753,44 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _showUploadOptions(context);
-        },
+        onPressed: () => _openAddModal(context),
         backgroundColor: AppColors.primary,
-        icon: Icon(PhosphorIcons.upload(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-        label: Text('Upload Excel', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+        icon: Icon(PhosphorIcons.plus(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
+        label: Text('Tambah $_currentTabName', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
       ),
     );
   }
 
-  void _showUploadOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outline.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Upload Manajemen Sekolah',
-              style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Pilih jenis data wadah yang ingin diupload.',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-            ),
-            const SizedBox(height: 16),
-            _buildUploadOption(context, 'Master Role', PhosphorIcons.shieldCheck()),
-            _buildUploadOption(context, 'Master Kelas', PhosphorIcons.chalkboard()),
-            _buildUploadOption(context, 'Master Jabatan', PhosphorIcons.briefcase()),
-            const SizedBox(height: 16),
-          ],
-        ),
+  Widget _buildQuickActionBar(BuildContext context) {
+    if (_tabController.index == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 4.h(context)),
+      child: Row(
+        children: [
+          Text(
+            'Daftar Data $_currentTabName',
+            style: AppTextStyles.titleSmall(context, color: AppColors.onBackground),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: () => _showUploadOptions(context),
+            icon: Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
+            label: Text('Unggah Excel', style: AppTextStyles.labelMedium(context, color: AppColors.primary)),
+          ),
+        ],
       ),
     );
   }
-
-  Widget _buildUploadOption(BuildContext context, String title, IconData icon) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.primaryContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: AppColors.primary),
-      ),
-      title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
-      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3)),
-      contentPadding: EdgeInsets.zero,
-      onTap: () {
-        Navigator.pop(context);
-        _pickExcelFile(title);
-      },
-    );
-  }
-
-
 
   Widget _buildSearchBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.w(context)),
           border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
           boxShadow: [
             BoxShadow(
@@ -321,17 +803,26 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         child: Row(
           children: [
             Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-            const SizedBox(width: 12),
+            SizedBox(width: 12.w(context)),
             Expanded(
               child: TextField(
                 controller: _searchController,
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Cari data...',
+                  hintText: 'Cari data $_currentTabName...',
                   hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
                   border: InputBorder.none,
                 ),
               ),
             ),
+            if (_searchController.text.isNotEmpty)
+              IconButton(
+                icon: Icon(PhosphorIcons.xCircle(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onSurface.withValues(alpha: 0.4)),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                },
+              ),
           ],
         ),
       ),
@@ -340,11 +831,11 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
   Widget _buildTabBar(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+      margin: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.w(context)),
         boxShadow: [
           BoxShadow(
             color: AppColors.black.withValues(alpha: 0.03),
@@ -357,7 +848,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         controller: _tabController,
         indicator: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.w(context)),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: AppColors.onPrimary,
@@ -375,7 +866,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
   Widget _buildDataList(BuildContext context, String type) {
     if (_isLoadingData) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     List<dynamic> dataSource = [];
@@ -384,16 +875,24 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     else if (type == 'Jabatan') dataSource = _jabatans;
 
     if (dataSource.isEmpty) {
-      return Center(
-        child: Text('Belum ada data $type', style: AppTextStyles.bodyLarge(context, color: AppColors.onBackground.withValues(alpha: 0.5))),
+      return AniseStateFeedback(
+        title: 'Belum Ada Data $type',
+        subtitle: type == 'Role' 
+            ? 'Role pengguna terisi otomatis oleh sistem.' 
+            : 'Tambahkan data $type pertama Anda secara manual atau unggah berkas Excel.',
+        icon: type == 'Kelas' ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold) : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+        actionButtonText: type == 'Role' ? null : 'Tambah $type Manual',
+        onActionPressed: type == 'Role' ? null : () => _openAddModal(context),
       );
     }
 
-    String searchQuery = _searchController.text.toLowerCase();
+    String searchQuery = _searchController.text.toLowerCase().trim();
     if (searchQuery.isNotEmpty) {
       dataSource = dataSource.where((item) {
         String name = (item['name'] ?? '').toString().toLowerCase();
-        return name.contains(searchQuery);
+        String code = (item['code'] ?? '').toString().toLowerCase();
+        String area = (item['task_area'] ?? '').toString().toLowerCase();
+        return name.contains(searchQuery) || code.contains(searchQuery) || area.contains(searchQuery);
       }).toList();
     }
 
@@ -404,9 +903,9 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 80),
+      padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
       itemCount: dataSource.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => SizedBox(height: 12.h(context)),
       itemBuilder: (context, index) {
         final item = dataSource[index];
         IconData itemIcon;
@@ -415,59 +914,54 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
         if (type == 'Kelas') {
           itemIcon = PhosphorIcons.chalkboard();
-          
           String gradeRaw = item['grade_level']?.toString() ?? '';
           String romanGrade = gradeRaw == '10' ? 'X' : gradeRaw == '11' ? 'XI' : gradeRaw == '12' ? 'XII' : gradeRaw;
-          
           titlePrefix = '$romanGrade ${item['name']}';
-          subtitle = 'Kode: ${item['code'] ?? '-'}';
+          subtitle = 'Kode Rombel: ${item['code'] ?? '-'}';
         } else if (type == 'Role') {
           itemIcon = PhosphorIcons.shieldCheck();
           titlePrefix = item['name'] ?? '-';
-          subtitle = (item['is_guru_wali'] == 1 || item['is_guru_wali'] == true) ? 'Dapat menjadi Guru Wali' : 'Bukan Guru Wali';
+          subtitle = (item['is_guru_wali'] == 1 || item['is_guru_wali'] == true) ? 'Hak Akses: Guru Wali' : 'Hak Akses: Standar';
         } else {
           itemIcon = PhosphorIcons.briefcase();
           titlePrefix = item['name'] ?? '-';
-          subtitle = item['task_area'] != null ? 'Area Tugas: ${item['task_area']}' : 'Tidak ada area tugas';
+          subtitle = item['task_area'] != null && item['task_area'].toString().isNotEmpty
+              ? 'Area Tugas: ${item['task_area']}' 
+              : 'Struktural Sekolah';
         }
+
+        final canModify = type != 'Role';
 
         return Slidable(
           key: ValueKey(item['id'] ?? index),
-          endActionPane: ActionPane(
-            motion: const DrawerMotion(),
-            children: [
-              SlidableAction(
-                onPressed: (context) {
-                  _showEditDialog(context, type, item);
-                },
-                backgroundColor: AppColors.warning,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
-                label: 'Edit',
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
-              ),
-              SlidableAction(
-                onPressed: (context) {},
-                backgroundColor: AppColors.menuPastelBlue,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
-                label: 'Freeze',
-              ),
-              SlidableAction(
-                onPressed: (context) {},
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
-                label: 'Hapus',
-                borderRadius: const BorderRadius.only(topRight: Radius.circular(16), bottomRight: Radius.circular(16)),
-              ),
-            ],
-          ),
+          endActionPane: canModify
+              ? ActionPane(
+                  motion: const DrawerMotion(),
+                  children: [
+                    SlidableAction(
+                      onPressed: (ctx) => _showEditDialog(context, type, item),
+                      backgroundColor: AppColors.warning,
+                      foregroundColor: Colors.white,
+                      icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
+                      label: 'Edit',
+                      borderRadius: BorderRadius.only(topLeft: Radius.circular(16.w(context)), bottomLeft: Radius.circular(16.w(context))),
+                    ),
+                    SlidableAction(
+                      onPressed: (ctx) => _confirmDelete(context, type, item),
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
+                      label: 'Hapus',
+                      borderRadius: BorderRadius.only(topRight: Radius.circular(16.w(context)), bottomRight: Radius.circular(16.w(context))),
+                    ),
+                  ],
+                )
+              : null,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.w(context)),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.w(context)),
               border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
               boxShadow: [
                 BoxShadow(
@@ -480,14 +974,14 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(12.w(context)),
                   decoration: BoxDecoration(
                     color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.w(context)),
                   ),
-                  child: Icon(itemIcon, color: AppColors.primary),
+                  child: Icon(itemIcon, color: AppColors.primary, size: 24.w(context)),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16.w(context)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +990,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                         titlePrefix,
                         style: AppTextStyles.titleSmall(context, color: AppColors.onSurface),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4.h(context)),
                       Text(
                         subtitle,
                         style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
@@ -504,49 +998,42 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                  color: AppColors.surface,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showEditDialog(context, type, item);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.pencilSimple(), size: 18, color: AppColors.onSurface),
-                          const SizedBox(width: 8),
-                          Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
-                        ],
+                if (canModify)
+                  PopupMenuButton<String>(
+                    icon: Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.5)),
+                    color: AppColors.surface,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditDialog(context, type, item);
+                      } else if (value == 'delete') {
+                        _confirmDelete(context, type, item);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(PhosphorIcons.pencilSimple(), size: 18.w(context), color: AppColors.onSurface),
+                            SizedBox(width: 8.w(context)),
+                            Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'freeze',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.snowflake(), size: 18, color: AppColors.menuPastelBlue),
-                          const SizedBox(width: 8),
-                          Text('Freeze', style: AppTextStyles.bodyMedium(context, color: AppColors.menuPastelBlue)),
-                        ],
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(PhosphorIcons.trash(), size: 18.w(context), color: AppColors.error),
+                            SizedBox(width: 8.w(context)),
+                            Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                          ],
+                        ),
                       ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.trash(), size: 18, color: AppColors.error),
-                          const SizedBox(width: 8),
-                          Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -555,77 +1042,68 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  void _showEditDialog(BuildContext context, String type, Map<String, dynamic> item) {
-    final TextEditingController nameController = TextEditingController(text: item['name'] ?? '');
-    
-    showDialog(
+  void _showUploadOptions(BuildContext context) {
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext dialogContext) {
-        bool isSaving = false;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: AppColors.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text('Edit $type', style: AppTextStyles.titleMedium(context)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Nama $type',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(24.w(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44.w(context),
+                height: 5.h(context),
+                decoration: BoxDecoration(
+                  color: AppColors.outline.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
-                  child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
-                ),
-                ElevatedButton(
-                  onPressed: isSaving ? null : () async {
-                    setState(() => isSaving = true);
-                    try {
-                      final dio = ref.read(dioProvider);
-                      String endpoint = '';
-                      if (type == 'Role') endpoint = '/master/roles/${item['id']}';
-                      else if (type == 'Kelas') endpoint = '/master/kelas/${item['id']}';
-                      else if (type == 'Jabatan') endpoint = '/master/jabatans/${item['id']}';
+            ),
+            SizedBox(height: 20.h(context)),
+            Text(
+              'Unggah Berkas Excel',
+              style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
+            ),
+            SizedBox(height: 6.h(context)),
+            Text(
+              'Pilih jenis data yang ingin diunggah secara kolektif:',
+              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+            ),
+            SizedBox(height: 16.h(context)),
+            _buildUploadOption(context, 'Master Role', PhosphorIcons.shieldCheck()),
+            _buildUploadOption(context, 'Master Kelas', PhosphorIcons.chalkboard()),
+            _buildUploadOption(context, 'Master Jabatan', PhosphorIcons.briefcase()),
+            SizedBox(height: 12.h(context)),
+          ],
+        ),
+      ),
+    );
+  }
 
-                      await dio.put(endpoint, data: {'name': nameController.text});
-                      
-                      if (mounted) {
-                        Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$type berhasil diperbarui'), backgroundColor: AppColors.success),
-                        );
-                        _fetchMasterData(); // Refresh list
-                      }
-                    } catch (e) {
-                      setState(() => isSaving = false);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Gagal memperbarui data'), backgroundColor: AppColors.error),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: isSaving 
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2))
-                    : Text('Simpan', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
-                ),
-              ],
-            );
-          },
-        );
-      }
+  Widget _buildUploadOption(BuildContext context, String title, IconData icon) {
+    return ListTile(
+      leading: Container(
+        padding: EdgeInsets.all(8.w(context)),
+        decoration: BoxDecoration(
+          color: AppColors.primaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8.w(context)),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20.w(context)),
+      ),
+      title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
+      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3), size: 16.w(context)),
+      contentPadding: EdgeInsets.zero,
+      onTap: () {
+        Navigator.pop(context);
+        _pickExcelFile(title);
+      },
     );
   }
 }

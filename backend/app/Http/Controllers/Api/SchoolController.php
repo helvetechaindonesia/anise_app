@@ -13,7 +13,14 @@ class SchoolController extends Controller
         $settings = DB::table('school_settings')
             ->whereIn('setting_key', ['geofence_lat', 'geofence_lng', 'geofence_radius'])
             ->get()->pluck('setting_value', 'setting_key');
-        return response()->json($settings);
+
+        $data = [
+            'geofence_lat' => (string) ($settings['geofence_lat'] ?? '-6.200000'),
+            'geofence_lng' => (string) ($settings['geofence_lng'] ?? '106.816666'),
+            'geofence_radius' => (string) ($settings['geofence_radius'] ?? '100'),
+        ];
+
+        return response()->json($data);
     }
 
     public function updateGeofenceSettings(Request $request)
