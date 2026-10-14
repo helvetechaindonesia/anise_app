@@ -21,9 +21,9 @@ class TuManajemenSekolahScreen extends ConsumerStatefulWidget {
   ConsumerState<TuManajemenSekolahScreen> createState() => _TuManajemenSekolahScreenState();
 }
 
-class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScreen> {
   final TextEditingController _searchController = TextEditingController();
+  String _selectedCategory = 'Kelas'; // Default ke 'Kelas'
   bool _isUploading = false;
   bool _isLoadingData = true;
 
@@ -31,13 +31,27 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   List<dynamic> _kelas = [];
   List<dynamic> _jabatans = [];
 
+  final List<Map<String, dynamic>> _categoryOptions = [
+    {
+      'value': 'Kelas',
+      'label': 'Data Kelas / Rombel',
+      'icon': PhosphorIcons.chalkboard(PhosphorIconsStyle.bold),
+    },
+    {
+      'value': 'Jabatan',
+      'label': 'Data Jabatan Struktural',
+      'icon': PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+    },
+    {
+      'value': 'Role',
+      'label': 'Data Role Pengguna',
+      'icon': PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+    },
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchMasterData();
     });
@@ -78,17 +92,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  String get _currentTabName {
-    switch (_tabController.index) {
-      case 1: return 'Kelas';
-      case 2: return 'Jabatan';
-      default: return 'Role';
-    }
   }
 
   // =========================================================================
@@ -189,9 +194,9 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   // TAMBAH DATA MANUAL BOTTOM SHEET
   // =========================================================================
   void _openAddModal(BuildContext context) {
-    if (_tabController.index == 1) {
+    if (_selectedCategory == 'Kelas') {
       _showAddKelasModal(context);
-    } else if (_tabController.index == 2) {
+    } else if (_selectedCategory == 'Jabatan') {
       _showAddJabatanModal(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -513,7 +518,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   }
 
   // =========================================================================
-  // EDIT & DELETE ACTIONS
+  // EDIT & DELETE ACTIONS (SUNTING DATA)
   // =========================================================================
   void _confirmDelete(BuildContext context, String type, Map<String, dynamic> item) {
     final itemName = item['name'] ?? 'Data';
@@ -595,7 +600,13 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
             return AlertDialog(
               backgroundColor: AppColors.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
-              title: Text('Edit $type', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+              title: Row(
+                children: [
+                  Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 22.w(context)),
+                  SizedBox(width: 8.w(context)),
+                  Text('Sunting Data $type', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+                ],
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -673,7 +684,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       if (mounted) {
                         Navigator.pop(dialogContext);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$type berhasil diperbarui', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)), backgroundColor: AppColors.success),
+                          SnackBar(content: Text('Data $type berhasil diperbarui', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)), backgroundColor: AppColors.success),
                         );
                         _fetchMasterData();
                       }
@@ -736,17 +747,10 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           child: Column(
             children: [
               _buildSearchBar(context),
-              _buildTabBar(context),
+              _buildFullWidthFilterDropdown(context),
               _buildQuickActionBar(context),
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildDataList(context, 'Role'),
-                    _buildDataList(context, 'Kelas'),
-                    _buildDataList(context, 'Jabatan'),
-                  ],
-                ),
+                child: _buildDataList(context, _selectedCategory),
               ),
             ],
           ),
@@ -756,20 +760,82 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         onPressed: () => _openAddModal(context),
         backgroundColor: AppColors.primary,
         icon: Icon(PhosphorIcons.plus(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-        label: Text('Tambah $_currentTabName', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+        label: Text('Tambah $_selectedCategory', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+      ),
+    );
+  }
+
+  /// Full-width Filter Dropdown (Menggantikan TabBar kaku)
+  Widget _buildFullWidthFilterDropdown(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
+      child: DropdownButtonFormField<String>(
+        value: _selectedCategory,
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+          filled: true,
+          fillColor: AppColors.surface,
+          prefixIcon: Icon(
+            _selectedCategory == 'Kelas' 
+                ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
+                : _selectedCategory == 'Jabatan'
+                    ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
+                    : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+            color: AppColors.primary,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+          ),
+        ),
+        dropdownColor: AppColors.surface,
+        icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.6)),
+        items: _categoryOptions.map<DropdownMenuItem<String>>((opt) {
+          final String val = opt['value'];
+          final String label = opt['label'];
+          final IconData icon = opt['icon'];
+          return DropdownMenuItem<String>(
+            value: val,
+            child: Row(
+              children: [
+                Icon(icon, size: 18.w(context), color: AppColors.primary),
+                SizedBox(width: 10.w(context)),
+                Text(
+                  label,
+                  style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                    fontWeight: _selectedCategory == val ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: (newValue) {
+          if (newValue != null && newValue != _selectedCategory) {
+            setState(() {
+              _selectedCategory = newValue;
+            });
+          }
+        },
       ),
     );
   }
 
   Widget _buildQuickActionBar(BuildContext context) {
-    if (_tabController.index == 0) return const SizedBox.shrink();
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 4.h(context)),
       child: Row(
         children: [
           Text(
-            'Daftar Data $_currentTabName',
+            'Daftar $_selectedCategory',
             style: AppTextStyles.titleSmall(context, color: AppColors.onBackground),
           ),
           const Spacer(),
@@ -809,7 +875,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Cari data $_currentTabName...',
+                  hintText: 'Cari data $_selectedCategory...',
                   hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
                   border: InputBorder.none,
                 ),
@@ -825,41 +891,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTabBar(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(12.w(context)),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelColor: AppColors.onPrimary,
-        unselectedLabelColor: AppColors.onSurface.withValues(alpha: 0.6),
-        labelStyle: AppTextStyles.labelMedium(context),
-        unselectedLabelStyle: AppTextStyles.labelMedium(context),
-        tabs: const [
-          Tab(text: 'Role'),
-          Tab(text: 'Kelas'),
-          Tab(text: 'Jabatan'),
-        ],
       ),
     );
   }
@@ -943,7 +974,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       backgroundColor: AppColors.warning,
                       foregroundColor: Colors.white,
                       icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
-                      label: 'Edit',
+                      label: 'Sunting',
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(16.w(context)), bottomLeft: Radius.circular(16.w(context))),
                     ),
                     SlidableAction(
@@ -998,7 +1029,30 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                     ],
                   ),
                 ),
-                if (canModify)
+                if (canModify) ...[
+                  // Tombol Sunting Cepat (Sesuai gaya Manajemen User)
+                  InkWell(
+                    onTap: () => _showEditDialog(context, type, item),
+                    borderRadius: BorderRadius.circular(8.w(context)),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8.w(context)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
+                          SizedBox(width: 4.w(context)),
+                          Text(
+                            'Sunting',
+                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   PopupMenuButton<String>(
                     icon: Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.5)),
                     color: AppColors.surface,
@@ -1018,7 +1072,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                           children: [
                             Icon(PhosphorIcons.pencilSimple(), size: 18.w(context), color: AppColors.onSurface),
                             SizedBox(width: 8.w(context)),
-                            Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                            Text('Sunting Data', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
                           ],
                         ),
                       ),
@@ -1034,6 +1088,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       ),
                     ],
                   ),
+                ],
               ],
             ),
           ),
