@@ -34,18 +34,15 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   final List<Map<String, dynamic>> _categoryOptions = [
     {
       'value': 'Kelas',
-      'label': 'Data Kelas / Rombel',
-      'icon': PhosphorIcons.chalkboard(PhosphorIconsStyle.bold),
+      'label': 'Kelas / Rombel',
     },
     {
       'value': 'Jabatan',
-      'label': 'Data Jabatan Struktural',
-      'icon': PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+      'label': 'Jabatan Struktural',
     },
     {
       'value': 'Role',
-      'label': 'Data Role Pengguna',
-      'icon': PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+      'label': 'Role Pengguna',
     },
   ];
 
@@ -732,22 +729,13 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           'Manajemen Sekolah',
           style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Pengaturan Geofence Presensi',
-            icon: Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const TUGeofenceSettingsScreen()));
-            },
-          ),
-        ],
       ),
       body: DecorativeBackground(
         child: SafeArea(
           child: Column(
             children: [
               _buildSearchBar(context),
-              _buildFullWidthFilterDropdown(context),
+              _buildFilterAndLocationBar(context),
               _buildQuickActionBar(context),
               Expanded(
                 child: _buildDataList(context, _selectedCategory),
@@ -765,66 +753,116 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// Full-width Filter Dropdown (Menggantikan TabBar kaku)
-  Widget _buildFullWidthFilterDropdown(BuildContext context) {
+  /// Baris Filter Kategori (2/3 width) & Tombol Setup Lokasi (1/3 width)
+  Widget _buildFilterAndLocationBar(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
-      child: DropdownButtonFormField<String>(
-        value: _selectedCategory,
-        decoration: InputDecoration(
-          contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
-          filled: true,
-          fillColor: AppColors.surface,
-          prefixIcon: Icon(
-            _selectedCategory == 'Kelas' 
-                ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
-                : _selectedCategory == 'Jabatan'
-                    ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
-                    : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
-            color: AppColors.primary,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16.w(context)),
-            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16.w(context)),
-            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16.w(context)),
-            borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-          ),
-        ),
-        dropdownColor: AppColors.surface,
-        icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.6)),
-        items: _categoryOptions.map<DropdownMenuItem<String>>((opt) {
-          final String val = opt['value'];
-          final String label = opt['label'];
-          final IconData icon = opt['icon'];
-          return DropdownMenuItem<String>(
-            value: val,
-            child: Row(
-              children: [
-                Icon(icon, size: 18.w(context), color: AppColors.primary),
-                SizedBox(width: 10.w(context)),
-                Text(
-                  label,
-                  style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                    fontWeight: _selectedCategory == val ? FontWeight.w700 : FontWeight.w500,
-                  ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 1. Dropdown Filter Kategori (2/3 width)
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              isExpanded: true,
+              decoration: InputDecoration(
+                contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
+                filled: true,
+                fillColor: AppColors.surface,
+                prefixIcon: Icon(
+                  _selectedCategory == 'Kelas' 
+                      ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
+                      : _selectedCategory == 'Jabatan'
+                          ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
+                          : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+                  color: AppColors.primary,
+                  size: 20.w(context),
                 ),
-              ],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.w(context)),
+                  borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.w(context)),
+                  borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.w(context)),
+                  borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                ),
+              ),
+              dropdownColor: AppColors.surface,
+              icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface.withValues(alpha: 0.6)),
+              items: _categoryOptions.map<DropdownMenuItem<String>>((opt) {
+                final String val = opt['value'];
+                final String label = opt['label'];
+                return DropdownMenuItem<String>(
+                  value: val,
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                      fontWeight: _selectedCategory == val ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (newValue) {
+                if (newValue != null && newValue != _selectedCategory) {
+                  setState(() {
+                    _selectedCategory = newValue;
+                  });
+                }
+              },
             ),
-          );
-        }).toList(),
-        onChanged: (newValue) {
-          if (newValue != null && newValue != _selectedCategory) {
-            setState(() {
-              _selectedCategory = newValue;
-            });
-          }
-        },
+          ),
+          SizedBox(width: 10.w(context)),
+
+          // 2. Tombol Setup Lokasi / Geofence (1/3 width)
+          Expanded(
+            flex: 1,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const TUGeofenceSettingsScreen()));
+              },
+              borderRadius: BorderRadius.circular(16.w(context)),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 14.h(context), horizontal: 8.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16.w(context)),
+                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.black.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                    SizedBox(width: 6.w(context)),
+                    Flexible(
+                      child: Text(
+                        'Lokasi',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.titleSmall(context, color: AppColors.primary).copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
