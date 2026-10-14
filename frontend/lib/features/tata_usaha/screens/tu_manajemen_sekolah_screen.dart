@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import 'tu_geofence_settings_screen.dart';
+import '../widgets/custom_expandable_fab.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/decorative_background.dart';
@@ -744,11 +745,13 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAddModal(context),
-        backgroundColor: AppColors.primary,
-        icon: Icon(PhosphorIcons.plus(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-        label: Text('Tambah $_selectedCategory', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+      floatingActionButton: CustomExpandableFab(
+        onUploadPressed: () {
+          _showUploadOptions(context);
+        },
+        onAddPressed: () {
+          _showAddOptions(context);
+        },
       ),
     );
   }
@@ -868,19 +871,34 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   }
 
   Widget _buildQuickActionBar(BuildContext context) {
+    String countText = '';
+    if (_selectedCategory == 'Kelas') {
+      countText = '${_kelas.length} Kelas';
+    } else if (_selectedCategory == 'Jabatan') {
+      countText = '${_jabatans.length} Jabatan';
+    } else {
+      countText = '${_roles.length} Role';
+    }
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 4.h(context)),
       child: Row(
         children: [
           Text(
-            'Daftar $_selectedCategory',
+            'Daftar Data $_selectedCategory',
             style: AppTextStyles.titleSmall(context, color: AppColors.onBackground),
           ),
           const Spacer(),
-          TextButton.icon(
-            onPressed: () => _showUploadOptions(context),
-            icon: Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
-            label: Text('Unggah Excel', style: AppTextStyles.labelMedium(context, color: AppColors.primary)),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8.w(context)),
+            ),
+            child: Text(
+              countText,
+              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -1196,6 +1214,80 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       onTap: () {
         Navigator.pop(context);
         _pickExcelFile(title);
+      },
+    );
+  }
+
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(24.w(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44.w(context),
+                height: 5.h(context),
+                decoration: BoxDecoration(
+                  color: AppColors.outline.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            SizedBox(height: 20.h(context)),
+            Text(
+              'Tambah Data Master',
+              style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
+            ),
+            SizedBox(height: 6.h(context)),
+            Text(
+              'Pilih jenis data yang ingin ditambahkan secara manual:',
+              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+            ),
+            SizedBox(height: 16.h(context)),
+            _buildAddOption(
+              context,
+              'Tambah Kelas / Rombel',
+              PhosphorIcons.chalkboard(PhosphorIconsStyle.bold),
+              () => _showAddKelasModal(context),
+            ),
+            _buildAddOption(
+              context,
+              'Tambah Jabatan Struktural',
+              PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+              () => _showAddJabatanModal(context),
+            ),
+            SizedBox(height: 12.h(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddOption(BuildContext context, String title, IconData icon, VoidCallback onSelected) {
+    return ListTile(
+      leading: Container(
+        padding: EdgeInsets.all(8.w(context)),
+        decoration: BoxDecoration(
+          color: AppColors.primaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8.w(context)),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20.w(context)),
+      ),
+      title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
+      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3), size: 16.w(context)),
+      contentPadding: EdgeInsets.zero,
+      onTap: () {
+        Navigator.pop(context);
+        onSelected();
       },
     );
   }
