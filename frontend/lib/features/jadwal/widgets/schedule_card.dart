@@ -33,7 +33,7 @@ class ScheduleCard extends StatefulWidget {
   final VoidCallback? onLikeToggled;
   final VoidCallback? onSaveToggled;
   final Future<List<Map<String, dynamic>>> Function()? onFetchComments;
-  final Future<bool> Function(String commentText)? onCommentSubmitted;
+  final Future<dynamic> Function(String commentText)? onCommentSubmitted;
   final Future<bool> Function(String commentId)? onDeleteComment;
 
   const ScheduleCard({
@@ -201,7 +201,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                         ),
                         SizedBox(width: 6.w(context)),
                         Text(
-                          'Live',
+                          'Aktif',
                           style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w800),
                         ),
                       ],
@@ -216,7 +216,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                     borderRadius: BorderRadius.circular(12.w(context)),
                   ),
                   child: Text(
-                    'Akan Datang',
+                    'Belum',
                     style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.w600),
                   ),
                 )
@@ -288,126 +288,137 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
     Color iconColor = isLive ? AppColors.onPrimaryContainer : AppColors.onSurface.withValues(alpha: 0.6);
     Color mutedTextColor = isLive ? AppColors.onPrimaryContainer.withValues(alpha: 0.8) : AppColors.onSurface.withValues(alpha: 0.6);
     
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // 1. KOMENTAR
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _showCommentBottomSheet(context);
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                PhosphorIcons.chatTeardrop(PhosphorIconsStyle.bold),
-                color: mutedTextColor,
-                size: 18.w(context),
-              ),
-              SizedBox(width: 4.w(context)),
-              Text(
-                '${widget.comments}',
-                style: AppTextStyles.bodySmall(context, color: mutedTextColor),
-              ),
-            ],
-          ),
-        ),
-        
-        // 2. BAGIKAN
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            ScheduleShareModal.show(
-              context: context,
-              subjectName: widget.subjectName,
-              teacherName: widget.teacherName,
-              timeRange: widget.timeRange,
-              description: widget.description,
-              dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
-            );
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
-                color: mutedTextColor,
-                size: 18.w(context),
-              ),
-              SizedBox(width: 4.w(context)),
-              Text(
-                'Bagikan',
-                style: AppTextStyles.bodySmall(context, color: mutedTextColor),
-              ),
-            ],
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: constraints.maxWidth,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 1. KOMENTAR
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _showCommentBottomSheet(context);
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        PhosphorIcons.chatTeardrop(PhosphorIconsStyle.bold),
+                        color: mutedTextColor,
+                        size: 18.w(context),
+                      ),
+                      SizedBox(width: 4.w(context)),
+                      Text(
+                        '${widget.comments}',
+                        style: AppTextStyles.bodySmall(context, color: mutedTextColor),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 2. BAGIKAN
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    ScheduleShareModal.show(
+                      context: context,
+                      subjectName: widget.subjectName,
+                      teacherName: widget.teacherName,
+                      timeRange: widget.timeRange,
+                      description: widget.description,
+                      dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
+                    );
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
+                        color: mutedTextColor,
+                        size: 18.w(context),
+                      ),
+                      SizedBox(width: 4.w(context)),
+                      Text(
+                        'Bagikan',
+                        style: AppTextStyles.bodySmall(context, color: mutedTextColor),
+                      ),
+                    ],
+                  ),
+                ),
 
-        // 3. SUKA
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            setState(() {
-              _isLiked = !_isLiked;
-              if (_isLiked) {
-                _currentLikes++;
-              } else {
-                _currentLikes--;
-              }
-            });
-            if (widget.onLikeToggled != null) {
-              widget.onLikeToggled!();
-            }
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _isLiked ? PhosphorIcons.heart(PhosphorIconsStyle.fill) : PhosphorIcons.heart(PhosphorIconsStyle.bold),
-                color: _isLiked ? AppColors.error : mutedTextColor,
-                size: 18.w(context),
-              ),
-              SizedBox(width: 4.w(context)),
-              Text(
-                '$_currentLikes',
-                style: AppTextStyles.bodySmall(context, color: _isLiked ? AppColors.error : mutedTextColor),
-              ),
-            ],
-          ),
-        ),
-        
-        // 4. SIMPAN (BOOKMARK)
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            setState(() {
-              _isSaved = !_isSaved;
-            });
-            if (widget.onSaveToggled != null) {
-              widget.onSaveToggled!();
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_isSaved ? 'Berhasil disimpan ke koleksi' : 'Dihapus dari koleksi'),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
-                backgroundColor: AppColors.primary,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          },
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 2.w(context), vertical: 2.h(context)),
-            child: Icon(
-              _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
-              color: _isSaved ? AppColors.secondary : iconColor,
-              size: 18.w(context),
+                // 3. SUKA
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() {
+                      _isLiked = !_isLiked;
+                      if (_isLiked) {
+                        _currentLikes++;
+                      } else {
+                        _currentLikes--;
+                      }
+                    });
+                    if (widget.onLikeToggled != null) {
+                      widget.onLikeToggled!();
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isLiked ? PhosphorIcons.heart(PhosphorIconsStyle.fill) : PhosphorIcons.heart(PhosphorIconsStyle.bold),
+                        color: _isLiked ? AppColors.error : mutedTextColor,
+                        size: 18.w(context),
+                      ),
+                      SizedBox(width: 4.w(context)),
+                      Text(
+                        '$_currentLikes',
+                        style: AppTextStyles.bodySmall(context, color: _isLiked ? AppColors.error : mutedTextColor),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 4. SIMPAN (BOOKMARK)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() {
+                      _isSaved = !_isSaved;
+                    });
+                    if (widget.onSaveToggled != null) {
+                      widget.onSaveToggled!();
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_isSaved ? 'Berhasil disimpan ke koleksi' : 'Dihapus dari koleksi'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
+                        backgroundColor: AppColors.primary,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w(context), vertical: 2.h(context)),
+                    child: Icon(
+                      _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
+                      color: _isSaved ? AppColors.secondary : iconColor,
+                      size: 18.w(context),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -427,7 +438,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
             // Muat data komentar saat pertama kali dibuka
             if (!hasFetched) {
               hasFetched = true;
-              if (widget.onFetchComments != null && widget.journalId != null && !widget.journalId!.startsWith('sched_')) {
+              if (widget.onFetchComments != null && widget.journalId != null) {
                 widget.onFetchComments!().then((list) {
                   setSheetState(() {
                     commentsList = list;
@@ -638,13 +649,19 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                             final text = commentController.text.trim();
                             if (text.isNotEmpty) {
                               if (widget.onCommentSubmitted != null) {
-                                final success = await widget.onCommentSubmitted!(text);
-                                if (success) {
+                                final res = await widget.onCommentSubmitted!(text);
+                                if (res != null && res != false) {
+                                  String? newId;
+                                  if (res is Map && res['id'] != null) {
+                                    newId = res['id'].toString();
+                                  }
                                   setSheetState(() {
                                     commentsList.insert(0, {
+                                      'id': newId,
                                       'user': 'Saya',
                                       'text': text,
                                       'time': 'Baru saja',
+                                      'is_me': true,
                                       'can_delete': true,
                                     });
                                     commentController.clear();
@@ -656,6 +673,7 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                                     'user': 'Saya',
                                     'text': text,
                                     'time': 'Baru saja',
+                                    'is_me': true,
                                     'can_delete': true,
                                   });
                                   commentController.clear();

@@ -7,12 +7,15 @@ Modul ini adalah jantung kegiatan belajar mengajar (KBM). Mengadopsi prinsip **M
 
 ---
 
-## 🏗️ 1. Filosofi Jurnal KBM (Alur 3 Fase)
+## 🏗️ 1. Filosofi & Siklus Hidup KBM (Alur 6 Fase Baku)
 
-Jurnal KBM terhubung langsung dengan Master Jadwal KBM (Cangkang). Satu sesi KBM akan melalui 3 fase wajib:
-1. **Fase Penerbitan (Maksimal H-1):** Guru memilih "cangkang" KBM yang tersedia, lalu mengisinya dengan materi, topik, dan lampiran. Siswa dapat melihat, membagikan, dan menyukai materi ini.
-2. **Fase *Tap-In* (Sesuai Jam Pelajaran):** Tombol *Face Recog* akan aktif. Guru wajib melakukan *scan* wajah dan lokasi sebagai bukti kehadiran mengajar di kelas. 
-3. **Fase Laporan Akhir (Maksimal 18.00 Hari H):** Guru mengisi hasil kejadian riil di kelas (Siswa yang bolos mapel tersebut, pelanggaran, atau keaktifan), beserta catatan khusus.
+Jurnal KBM terhubung langsung dengan Master Jadwal KBM (Cangkang). Satu sesi KBM melalui 6 fase baku:
+1. **Fase Master Cangkang Kurikulum:** Kurikulum menginput jadwal pelajaran mingguan yang diekstrak ke tabel `schedules`. Berfungsi sebagai panduan jam mulai, jam selesai, kelas, dan guru pengampu.
+2. **Fase Penerbitan Jurnal (Wajib Maksimal H-24 Jam):** Guru pengampu wajib menerbitkan Micro-RPP (topik materi, deskripsi, lampiran) maksimal 24 jam sebelum KBM. Jika belum diterbitkan, cron background otomatis mengirimkan peringatan via **WhatsApp Gateway** (mengambil nomor dari `users.phone`) dan **Notifikasi In-App**.
+3. **Fase Siswa Engagement:** Begitu jurnal terbit, materi ter-posting ke feed siswa yang bersangkutan. Siswa dapat berinteraksi: **Like**, **Komen Diskusi**, **Simpan / Bookmark**, dan **Bagikan**.
+4. **Fase Masuk Kelas (Presensi Cam Jurnal - Toleransi 15 Menit):** Saat jam KBM tiba (Status: `Aktif`), di kartu guru muncul modul **Presensi Cam**. Guru **wajib presensi cam maksimal toleransi 15 menit dari `start_time`**. Jika belum, guru mendapat peringatan otomatis via WhatsApp dan notifikasi aplikasi.
+5. **Fase Isi Jurnal Riil (Terkunci sampai Presensi Cam Berhasil):** Mengisi jurnal $\neq$ menerbitkan jurnal. Setelah presensi cam terverifikasi, form isi jurnal terbuka. Guru mencatat dinamika kelas (`class_notes`) dan anomali siswa (`journal_student_records`: `ABSENCE` / bolos mapel, `VIOLATION` / pelanggaran yang auto-sync ke Modul Disiplin, dan `ACHIEVEMENT` / prestasi).
+6. **Fase Penilaian Siswa & Rapor KPI (Status: Selesai):** Saat KBM selesai, siswa dapat memberikan penilaian (Rating 1–5 Bintang & Ulasan di `journal_reviews`). Penilaian ini permanen dan langsung menjadi variabel kalkulasi **Rapor KPI Bulanan Guru** (Modul 17A).
 
 ---
 

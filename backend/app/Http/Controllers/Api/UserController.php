@@ -33,12 +33,15 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id'
         ]);
 
+        $password = $request->filled('password') ? $request->password : $request->username;
+
         $user = User::create([
             'full_name' => $request->full_name,
             'username' => $request->username,
             'email' => $request->email,
-            'password' => bcrypt($request->username),
+            'password_hash' => \Illuminate\Support\Facades\Hash::make($password),
             'role_id' => $request->role_id,
+            'is_active' => true,
         ]);
         return $this->success($user, 'User berhasil ditambahkan');
     }
@@ -51,7 +54,11 @@ class UserController extends Controller
             'username' => 'required|string|max:255|unique:users,username,'.$user->id,
             'email' => 'required|string|max:255',
         ]);
-        $user->update($request->only('full_name', 'username', 'email'));
+        $data = $request->only('full_name', 'username', 'email');
+        if ($request->filled('password')) {
+            $data['password_hash'] = \Illuminate\Support\Facades\Hash::make($request->password);
+        }
+        $user->update($data);
         return $this->success($user, 'User berhasil diperbarui');
     }
 

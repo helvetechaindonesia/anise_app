@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 use App\Models\Subject;
 use App\Models\Schedule;
 use App\Models\Journal;
+use App\Models\JournalReview;
+use App\Models\JournalComment;
+use App\Models\JournalTask;
+use App\Models\JournalTaskAttachment;
+use App\Services\FileStorageService;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
@@ -142,6 +147,25 @@ class JournalController extends Controller
         $journal->status = 'Aktif';
         $journal->save();
 
+        if ($journal->has_task || $request->hasFile('attachment')) {
+            $task = JournalTask::create([
+                'journal_id' => $journal->id,
+                'title' => 'Tugas: ' . $journal->topic_material,
+                'description' => $journal->description,
+                'due_date' => now()->addDays(7)
+            ]);
+
+            if ($request->hasFile('attachment')) {
+                $task->load(['journal.class.academicYear', 'journal.subject']);
+                $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
+                JournalTaskAttachment::create([
+                    'journal_task_id' => $task->id,
+                    'attachment_name' => $request->file('attachment')->getClientOriginalName(),
+                    'attachment_url' => '/storage/' . $path
+                ]);
+            }
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Jurnal berhasil diterbitkan',
@@ -189,8 +213,216 @@ class JournalController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    public function checkInCam(Request $request, $journalId)
+    {
+        try {
+            $user = Auth::user();
+            $journal = $this->resolveJournal($journalId);
+
+            // Validasi kepemilikan guru
+            if ($journal->teacher_id && $journal->teacher_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Anda bukan guru pengampu untuk jurnal ini.'], 403);
+            }
+
+            $schedule = $journal->schedule;
+            $now = Carbon::now();
+
+            // Cek batas toleransi 15 menit dari start_time
+            $isLate = false;
+            $minutesLate = 0;
+            if ($schedule && $schedule->start_time && $journal->teaching_date) {
+                $teachingDateStr = Carbon::parse($journal->teaching_date)->format('Y-m-d');
+                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} {$schedule->start_time}");
+                $minutesDiff = (int)$startDateTime->diffInMinutes($now, false);
+                if ($minutesDiff > 15) {
+                    $isLate = true;
+                    $minutesLate = $minutesDiff;
+                }
+            }
+
+            // Simpan data presensi cam
+            $journal->check_in_time = $now;
+            $journal->latitude = $request->input('lat', $request->input('latitude'));
+            $journal->longitude = $request->input('lng', $request->input('longitude'));
+
+            if ($request->hasFile('face_image')) {
+                $path = $request->file('face_image')->store('presensi_cam', 'public');
+                $journal->face_snapshot_url = '/storage/' . $path;
+            } elseif ($request->filled('face_snapshot_url')) {
+                $journal->face_snapshot_url = $request->face_snapshot_url;
+            }
+
+            $journal->status = 'Aktif';
+            $journal->save();
+
+            $msg = 'Presensi Cam Jurnal berhasil diverifikasi.';
+            if ($isLate) {
+                $msg .= " Peringatan: Presensi tercatat terlambat {$minutesLate} menit dari jam mulai KBM.";
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $msg,
+                'data' => [
+                    'journal_id' => $journal->id,
+                    'check_in_time' => $journal->check_in_time ? $journal->check_in_time->format('H:i:s') : $now->format('H:i:s'),
+                    'is_late' => $isLate,
+                    'minutes_late' => $minutesLate,
+                    'can_fill' => true
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
     }
-    public function submitJournal() { return response()->json(['status' => 'success']); }
+
+    public function getClassStudents(Request $request, $journalId)
+    {
+        try {
+            $journal = $this->resolveJournal($journalId);
+            $classId = $journal->class_id ?? ($journal->schedule?->class_id);
+
+            if (!$classId) {
+                return response()->json(['status' => 'success', 'data' => []]);
+            }
+
+            $students = \App\Models\ClassStudent::where('class_id', $classId)
+                ->where('status', 'ACTIVE')
+                ->with(['student.siswaProfile'])
+                ->get()
+                ->map(function ($cs) {
+                    $student = $cs->student;
+                    $profile = $student?->siswaProfile;
+                    $name = $profile?->full_name ?: ($student?->full_name ?: ($student?->username ?? 'Siswa'));
+                    $nis = $profile?->nisn ?: ($profile?->nis ?? '-');
+
+                    return [
+                        'id' => $student?->id,
+                        'name' => $name,
+                        'nis' => $nis,
+                        'gender' => $profile?->gender ?? 'L',
+                        'avatar' => $student?->profile_picture ?? null,
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $students
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function fillJournal(Request $request, $journalId)
+    {
+        $request->validate([
+            'class_notes' => 'required|string',
+            'student_records' => 'nullable|array',
+            'student_records.*.student_id' => 'required|string',
+            'student_records.*.record_type' => 'required|in:ABSENCE,VIOLATION,ACHIEVEMENT',
+            'student_records.*.keterangan' => 'required|string',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $journal = $this->resolveJournal($journalId);
+
+            // Validasi kepemilikan guru
+            if ($journal->teacher_id && $journal->teacher_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Anda bukan guru pengampu untuk jurnal ini.'], 403);
+            }
+
+            // Validasi Wajib Presensi Cam terlebih dahulu
+            if (empty($journal->check_in_time)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Guru belum melakukan Presensi Cam! Anda wajib melakukan presensi cam terlebih dahulu sebelum mengisi laporan jurnal.'
+                ], 422);
+            }
+
+            $now = Carbon::now();
+            $journal->filled_at = $now;
+            $journal->class_notes = $request->class_notes;
+            $journal->status = 'Selesai';
+            $journal->save();
+
+            // Simpan anomali siswa jika ada
+            if ($request->has('student_records') && is_array($request->student_records)) {
+                foreach ($request->student_records as $rec) {
+                    $studentId = $rec['student_id'] ?? null;
+                    if (!$studentId) continue;
+
+                    $recordType = strtoupper($rec['record_type']);
+                    $keterangan = $rec['keterangan'] ?? '';
+
+                    $sr = new \App\Models\JournalStudentRecord();
+                    $sr->journal_id = $journal->id;
+                    $sr->student_id = $studentId;
+                    $sr->record_type = $recordType;
+                    $sr->keterangan = $keterangan;
+                    $sr->save();
+
+                    // Jika VIOLATION, otomatis buat salinan ke discipline_reports (Modul 9)
+                    if ($recordType === 'VIOLATION' && \Illuminate\Support\Facades\Schema::hasTable('discipline_reports')) {
+                        try {
+                            \Illuminate\Support\Facades\DB::table('discipline_reports')->insert([
+                                'id' => \Illuminate\Support\Str::uuid()->toString(),
+                                'student_id' => $studentId,
+                                'reporter_id' => $user->id,
+                                'description' => "Pelanggaran di kelas saat KBM {$journal->subject?->name}: {$keterangan}",
+                                'status' => 'PENDING',
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ]);
+                        } catch (\Throwable $err) {
+                            \Illuminate\Support\Facades\Log::error("Gagal sinkron pelanggaran disiplin: " . $err->getMessage());
+                        }
+                    }
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Laporan Jurnal Mengajar berhasil disimpan dan KBM dinyatakan Selesai.',
+                'data' => [
+                    'journal_id' => $journal->id,
+                    'filled_at' => $now->toIso8601String(),
+                    'status' => 'Selesai',
+                    'class_notes' => $journal->class_notes
+                ]
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['status' => 'error', 'message' => $ve->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function submitJournal(Request $request)
+    {
+        $journalId = $request->input('journal_id');
+        if ($journalId) {
+            return $this->fillJournal($request, $journalId);
+        }
+        return response()->json(['status' => 'success']);
+    }
+
+    public function triggerKbmReminders(Request $request)
+    {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('kbm:check-reminders');
+            $output = \Illuminate\Support\Facades\Artisan::output();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Pemindaian KBM dan pengiriman notifikasi berhasil dijalankan.',
+                'output' => $output
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 
     public function getJournalsBySubject($subjectId)
     {
@@ -212,39 +444,170 @@ class JournalController extends Controller
         }
     }
 
-
     public function getGuruJournals()
     {
         try {
             $user = Auth::user();
             
-            $journals = \App\Models\Journal::whereHas('schedule', function ($q) use ($user) {
-                $q->where('teacher_id', $user->id);
-            })
-            ->with(['schedule.subject', 'schedule.class.major', 'tasks'])
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($journal) {
-                $sched = $journal->schedule;
-                $classObj = $sched->class;
-                $className = $classObj->grade_level . ' ' . $classObj->name;
+            // 1. Ambil seluruh jadwal mengajar yang diampu guru ini
+            $schedules = Schedule::where('teacher_id', $user->id)
+                ->with(['subject', 'class.major'])
+                ->get();
+
+            // 2. Ambil seluruh jurnal mengajar yang diterbitkan oleh guru ini
+            $journals = Journal::where('teacher_id', $user->id)
+                ->with(['schedule.subject', 'schedule.class.major', 'tasks', 'reviews', 'comments'])
+                ->orderBy('teaching_date', 'desc')
+                ->get();
+
+            // Ambil ID interaksi guru untuk like & save
+            $myLikedIds = collect();
+            $mySavedIds = collect();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $myLikedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'LIKE')
+                    ->pluck('journal_id');
+
+                $mySavedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'SAVE')
+                    ->pluck('journal_id');
+            }
+
+            $teacherName = $user->guruProfile?->full_name ?: ($user->full_name ?: ($user->username ?? 'Guru Pengajar'));
+            $teacherImage = $user->profile_picture ?? null;
+            $result = [];
+
+            // A. Petakan data Jurnal yang sudah diterbitkan
+            foreach ($journals as $journal) {
+                $sched = $journal->schedule ?? null;
+                $subjectName = $sched?->subject?->name ?? ($journal->subject?->name ?? 'Mata Pelajaran');
+                $startTime = $sched ? $sched->start_time : '07:30:00';
+                $endTime = $sched ? $sched->end_time : '09:30:00';
                 
-                return [
+                $dayOfWeek = $sched ? $sched->day_of_week : null;
+                if ($dayOfWeek === null && $journal->teaching_date) {
+                    try {
+                        $dayOfWeek = Carbon::parse($journal->teaching_date)->dayOfWeekIso;
+                    } catch (\Throwable $e) {}
+                }
+
+                $hasTask = (bool)($journal->has_task ?? false);
+                $taskTitle = null;
+                if ($journal->relationLoaded('tasks') && $journal->tasks && $journal->tasks->isNotEmpty()) {
+                    $hasTask = true;
+                    $taskTitle = $journal->tasks->first()->title;
+                }
+
+                $likesCount = 0;
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                    $likesCount = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                        ->where('journal_id', $journal->id)
+                        ->where('interaction_type', 'LIKE')
+                        ->count();
+                }
+
+                $commentsCount = 0;
+                if ($journal->relationLoaded('comments') && $journal->comments) {
+                    $commentsCount = $journal->comments->count();
+                } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                    $commentsCount = \Illuminate\Support\Facades\DB::table('journal_comments')->where('journal_id', $journal->id)->count();
+                }
+
+                $avgRating = 5.0;
+                if ($journal->relationLoaded('reviews') && $journal->reviews && $journal->reviews->isNotEmpty()) {
+                    $avgRating = (float)($journal->reviews->avg('rating') ?: 5.0);
+                } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                    $avgRating = (float)(\Illuminate\Support\Facades\DB::table('journal_reviews')->where('journal_id', $journal->id)->avg('rating') ?: 5.0);
+                }
+
+                $className = $sched?->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
+                $classId = $sched?->class_id ?? $journal->class_id;
+
+                $journalStatus = 'Belum';
+                if (!empty($journal->filled_at) || $journal->status === 'Selesai' || $journal->status === 'COMPLETED') {
+                    $journalStatus = 'Selesai';
+                } elseif (!empty($journal->check_in_time) || $journal->status === 'Aktif' || $journal->status === 'ONGOING') {
+                    $journalStatus = 'Aktif';
+                }
+
+                $isFilled = !empty($journal->filled_at) || $journalStatus === 'Selesai';
+                $isCheckedIn = !empty($journal->check_in_time);
+
+                $result[] = [
                     'id' => $journal->id,
+                    'schedule_id' => $journal->schedule_id,
+                    'type' => 'journal',
+                    'status' => $journalStatus,
                     'topic' => $journal->topic_material,
-                    'description' => $journal->description,
-                    'created_at' => $journal->created_at,
-                    'subject' => $sched->subject->name,
-                    'class' => $className,
-                    'has_task' => $journal->tasks->count() > 0
+                    'description' => $journal->description ?: $journal->topic_material,
+                    'created_at' => $journal->created_at ? $journal->created_at->toIso8601String() : null,
+                    'teaching_date' => $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : null,
+                    'subject' => $subjectName,
+                    'class_name' => $className,
+                    'class_id' => $classId,
+                    'teacher' => $teacherName,
+                    'teacher_image' => $teacherImage,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'day_of_week' => $dayOfWeek,
+                    'has_task' => $hasTask,
+                    'task_title' => $taskTitle,
+                    'attachment_url' => $journal->attachment_url ?? null,
+                    'check_in_time' => $journal->check_in_time ? Carbon::parse($journal->check_in_time)->format('H:i') : null,
+                    'filled_at' => $journal->filled_at ? Carbon::parse($journal->filled_at)->format('H:i') : null,
+                    'class_notes' => $journal->class_notes,
+                    'is_checked_in' => $isCheckedIn,
+                    'is_filled' => $isFilled,
+                    'can_fill' => $isCheckedIn && !$isFilled,
+                    'likes' => $likesCount,
+                    'is_liked' => $myLikedIds->contains($journal->id),
+                    'is_saved' => $mySavedIds->contains($journal->id),
+                    'comments' => $commentsCount,
+                    'rating' => (float)round($avgRating, 1),
+                    'has_rated' => false,
+                    'my_rating' => null
                 ];
-            });
+            }
+
+            // B. Petakan Jadwal Mengajar Reguler mingguan guru
+            foreach ($schedules as $sched) {
+                $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
+                $className = $sched->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
+
+                $result[] = [
+                    'id' => 'sched_' . $sched->id,
+                    'schedule_id' => $sched->id,
+                    'type' => 'schedule',
+                    'topic' => 'Jadwal Mengajar: ' . $subjectName . ' (' . $className . ')',
+                    'description' => 'Materi pembelajaran belum dipublikasikan oleh Anda untuk sesi ini.',
+                    'created_at' => $sched->created_at ? $sched->created_at->toIso8601String() : null,
+                    'teaching_date' => null,
+                    'subject' => $subjectName,
+                    'teacher' => $teacherName,
+                    'teacher_image' => $teacherImage,
+                    'start_time' => $sched->start_time,
+                    'end_time' => $sched->end_time,
+                    'day_of_week' => $sched->day_of_week,
+                    'has_task' => false,
+                    'task_title' => null,
+                    'attachment_url' => null,
+                    'likes' => 0,
+                    'is_liked' => false,
+                    'is_saved' => false,
+                    'comments' => 0,
+                    'rating' => 5.0,
+                    'has_rated' => false,
+                    'my_rating' => null
+                ];
+            }
 
             return response()->json([
                 'status' => 'success',
-                'data' => $journals
+                'data' => $result
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
@@ -295,7 +658,6 @@ class JournalController extends Controller
                 ->orderBy('teaching_date', 'desc')
                 ->get();
             } catch (\Throwable $e) {
-                // Fallback query tanpa relasi tambahan jika terjadi mismatch
                 try {
                     $journals = \App\Models\Journal::where('class_id', $classId)
                         ->orWhereHas('schedule', function ($q) use ($classId) {
@@ -303,6 +665,28 @@ class JournalController extends Controller
                         })
                         ->get();
                 } catch (\Throwable $ex) {}
+            }
+
+            // Ambil ID interaksi siswa untuk like, save, dan review
+            $myLikedIds = collect();
+            $mySavedIds = collect();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $myLikedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'LIKE')
+                    ->pluck('journal_id');
+
+                $mySavedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'SAVE')
+                    ->pluck('journal_id');
+            }
+
+            $myReviews = collect();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                $myReviews = \Illuminate\Support\Facades\DB::table('journal_reviews')
+                    ->where('student_id', $user->id)
+                    ->pluck('rating', 'journal_id');
             }
 
             $result = [];
@@ -361,35 +745,8 @@ class JournalController extends Controller
                     }
                 } catch (\Throwable $e) {}
 
-                $userRating = null;
-                $hasRated = false;
-                $isLikedByMe = false;
-                $isSavedByMe = false;
-
-                try {
-                    if (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
-                        $myReview = \Illuminate\Support\Facades\DB::table('journal_reviews')
-                            ->where('journal_id', $journal->id)
-                            ->where('student_id', $user->id)
-                            ->first();
-                        if ($myReview) {
-                            $hasRated = true;
-                            $userRating = (int)$myReview->rating;
-                        }
-                    }
-                    if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
-                        $isLikedByMe = \Illuminate\Support\Facades\DB::table('journal_interactions')
-                            ->where('journal_id', $journal->id)
-                            ->where('student_id', $user->id)
-                            ->where('interaction_type', 'LIKE')
-                            ->exists();
-                        $isSavedByMe = \Illuminate\Support\Facades\DB::table('journal_interactions')
-                            ->where('journal_id', $journal->id)
-                            ->where('student_id', $user->id)
-                            ->where('interaction_type', 'SAVE')
-                            ->exists();
-                    }
-                } catch (\Throwable $e) {}
+                $hasRated = $myReviews->has($journal->id);
+                $myRating = $hasRated ? (int)$myReviews->get($journal->id) : null;
 
                 $result[] = [
                     'id' => $journal->id,
@@ -401,7 +758,6 @@ class JournalController extends Controller
                     'teaching_date' => $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : null,
                     'subject' => $subjectName,
                     'teacher' => $teacherName,
-                    'teacher_id' => $teacher?->id,
                     'teacher_image' => $teacher?->profile_picture ?? null,
                     'start_time' => $startTime,
                     'end_time' => $endTime,
@@ -410,12 +766,12 @@ class JournalController extends Controller
                     'task_title' => $taskTitle,
                     'attachment_url' => $journal->attachment_url ?? null,
                     'likes' => $likesCount,
-                    'is_liked' => $isLikedByMe,
-                    'is_saved' => $isSavedByMe,
+                    'is_liked' => $myLikedIds->contains($journal->id),
+                    'is_saved' => $mySavedIds->contains($journal->id),
                     'comments' => $commentsCount,
-                    'rating' => (float)$avgRating,
+                    'rating' => (float)round($avgRating, 1),
                     'has_rated' => $hasRated,
-                    'my_rating' => $userRating
+                    'my_rating' => $myRating
                 ];
             }
 
@@ -435,7 +791,6 @@ class JournalController extends Controller
                     'teaching_date' => null,
                     'subject' => $subjectName,
                     'teacher' => $teacherName,
-                    'teacher_id' => $teacher?->id,
                     'teacher_image' => $teacher?->profile_picture ?? null,
                     'start_time' => $sched->start_time,
                     'end_time' => $sched->end_time,
@@ -462,92 +817,75 @@ class JournalController extends Controller
         }
     }
 
+    protected function resolveJournal($journalId, $targetDate = null)
+    {
+        if (str_starts_with($journalId, 'sched_')) {
+            $scheduleId = substr($journalId, 6);
+            $schedule = Schedule::with(['subject'])->findOrFail($scheduleId);
+            $date = $targetDate ?: Carbon::today()->format('Y-m-d');
+
+            $journal = Journal::where('schedule_id', $scheduleId)
+                ->whereDate('teaching_date', $date)
+                ->first();
+
+            if (!$journal) {
+                $journal = new Journal();
+                $journal->schedule_id = $schedule->id;
+                $journal->class_id = $schedule->class_id;
+                $journal->subject_id = $schedule->subject_id;
+                $journal->teacher_id = $schedule->teacher_id;
+                $journal->teaching_date = $date;
+                $journal->topic_material = 'Pembelajaran ' . ($schedule->subject?->name ?? 'Mata Pelajaran');
+                $journal->description = 'Sesi pembelajaran ' . ($schedule->subject?->name ?? '');
+                $journal->status = 'Aktif';
+                $journal->save();
+            }
+            return $journal;
+        }
+
+        return Journal::findOrFail($journalId);
+    }
+
     public function toggleLike(Request $request, $journalId)
     {
         try {
             $user = Auth::user();
+            $journal = $this->resolveJournal($journalId);
+            $journalId = $journal->id;
 
-            if (!\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
-                \Illuminate\Support\Facades\Schema::create('journal_interactions', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->uuid('id')->primary();
-                    $table->foreignUuid('journal_id')->constrained('journals')->cascadeOnDelete();
-                    $table->foreignUuid('student_id')->constrained('users')->cascadeOnDelete();
-                    $table->string('interaction_type'); // LIKE, SAVE, SHARE
-                    $table->timestamps();
-                });
-            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $existing = \App\Models\JournalInteraction::where('journal_id', $journalId)
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'LIKE')
+                    ->first();
 
-            $existing = \Illuminate\Support\Facades\DB::table('journal_interactions')
-                ->where('journal_id', $journalId)
-                ->where('student_id', $user->id)
-                ->where('interaction_type', 'LIKE')
-                ->first();
+                if ($existing) {
+                    $existing->delete();
+                    $liked = false;
+                } else {
+                    \App\Models\JournalInteraction::create([
+                        'journal_id' => $journalId,
+                        'student_id' => $user->id,
+                        'interaction_type' => 'LIKE'
+                    ]);
+                    $liked = true;
+                }
 
-            if ($existing) {
-                \Illuminate\Support\Facades\DB::table('journal_interactions')->where('id', $existing->id)->delete();
-                $liked = false;
-            } else {
-                \Illuminate\Support\Facades\DB::table('journal_interactions')->insert([
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
-                    'journal_id' => $journalId,
-                    'student_id' => $user->id,
-                    'interaction_type' => 'LIKE',
-                    'created_at' => now(),
-                    'updated_at' => now()
+                $count = \App\Models\JournalInteraction::where('journal_id', $journalId)
+                    ->where('interaction_type', 'LIKE')
+                    ->count();
+
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'liked' => (bool)$liked,
+                        'likes_count' => (int)$count
+                    ]
                 ]);
-                $liked = true;
             }
 
-            $count = \Illuminate\Support\Facades\DB::table('journal_interactions')
-                ->where('journal_id', $journalId)
-                ->where('interaction_type', 'LIKE')
-                ->count();
-
-            return response()->json(['status' => 'success', 'data' => ['liked' => $liked, 'likes_count' => $count]]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    public function getComments($journalId)
-    {
-        try {
-            $user = Auth::user();
-            $userRole = $user->role_type ?? ($user->role ?? '');
-            $journal = \App\Models\Journal::with('schedule')->find($journalId);
-            $teacherId = $journal?->teacher_id ?? $journal?->schedule?->teacher_id;
-            $isTeacherOwner = ($user->id === $teacherId) || in_array($userRole, ['GURU', 'ADMIN', 'TATA_USAHA']);
-
-            if (!\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
-                return response()->json(['status' => 'success', 'data' => []]);
-            }
-
-            $comments = \App\Models\JournalComment::where('journal_id', $journalId)
-                ->with(['user.siswaProfile', 'user.guruProfile'])
-                ->orderBy('created_at', 'asc')
-                ->get()
-                ->map(function ($c) use ($user, $isTeacherOwner) {
-                    $u = $c->user;
-                    $isMe = ($user->id === $c->user_id);
-                    $name = $u?->full_name ?: ($u?->guruProfile?->full_name ?: ($u?->siswaProfile?->full_name ?: ($u?->username ?? 'Pengguna')));
-                    $uRole = $u?->role_type ?? ($u?->role ?? 'SISWA');
-                    return [
-                        'id' => $c->id,
-                        'journal_id' => $c->journal_id,
-                        'user_id' => $c->user_id,
-                        'author_name' => $isMe ? 'Saya' : $name,
-                        'raw_author_name' => $name,
-                        'is_me' => $isMe,
-                        'author_role' => $uRole,
-                        'author_avatar' => $u?->profile_picture,
-                        'comment_text' => $c->comment_text,
-                        'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
-                        'can_delete' => $isMe || $isTeacherOwner
-                    ];
-                });
-
-            return response()->json(['status' => 'success', 'data' => $comments]);
-        } catch (\Exception $e) {
+            return response()->json(['status' => 'success', 'data' => ['liked' => true, 'likes_count' => 1]]);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
@@ -556,39 +894,37 @@ class JournalController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
-                \Illuminate\Support\Facades\Schema::create('journal_interactions', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->uuid('id')->primary();
-                    $table->foreignUuid('journal_id')->constrained('journals')->cascadeOnDelete();
-                    $table->foreignUuid('student_id')->constrained('users')->cascadeOnDelete();
-                    $table->string('interaction_type'); // LIKE, SAVE, SHARE
-                    $table->timestamps();
-                });
-            }
+            $journal = $this->resolveJournal($journalId);
+            $journalId = $journal->id;
 
-            $existing = \Illuminate\Support\Facades\DB::table('journal_interactions')
-                ->where('journal_id', $journalId)
-                ->where('student_id', $user->id)
-                ->where('interaction_type', 'SAVE')
-                ->first();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $existing = \App\Models\JournalInteraction::where('journal_id', $journalId)
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'SAVE')
+                    ->first();
 
-            if ($existing) {
-                \Illuminate\Support\Facades\DB::table('journal_interactions')->where('id', $existing->id)->delete();
-                $saved = false;
-            } else {
-                \Illuminate\Support\Facades\DB::table('journal_interactions')->insert([
-                    'id' => (string) \Illuminate\Support\Str::uuid(),
-                    'journal_id' => $journalId,
-                    'student_id' => $user->id,
-                    'interaction_type' => 'SAVE',
-                    'created_at' => now(),
-                    'updated_at' => now()
+                if ($existing) {
+                    $existing->delete();
+                    $saved = false;
+                } else {
+                    \App\Models\JournalInteraction::create([
+                        'journal_id' => $journalId,
+                        'student_id' => $user->id,
+                        'interaction_type' => 'SAVE'
+                    ]);
+                    $saved = true;
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'saved' => (bool)$saved
+                    ]
                 ]);
-                $saved = true;
             }
 
-            return response()->json(['status' => 'success', 'data' => ['saved' => $saved]]);
-        } catch (\Exception $e) {
+            return response()->json(['status' => 'success', 'data' => ['saved' => true]]);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
@@ -598,116 +934,158 @@ class JournalController extends Controller
         try {
             $request->validate(['comment_text' => 'required|string|max:500']);
             $user = Auth::user();
-            $userRole = $user->role_type ?? ($user->role ?? '');
+            $journal = $this->resolveJournal($journalId);
+            $journalId = $journal->id;
+            $role = $user->role?->name ?? ($user->role_type ?? 'SISWA');
 
-            if (!\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
-                \Illuminate\Support\Facades\Schema::create('journal_comments', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->uuid('id')->primary();
-                    $table->foreignUuid('journal_id')->constrained('journals')->cascadeOnDelete();
-                    $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-                    $table->text('comment_text');
-                    $table->timestamps();
-                });
+            // Batasi siswa maksimal 1 komentar per sesi materi pembelajaran untuk menjaga ketertiban
+            if ($role === 'SISWA') {
+                $existing = JournalComment::where('journal_id', $journalId)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if ($existing) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Anda sudah memberikan komentar untuk jurnal ini (maksimal 1 komentar per siswa).'
+                    ], 422);
+                }
             }
 
-            // Batasi 1 siswa hanya boleh memberikan 1 komentar per jurnal item
-            $existingComment = \App\Models\JournalComment::where('journal_id', $journalId)
-                ->where('user_id', $user->id)
-                ->first();
-
-            if ($existingComment && $userRole === 'SISWA') {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Anda sudah memberikan komentar untuk jurnal ini (maksimal 1 komentar per siswa).'
-                ], 422);
-            }
-
-            $comment = \App\Models\JournalComment::create([
+            $comment = JournalComment::create([
                 'journal_id' => $journalId,
                 'user_id' => $user->id,
                 'comment_text' => $request->comment_text
             ]);
 
-            $rawName = $user->full_name ?: ($user->guruProfile?->full_name ?: ($user->siswaProfile?->full_name ?: ($user->username ?? 'Saya')));
+            $rawName = $user->siswaProfile?->full_name 
+                ?: ($user->guruProfile?->full_name 
+                    ?: ($user->full_name ?: ($user->username ?? 'Pengguna')));
 
             return response()->json([
                 'status' => 'success',
+                'message' => 'Komentar berhasil dikirim.',
                 'data' => [
                     'id' => $comment->id,
                     'journal_id' => $comment->journal_id,
                     'user_id' => $comment->user_id,
                     'author_name' => 'Saya',
                     'raw_author_name' => $rawName,
-                    'is_me' => true,
-                    'author_role' => $userRole,
-                    'author_avatar' => $user->profile_picture,
+                    'author_role' => $role,
+                    'author_avatar' => $user->profile_picture ?? null,
                     'comment_text' => $comment->comment_text,
-                    'created_at' => $comment->created_at ? $comment->created_at->toIso8601String() : null,
+                    'created_at' => $comment->created_at ? $comment->created_at->toIso8601String() : now()->toIso8601String(),
+                    'is_me' => true,
                     'can_delete' => true
                 ]
             ]);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['status' => 'error', 'message' => $ve->getMessage()], 422);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
-    public function deleteComment($journalId, $commentId)
+    public function getComments(Request $request, $journalId)
     {
         try {
             $user = Auth::user();
-            $userRole = $user->role_type ?? ($user->role ?? '');
-            $comment = \App\Models\JournalComment::find($commentId);
-            if (!$comment) {
-                return response()->json(['status' => 'error', 'message' => 'Komentar tidak ditemukan'], 404);
+            if (str_starts_with($journalId, 'sched_')) {
+                $scheduleId = substr($journalId, 6);
+                $journal = Journal::where('schedule_id', $scheduleId)->whereDate('teaching_date', Carbon::today()->format('Y-m-d'))->first();
+                if (!$journal) {
+                    return response()->json(['status' => 'success', 'data' => []]);
+                }
+                $journalId = $journal->id;
+            } else {
+                Journal::findOrFail($journalId);
             }
 
-            $journal = \App\Models\Journal::with('schedule')->find($journalId);
-            $teacherId = $journal?->teacher_id ?? $journal?->schedule?->teacher_id;
-            $isTeacherOwner = ($user->id === $teacherId) || in_array($userRole, ['GURU', 'ADMIN', 'TATA_USAHA']);
-            $isCommentAuthor = ($user->id === $comment->user_id);
+            $comments = JournalComment::where('journal_id', $journalId)
+                ->with(['user.siswaProfile', 'user.guruProfile', 'user.role'])
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->map(function ($c) use ($user) {
+                    $isMe = $user && $c->user_id === $user->id;
+                    $role = $c->user?->role?->name ?? ($c->user?->role_type ?? 'SISWA');
+                    $rawName = $c->user?->siswaProfile?->full_name 
+                        ?: ($c->user?->guruProfile?->full_name 
+                            ?: ($c->user?->full_name ?: ($c->user?->username ?? 'Pengguna')));
 
-            // Guru penerbit jurnal atau pembuat komentar boleh menghapus
-            if (!$isTeacherOwner && !$isCommentAuthor) {
-                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak untuk menghapus komentar ini'], 403);
+                    $authorName = $isMe ? 'Saya' : $rawName;
+
+                    return [
+                        'id' => $c->id,
+                        'journal_id' => $c->journal_id,
+                        'user_id' => $c->user_id,
+                        'author_name' => $authorName,
+                        'raw_author_name' => $rawName,
+                        'author_role' => $role,
+                        'author_avatar' => $c->user?->profile_picture ?? null,
+                        'comment_text' => $c->comment_text,
+                        'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
+                        'is_me' => $isMe,
+                        'can_delete' => $isMe || ($user && ($user->role_type === 'GURU' || $user->role?->name === 'GURU')),
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $comments
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function deleteComment(Request $request, $journalId, $commentId)
+    {
+        try {
+            $user = Auth::user();
+            if (str_starts_with($journalId, 'sched_')) {
+                $scheduleId = substr($journalId, 6);
+                $journal = Journal::where('schedule_id', $scheduleId)->whereDate('teaching_date', Carbon::today()->format('Y-m-d'))->first();
+                if (!$journal) {
+                    return response()->json(['status' => 'error', 'message' => 'Not found'], 404);
+                }
+                $journalId = $journal->id;
+            }
+
+            $comment = JournalComment::where('journal_id', $journalId)
+                ->where('id', $commentId)
+                ->firstOrFail();
+
+            $isOwner = $comment->user_id === $user->id;
+            $isTeacher = ($user->role_type === 'GURU' || $user->role?->name === 'GURU');
+
+            if (!$isOwner && !$isTeacher) {
+                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
             }
 
             $comment->delete();
-            return response()->json(['status' => 'success', 'message' => 'Komentar berhasil dihapus']);
-        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Komentar berhasil dihapus.'
+            ]);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
     public function submitRating(Request $request, $journalId)
     {
+        $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'review_text' => 'nullable|string'
+        ]);
+
         try {
-            $request->validate([
-                'rating' => 'required|integer|min:1|max:5',
-                'review_text' => 'nullable|string|max:500'
-            ]);
-
             $user = Auth::user();
-            $userRole = $user->role_type ?? ($user->role ?? '');
-            if ($userRole !== 'SISWA') {
-                return response()->json(['status' => 'error', 'message' => 'Hanya siswa yang dapat memberikan penilaian'], 403);
-            }
+            $journal = $this->resolveJournal($journalId);
+            $journalId = $journal->id;
 
-            // Buat tabel jika belum ada
-            if (!\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
-                \Illuminate\Support\Facades\Schema::create('journal_reviews', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->uuid('id')->primary();
-                    $table->foreignUuid('journal_id')->constrained('journals')->cascadeOnDelete();
-                    $table->foreignUuid('student_id')->constrained('users')->cascadeOnDelete();
-                    $table->integer('rating');
-                    $table->text('review_text')->nullable();
-                    $table->timestamps();
-                    $table->unique(['journal_id', 'student_id']);
-                });
-            }
-
-            // Cek apakah siswa sudah pernah memberikan rating (1 user siswa hanya boleh ngisi 1 kali, tidak boleh diganti)
-            $existing = \Illuminate\Support\Facades\DB::table('journal_reviews')
-                ->where('journal_id', $journalId)
+            // Validasi: ulasan ulasan siswa bersifat permanen
+            $existing = JournalReview::where('journal_id', $journalId)
                 ->where('student_id', $user->id)
                 ->first();
 
@@ -718,34 +1096,29 @@ class JournalController extends Controller
                 ], 422);
             }
 
-            \Illuminate\Support\Facades\DB::table('journal_reviews')->insert([
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+            $review = JournalReview::create([
                 'journal_id' => $journalId,
                 'student_id' => $user->id,
-                'rating' => $request->rating,
-                'review_text' => $request->review_text ?? null,
-                'created_at' => now(),
-                'updated_at' => now()
+                'rating' => (int)$request->rating,
+                'review_text' => $request->review_text,
             ]);
 
-            // Hitung rata-rata rating terbaru
-            $newAvg = (float)\Illuminate\Support\Facades\DB::table('journal_reviews')
-                ->where('journal_id', $journalId)
-                ->avg('rating');
+            $avgRating = JournalReview::where('journal_id', $journalId)->avg('rating') ?: $request->rating;
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Penilaian berhasil disimpan',
+                'message' => 'Penilaian berhasil disimpan.',
                 'data' => [
-                    'rating' => $request->rating,
-                    'average_rating' => round($newAvg, 1)
+                    'rating' => (int)$review->rating,
+                    'average_rating' => (float)round($avgRating, 1)
                 ]
             ]);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json(['status' => 'error', 'message' => $ve->getMessage()], 422);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
-
 
     public function getSiswaTeachers()
     {

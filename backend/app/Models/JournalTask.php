@@ -23,5 +23,14 @@ class JournalTask extends Model
         return $this->belongsTo(\App\Models\Journal::class, 'journal_id');
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(\App\Models\JournalTaskAttachment::class, 'journal_task_id');
+    }
+
+    public function submissions()
+    {
+        return $this->hasMany(\App\Models\StudentTaskSubmission::class, 'journal_task_id');
+    }
 }
 

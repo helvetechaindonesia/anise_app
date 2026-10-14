@@ -67,13 +67,17 @@ class TeacherHeaderWidget extends StatelessWidget {
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 4.w(context)),
                           child: Text(
-                            '·',
+                            '•',
                             style: AppTextStyles.bodyMedium(context, color: mutedTextColor),
                           ),
                         ),
-                        Text(
-                          uploadTime,
-                          style: AppTextStyles.bodyMedium(context, color: mutedTextColor),
+                        Flexible(
+                          child: Text(
+                            uploadTime,
+                            style: AppTextStyles.bodyMedium(context, color: mutedTextColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -123,6 +127,8 @@ class PostTitleWidget extends StatelessWidget {
         Text(
           subjectName,
           style: AppTextStyles.bodyMedium(context, color: textColor, fontWeight: FontWeight.w700),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
         SizedBox(height: 4.h(context)),
         Row(
@@ -480,20 +486,23 @@ class _RatingSectionWidgetState extends State<RatingSectionWidget> {
               ),
             ),
             SizedBox(width: 8.w(context)),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(5, (index) {
-                final starIndex = index + 1;
-                final isFilled = starIndex <= _currentRating;
-                return Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
-                  child: Icon(
-                    isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
-                    color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.4),
-                    size: 18.w(context),
-                  ),
-                );
-              }),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(5, (index) {
+                  final starIndex = index + 1;
+                  final isFilled = starIndex <= _currentRating;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 1.5.w(context)),
+                    child: Icon(
+                      isFilled ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.regular),
+                      color: isFilled ? AppColors.warning : AppColors.onSurfaceVariant.withValues(alpha: 0.4),
+                      size: 16.w(context),
+                    ),
+                  );
+                }),
+              ),
             ),
           ],
         ),

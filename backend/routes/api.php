@@ -50,6 +50,8 @@ Route::prefix('auth')->group(function () {
 // ==========================================
 Route::get('/dev/contact', [DevController::class, 'getContact']);
 Route::match(['get', 'post'], '/dev/seed-home-data', [DevController::class, 'seedHomeData']);
+Route::match(['get', 'post'], '/dev/trigger-kbm-reminders', [JournalController::class, 'triggerKbmReminders']);
+Route::match(['get', 'post'], '/dev/reset-clean', [DevController::class, 'resetClean']);
 
 // Export Presensi XLSX (Dapat diakses via Browser/Download Manager dengan parameter ?token=... atau Bearer Header)
 Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXlsx']);
@@ -85,16 +87,19 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/terbit-options', [JournalController::class, 'getTerbitOptions']);
             Route::post('/terbit', [JournalController::class, 'store']);
             Route::post('/', [JournalController::class, 'submitJournal']);
+            Route::post('/{journalId}/check-in-cam', [JournalController::class, 'checkInCam']);
+            Route::get('/{journalId}/class-students', [JournalController::class, 'getClassStudents']);
+            Route::post('/{journalId}/fill', [JournalController::class, 'fillJournal']);
             Route::get('/by-subject/{subjectId}', [JournalController::class, 'getJournalsBySubject']);
         });
         Route::get('/{journalId}/comments', [JournalController::class, 'getComments']);
         Route::delete('/{journalId}/comments/{commentId}', [JournalController::class, 'deleteComment']);
+        Route::post('/{journalId}/like', [JournalController::class, 'toggleLike']);
+        Route::post('/{journalId}/save', [JournalController::class, 'toggleSave']);
+        Route::post('/{journalId}/comments', [JournalController::class, 'submitComment']);
 
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [JournalController::class, 'getSiswaJournals']);
-            Route::post('/{journalId}/like', [JournalController::class, 'toggleLike']);
-            Route::post('/{journalId}/save', [JournalController::class, 'toggleSave']);
-            Route::post('/{journalId}/comments', [JournalController::class, 'submitComment']);
             Route::post('/{journalId}/rate', [JournalController::class, 'submitRating']);
         });
     });
@@ -109,6 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
         });
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
+            Route::post('/submit', [AssignmentController::class, 'submitTask']);
         });
     });
 

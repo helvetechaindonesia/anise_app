@@ -55,21 +55,22 @@ class TugasListTab extends StatelessWidget {
     Color timeIconColor = isSelesai ? AppColors.primary : (isTerlewat ? AppColors.primary : AppColors.primary);
     
     String statusText = task['status'].toString();
-    Color statusColor = AppColors.primary;
+    Color statusColor = AppColors.warning;
     IconData statusIcon = PhosphorIcons.hourglass(PhosphorIconsStyle.bold);
     
     if (isSelesai) {
-      statusColor = AppColors.primary;
+      statusColor = AppColors.secondary;
       statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.bold);
     } else if (isTerlewat) {
-      statusColor = AppColors.primary;
+      statusColor = AppColors.error;
       statusIcon = PhosphorIcons.warningCircle(PhosphorIconsStyle.bold);
     } else {
-      statusColor = AppColors.primary;
+      statusColor = AppColors.warning;
       statusIcon = PhosphorIcons.hourglass(PhosphorIconsStyle.bold);
     }
 
     return TugasItemCard(
+      id: task['id']?.toString(),
       subject: task['mata_pelajaran'].toString().toUpperCase(),
       teacher: task['teacher']?.toString().toUpperCase() ?? 'GURU',
       title: task['judul'].toString(),
@@ -80,7 +81,10 @@ class TugasListTab extends StatelessWidget {
       timeBgColor: timeBgColor,
       timeIconColor: timeIconColor,
       isSelesai: isSelesai,
-      nilai: task['nilai'] as int?,
+      nilai: task['nilai'] != null ? (task['nilai'] as num).toInt() : null,
+      description: task['description']?.toString(),
+      submission: task['submission'] as Map<String, dynamic>?,
+      attachments: task['attachments'] as List<dynamic>?,
     );
   }
 }

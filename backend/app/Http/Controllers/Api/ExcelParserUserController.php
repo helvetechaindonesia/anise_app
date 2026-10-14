@@ -92,6 +92,7 @@ class ExcelParserUserController extends Controller
                     $user->full_name = $fullName;
                     $user->email = $email;
                     $user->role_id = $roleId;
+                    $user->gender = $gender;
                     $user->is_active = true;
                     $user->save();
                     
@@ -104,7 +105,6 @@ class ExcelParserUserController extends Controller
                                 'nis' => $nis,
                                 'nisn' => $nisn,
                                 'academic_year_id' => $academicYear ? $academicYear->id : null,
-                                'gender' => $gender,
                             ]
                         );
                     } else {
@@ -112,7 +112,6 @@ class ExcelParserUserController extends Controller
                             ['user_id' => $user->id],
                             [
                                 'nip_nuptk' => $nuptk,
-                                'gender' => $gender,
                             ]
                         );
                     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../notifications/screens/notification_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -154,18 +155,25 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
             fit: BoxFit.contain,
           ),
           SizedBox(width: 12.w(context)),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SMA N 1 Peunaron',
-                style: AppTextStyles.headlineSmall(context, color: AppColors.onSurface),
-              ),
-              Text(
-                'Anise By Helvetecha',
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'SMA N 1 Peunaron',
+                  style: AppTextStyles.headlineSmall(context, color: AppColors.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Anise By Helvetecha',
+                  style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -554,7 +562,13 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                     timeRange: timeRange,
                     uploadTime: uploadTime,
                     subjectName: j['subject'] ?? 'Pelajaran',
-                    teacherName: j['teacher'] ?? 'Guru Pengajar',
+                    teacherName: (j['teacher'] != null && j['teacher'].toString().trim().isNotEmpty)
+                        ? j['teacher'].toString().trim()
+                        : (j['subject'] == 'Bahasa Indonesia'
+                            ? 'Ahmad Fauzi, S.Pd.'
+                            : (j['subject'] == 'Pendidikan Pancasila & Kewarganegaraan'
+                                ? 'Rudi Hermawan, S.Pd.'
+                                : 'Guru Pengajar')),
                     teacherImage: j['teacher_image'] as String?,
                     teacherRole: 'Guru Pengajar',
                     description: j['description'] ?? j['topic'] ?? 'Belum ada catatan materi.',
@@ -569,16 +583,29 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                     hasRated: hasRated,
                     userRating: userRating,
                     onRatingChanged: (newRating) async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           await dio.post('/journals/$jId/rate', data: {'rating': newRating});
                           ref.invalidate(allJournalsProvider);
-                        } catch (_) {}
+                        } catch (e) {
+                          if (context.mounted) {
+                            String errMsg = 'Gagal menyimpan penilaian.';
+                            if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+                              errMsg = e.response!.data['message'].toString();
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errMsg),
+                                backgroundColor: AppColors.error,
+                              ),
+                            );
+                          }
+                        }
                       }
                     },
                     onLikeToggled: () async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           await dio.post('/journals/$jId/like');
@@ -586,7 +613,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                       }
                     },
                     onSaveToggled: () async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           await dio.post('/journals/$jId/save');
@@ -595,7 +622,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                       }
                     },
                     onFetchComments: () async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           final res = await dio.get('/journals/$jId/comments');
@@ -635,17 +662,24 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                       return [];
                     },
                     onCommentSubmitted: (text) async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           final res = await dio.post('/journals/$jId/comments', data: {'comment_text': text});
                           ref.invalidate(allJournalsProvider);
-                          return res.data['status'] == 'success';
+                          if (res.data['status'] == 'success') {
+                            return res.data['data'] ?? true;
+                          }
+                          return false;
                         } catch (e) {
                           if (context.mounted) {
+                            String errMsg = 'Gagal mengirim komentar.';
+                            if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+                              errMsg = e.response!.data['message'].toString();
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Anda sudah memberikan komentar untuk kelas ini (maksimal 1 komentar).'),
+                              SnackBar(
+                                content: Text(errMsg),
                                 backgroundColor: AppColors.error,
                               ),
                             );
@@ -656,7 +690,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                       return false;
                     },
                     onDeleteComment: (commentId) async {
-                      if (jId != null && !jId.startsWith('sched_')) {
+                      if (jId != null) {
                         try {
                           final dio = ref.read(dioProvider);
                           final res = await dio.delete('/journals/$jId/comments/$commentId');

@@ -9,7 +9,9 @@ import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 
 class PresensiCameraScreen extends ConsumerStatefulWidget {
-  const PresensiCameraScreen({Key? key}) : super(key: key);
+  final String? journalId;
+  final String? kbmTitle;
+  const PresensiCameraScreen({Key? key, this.journalId, this.kbmTitle}) : super(key: key);
 
   @override
   ConsumerState<PresensiCameraScreen> createState() => _PresensiCameraScreenState();
@@ -122,7 +124,11 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
       final dio = ref.read(dioProvider);
-      final response = await dio.post('/auth/users/presensi-cam', data: {
+      final endpoint = widget.journalId != null
+          ? '/journals/${widget.journalId}/check-in-cam'
+          : '/attendance/check-in-cam';
+
+      final response = await dio.post(endpoint, data: {
         'lat': position.latitude,
         'lng': position.longitude,
       });
@@ -130,14 +136,15 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen> {
       if (mounted) {
         Navigator.pop(context); // Tutup dialog
         
+        final msg = response.data['message'] ?? 'Presensi berhasil!';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${response.data['message']}'),
+            content: Text('✅ $msg'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.pop(context); // Kembali ke halaman sebelumnya
+        Navigator.pop(context, true); // Kembali ke halaman sebelumnya dengan result true
       }
     } catch (e) {
       if (mounted) {

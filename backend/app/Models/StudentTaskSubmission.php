@@ -15,6 +15,8 @@ class StudentTaskSubmission extends Model
         'journal_task_id',
         'student_id',
         'status',
+        'answer_text',
+        'attachment_url',
         'submitted_at'
     ];
 
@@ -28,4 +30,8 @@ class StudentTaskSubmission extends Model
         return $this->belongsTo(\App\Models\User::class, 'student_id');
     }
 
+    public function grade()
+    {
+        return $this->hasOne(\App\Models\StudentTaskGrade::class, 'submission_id');
+    }
 }

@@ -13,6 +13,8 @@ class JournalTaskAttachment extends Model
     protected $table = 'journal_task_attachments';
     protected $fillable = [
         'journal_task_id',
+        'attachment_name',
+        'attachment_url',
         'file_name',
         'file_url'
     ];

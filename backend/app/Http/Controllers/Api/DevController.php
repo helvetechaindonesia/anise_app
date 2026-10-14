@@ -38,6 +38,19 @@ class DevController extends Controller
         }
     }
 
+    public function resetClean(Request $request)
+    {
+        try {
+            Artisan::call('migrate:fresh', [
+                '--seed' => true,
+                '--force' => true,
+            ]);
+            return $this->success(null, 'Platform berhasil di-reset bersih! Database segar dengan tepat 1 user: tu@dev.com (password: dev123).');
+        } catch (\Throwable $e) {
+            return $this->error('Gagal reset database: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function getContact(Request $request)
     {
         $developer = \App\Models\Developer::first();

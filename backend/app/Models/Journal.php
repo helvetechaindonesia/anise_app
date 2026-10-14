@@ -17,7 +17,18 @@ class Journal extends Model
         'class_id',
         'subject_id',
         'teaching_date',
-        'topic_material'
+        'published_at',
+        'topic_material',
+        'description',
+        'attachment_url',
+        'has_task',
+        'status',
+        'check_in_time',
+        'face_snapshot_url',
+        'latitude',
+        'longitude',
+        'filled_at',
+        'class_notes'
     ];
 
     public function schedule()
@@ -53,5 +64,15 @@ class Journal extends Model
     public function comments()
     {
         return $this->hasMany(\App\Models\JournalComment::class, 'journal_id');
+    }
+
+    public function interactions()
+    {
+        return $this->hasMany(\App\Models\JournalInteraction::class, 'journal_id');
+    }
+
+    public function studentRecords()
+    {
+        return $this->hasMany(\App\Models\JournalStudentRecord::class, 'journal_id');
     }
 }

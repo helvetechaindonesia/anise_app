@@ -68,6 +68,48 @@ class TugasNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  Future<bool> submitTugas({
+    required String taskId,
+    String? answerText,
+    File? attachment,
+    Function(double)? onProgress,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final formData = FormData.fromMap({
+        'journal_task_id': taskId,
+        if (answerText != null && answerText.isNotEmpty) 'answer_text': answerText,
+      });
+
+      if (attachment != null) {
+        String fileName = attachment.path.split('/').last;
+        if (Platform.isWindows) {
+          fileName = attachment.path.split('\\').last;
+        }
+        formData.files.add(MapEntry(
+          'attachment',
+          await MultipartFile.fromFile(attachment.path, filename: fileName),
+        ));
+      }
+
+      final response = await _dio.post(
+        '/assignments/submit',
+        data: formData,
+        onSendProgress: (count, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(count / total);
+          }
+        },
+      );
+
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
 }
 
 final tugasProvider = StateNotifierProvider<TugasNotifier, AsyncValue<void>>((ref) {

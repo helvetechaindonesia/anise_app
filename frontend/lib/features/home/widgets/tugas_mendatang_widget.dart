@@ -73,6 +73,7 @@ class TugasMendatangWidget extends ConsumerWidget {
                 final isLast = index == tugasList.length - 1;
                 
                 return TugasItemCard(
+                  id: tugas['id'] as String?,
                   subject: tugas['subject'] as String,
                   teacher: tugas['teacher'] as String,
                   title: tugas['title'] as String,
@@ -82,6 +83,9 @@ class TugasMendatangWidget extends ConsumerWidget {
                   statusIcon: tugas['statusIcon'] as IconData,
                   timeBgColor: tugas['timeBgColor'] as Color,
                   timeIconColor: tugas['timeIconColor'] as Color,
+                  description: tugas['description'] as String?,
+                  submission: tugas['submission'] as Map<String, dynamic>?,
+                  attachments: tugas['attachments'] as List<dynamic>?,
                   showDivider: !isLast,
                 );
               }).toList(),

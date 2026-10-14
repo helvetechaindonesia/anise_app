@@ -66,16 +66,25 @@ final tugasMendatangProvider = FutureProvider.autoDispose<List<Map<String, dynam
     data: (tasks) {
       if (tasks.isEmpty) return [];
       
-      return tasks.take(5).map((t) => {
-        'subject': t['subject'] ?? '-',
-        'teacher': t['teacher'] ?? '-',
-        'title': t['title'] ?? '-',
-        'timeInfo': _formatDueDate(t['due_date']),
-        'statusText': 'Belum Dikerjakan',
-        'statusColor': AppColors.primary,
-        'statusIcon': PhosphorIcons.hourglass(PhosphorIconsStyle.bold),
-        'timeBgColor': AppColors.primary.withValues(alpha: 0.5),
-        'timeIconColor': AppColors.primary,
+      return tasks.where((t) => t['status'] != 'Selesai Dikerjakan').take(5).map((t) {
+        final status = t['status']?.toString() ?? 'Belum Dikerjakan';
+        final isTerlewat = status == 'Terlewat';
+
+        return {
+          'id': t['id']?.toString(),
+          'subject': t['subject'] ?? '-',
+          'teacher': t['teacher'] ?? '-',
+          'title': t['title'] ?? '-',
+          'timeInfo': t['due_date_formatted'] ?? _formatDueDate(t['due_date']),
+          'statusText': status,
+          'statusColor': isTerlewat ? AppColors.error : AppColors.warning,
+          'statusIcon': isTerlewat ? PhosphorIcons.warningCircle(PhosphorIconsStyle.bold) : PhosphorIcons.hourglass(PhosphorIconsStyle.bold),
+          'timeBgColor': isTerlewat ? AppColors.error.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
+          'timeIconColor': isTerlewat ? AppColors.error : AppColors.primary,
+          'description': t['description'] ?? '',
+          'submission': t['submission'],
+          'attachments': t['attachments'],
+        };
       }).toList();
     },
     loading: () => [],

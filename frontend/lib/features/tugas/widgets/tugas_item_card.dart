@@ -7,6 +7,7 @@ import '../../../core/widgets/item_list_tile.dart';
 import '../screens/tugas_detail_screen.dart';
 
 class TugasItemCard extends StatelessWidget {
+  final String? id;
   final String subject;
   final String teacher;
   final String title;
@@ -21,10 +22,14 @@ class TugasItemCard extends StatelessWidget {
   final bool showDivider;
   final double? dividerThickness;
   final Color? dividerColor;
+  final String? description;
+  final Map<String, dynamic>? submission;
+  final List<dynamic>? attachments;
   final VoidCallback? onTap;
 
   const TugasItemCard({
     super.key,
+    this.id,
     required this.subject,
     required this.teacher,
     required this.title,
@@ -39,6 +44,9 @@ class TugasItemCard extends StatelessWidget {
     this.showDivider = true,
     this.dividerThickness,
     this.dividerColor,
+    this.description,
+    this.submission,
+    this.attachments,
     this.onTap,
   });
 
@@ -54,7 +62,7 @@ class TugasItemCard extends StatelessWidget {
           : PhosphorIcons.timer(PhosphorIconsStyle.bold),
       statusText: 'Status: $statusText',
       statusIcon: statusIcon,
-      statusColor: AppColors.onBackground,
+      statusColor: statusColor,
       showDivider: showDivider,
       dividerThickness: dividerThickness,
       dividerColor: dividerColor,
@@ -83,10 +91,16 @@ class TugasItemCard extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => TugasDetailScreen(
+                  taskId: id ?? '',
                   subject: subject,
                   teacher: teacher,
                   title: title,
                   timeInfo: timeInfo,
+                  description: description ?? '',
+                  status: statusText,
+                  isSubmitted: isSelesai,
+                  submission: submission,
+                  attachments: attachments,
                 ),
               ),
             );

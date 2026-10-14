@@ -9,6 +9,7 @@ use App\Models\JournalTaskAttachment;
 use App\Models\StudentTaskSubmission;
 use App\Models\ClassStudent;
 use Illuminate\Support\Facades\Auth;
+use App\Services\FileStorageService;
 
 class AssignmentController extends Controller
 {
@@ -31,11 +32,12 @@ class AssignmentController extends Controller
             ]);
 
             if ($request->hasFile('attachment')) {
-                $path = $request->file('attachment')->store('tasks', 'public');
+                $task->load(['journal.class.academicYear', 'journal.subject']);
+                $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
                 JournalTaskAttachment::create([
                     'journal_task_id' => $task->id,
-                    'file_name' => $request->file('attachment')->getClientOriginalName(),
-                    'file_url' => '/storage/' . $path
+                    'attachment_name' => $request->file('attachment')->getClientOriginalName(),
+                    'attachment_url' => '/storage/' . $path
                 ]);
             }
 
@@ -89,7 +91,7 @@ class AssignmentController extends Controller
         }
     }
 
-    public function getSiswaTasks()
+    public function getSiswaTasks(Request $request)
     {
         try {
             $user = Auth::user();
@@ -98,36 +100,170 @@ class AssignmentController extends Controller
                 ->first();
                 
             if (!$classStudent) {
-                return response()->json(['status' => 'success', 'data' => []]);
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [],
+                    'meta' => [
+                        'total' => 0,
+                        'belum' => 0,
+                        'selesai' => 0,
+                        'terlewat' => 0,
+                        'minggu_ini' => 0,
+                    ]
+                ]);
             }
             
             $classId = $classStudent->class_id;
 
-            $tasks = JournalTask::whereHas('journal.schedule', function ($q) use ($classId) {
+            $query = JournalTask::whereHas('journal.schedule', function ($q) use ($classId) {
                 $q->where('class_id', $classId);
             })
-            ->with(['journal.schedule.subject', 'journal.schedule.teacher.guruProfile'])
-            ->orderBy('due_date', 'asc')
-            ->get()
-            ->map(function ($task) {
+            ->with([
+                'journal.schedule.subject',
+                'journal.schedule.teacher.guruProfile',
+                'attachments',
+                'submissions' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id)->with('grade');
+                }
+            ]);
+
+            if ($request->filled('year')) {
+                $query->whereYear('due_date', $request->year);
+            }
+            if ($request->filled('month')) {
+                $monthNum = is_numeric($request->month) 
+                    ? (int) $request->month 
+                    : (int) date('m', strtotime($request->month . ' 1 2026'));
+                if ($monthNum > 0) {
+                    $query->whereMonth('due_date', $monthNum);
+                }
+            }
+
+            $tasks = $query->orderBy('due_date', 'asc')->get();
+
+            $now = now();
+            $startOfWeek = now()->startOfWeek();
+            $endOfWeek = now()->endOfWeek();
+
+            $belumCount = 0;
+            $selesaiCount = 0;
+            $terlewatCount = 0;
+            $mingguIniCount = 0;
+
+            $mappedTasks = $tasks->map(function ($task) use ($user, $now, $startOfWeek, $endOfWeek, &$belumCount, &$selesaiCount, &$terlewatCount, &$mingguIniCount) {
                 $sched = $task->journal->schedule;
-                $teacherName = $sched->teacher->full_name ?: $sched->teacher->username;
+                $teacher = $sched->teacher;
+                $teacherName = $teacher->full_name ?: $teacher->username;
+                $teacherAvatar = $teacher->profile_picture_url ?? null;
                 
+                $submission = $task->submissions->first();
+                $isSubmitted = $submission !== null;
+                $dueDate = \Carbon\Carbon::parse($task->due_date);
+                
+                if ($dueDate->between($startOfWeek, $endOfWeek)) {
+                    $mingguIniCount++;
+                }
+
+                if ($isSubmitted) {
+                    $status = 'Selesai Dikerjakan';
+                    $selesaiCount++;
+                } elseif ($now->gt($dueDate)) {
+                    $status = 'Terlewat';
+                    $terlewatCount++;
+                } else {
+                    $status = 'Belum Dikerjakan';
+                    $belumCount++;
+                }
+
+                $attachments = $task->attachments->map(function ($att) {
+                    return [
+                        'id' => $att->id,
+                        'name' => $att->attachment_name ?? $att->file_name ?? 'Lampiran_Materi.pdf',
+                        'url' => $att->attachment_url ?? $att->file_url ?? '',
+                    ];
+                });
+
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
-                    'description' => $task->description,
+                    'description' => $task->description ?? '',
                     'due_date' => $task->due_date,
-                    'attachment_path' => $task->attachment_path,
-                    'subject' => $sched->subject->name,
+                    'due_date_formatted' => $dueDate->translatedFormat('d M Y, H:i'),
+                    'subject' => $sched->subject->name ?? 'Mata Pelajaran',
                     'teacher' => $teacherName,
+                    'teacher_avatar' => $teacherAvatar,
+                    'status' => $status,
+                    'is_submitted' => $isSubmitted,
+                    'submission' => $submission ? [
+                        'id' => $submission->id,
+                        'status' => $submission->status,
+                        'answer_text' => $submission->answer_text,
+                        'attachment_url' => $submission->attachment_url,
+                        'submitted_at' => $submission->submitted_at,
+                        'score' => $submission->grade ? (float) $submission->grade->score : null,
+                    ] : null,
+                    'attachments' => $attachments,
                     'created_at' => $task->created_at,
                 ];
             });
 
             return response()->json([
                 'status' => 'success',
-                'data' => $tasks
+                'data' => $mappedTasks,
+                'meta' => [
+                    'total' => $mappedTasks->count(),
+                    'belum' => $belumCount,
+                    'selesai' => $selesaiCount,
+                    'terlewat' => $terlewatCount,
+                    'minggu_ini' => $mingguIniCount,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function submitTask(Request $request)
+    {
+        $request->validate([
+            'journal_task_id' => 'required|exists:journal_tasks,id',
+            'answer_text' => 'nullable|string',
+            'attachment' => 'nullable|file|max:20480'
+        ]);
+
+        try {
+            $user = Auth::user();
+            $task = JournalTask::with(['journal.class.academicYear', 'journal.subject'])->findOrFail($request->journal_task_id);
+
+            $attachmentUrl = null;
+            if ($request->hasFile('attachment')) {
+                $user->loadMissing('siswaProfile');
+                $path = FileStorageService::storeTaskSubmission($request->file('attachment'), $task, $user);
+                $attachmentUrl = '/storage/' . $path;
+            }
+
+            $submissionData = [
+                'status' => 'SUBMITTED',
+                'answer_text' => $request->answer_text,
+                'submitted_at' => now(),
+            ];
+
+            if ($attachmentUrl) {
+                $submissionData['attachment_url'] = $attachmentUrl;
+            }
+
+            $submission = StudentTaskSubmission::updateOrCreate(
+                [
+                    'journal_task_id' => $task->id,
+                    'student_id' => $user->id,
+                ],
+                $submissionData
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tugas berhasil dikumpulkan!',
+                'data' => $submission
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
