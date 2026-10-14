@@ -4,7 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/widgets/anise_state_feedback.dart';
+import '../../../../core/widgets/anise_empty_state.dart';
 import '../../../../core/widgets/item_list_tile.dart';
 import '../providers/presensi_provider.dart';
 
@@ -18,10 +18,9 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
     return logDataAsync.when(
       data: (logData) {
         if (logData.isEmpty) {
-          return const AniseStateFeedback(
-            title: 'Belum Ada Riwayat',
+          return const AniseEmptyState(
+            title: 'Belum Ada Data Riwayat',
             subtitle: 'Tidak ada catatan kehadiran pada bulan & tahun ini.',
-            icon: PhosphorIconsFill.calendarBlank,
           );
         }
 
@@ -132,12 +131,9 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
           child: const CircularProgressIndicator(color: AppColors.primary),
         ),
       ),
-      error: (e, st) => AniseStateFeedback(
-        title: 'Gagal Memuat Riwayat',
-        subtitle: e.toString(),
-        isError: true,
-        actionButtonText: 'Coba Lagi',
-        onActionPressed: () => ref.invalidate(presensiDataProvider),
+      error: (e, st) => const AniseEmptyState(
+        title: 'Belum Ada Data Riwayat',
+        subtitle: 'Tidak dapat memuat catatan kehadiran saat ini.',
       ),
     );
   }

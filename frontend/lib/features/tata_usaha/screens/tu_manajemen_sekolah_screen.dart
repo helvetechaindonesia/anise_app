@@ -11,7 +11,7 @@ import '../widgets/tu_manajemen_sekolah_dialogs.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/decorative_background.dart';
-import '../../../core/widgets/anise_state_feedback.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
@@ -75,17 +75,11 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           _isLoadingData = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _isLoadingData = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat data master: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
-        );
       }
     }
   }
@@ -94,21 +88,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _openAddModal() {
-    if (_selectedCategory == 'Kelas') {
-      TuManajemenSekolahDialogs.showAddKelas(context, ref, _fetchMasterData);
-    } else if (_selectedCategory == 'Jabatan') {
-      TuManajemenSekolahDialogs.showAddJabatan(context, ref, _fetchMasterData);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Role pengguna dikelola secara baku oleh sistem.', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-          backgroundColor: AppColors.secondary,
-        ),
-      );
-    }
   }
 
   @override
@@ -428,16 +407,13 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
       children: [
         if (dataSource.isEmpty)
-          AniseStateFeedback(
+          AniseEmptyState(
             title: 'Belum Ada Data $type',
-            subtitle: type == 'Role' 
-                ? 'Role pengguna terisi otomatis oleh sistem.' 
-                : 'Tambahkan data $type pertama Anda secara manual atau unggah berkas Excel.',
-            icon: type == 'Kelas' 
-                ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold) 
-                : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
-            actionButtonText: type == 'Role' ? null : 'Tambah $type Manual',
-            onActionPressed: type == 'Role' ? null : _openAddModal,
+            subtitle: _searchController.text.trim().isNotEmpty
+                ? 'Tidak ada data $type yang sesuai dengan kata kunci pencarian.'
+                : type == 'Role'
+                    ? 'Role pengguna dikelola secara otomatis oleh sistem.'
+                    : 'Data $type belum ditambahkan pada sistem sekolah Anda.',
           )
         else
           ...List.generate(dataSource.length, (index) {

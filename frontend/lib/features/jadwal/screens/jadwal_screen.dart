@@ -6,7 +6,7 @@ import '../../notifications/screens/notification_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/anise_state_feedback.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/network/dio_client.dart';
 import '../widgets/schedule_card.dart';
 import '../providers/jurnal_provider.dart';
@@ -499,11 +499,10 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
         });
 
         if (combinedList.isEmpty) {
-          return SliverFillRemaining(
+          return const SliverFillRemaining(
             hasScrollBody: false,
-            child: AniseStateFeedback(
-              icon: PhosphorIcons.calendarBlank(PhosphorIconsStyle.fill),
-              title: 'Tidak Ada Jadwal',
+            child: AniseEmptyState(
+              title: 'Belum Ada Data Jadwal',
               subtitle: 'Tidak ada agenda akademik atau kegiatan pembelajaran pada hari ini.',
             ),
           );
@@ -716,14 +715,11 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       ),
-      error: (e, st) => SliverFillRemaining(
+      error: (e, st) => const SliverFillRemaining(
         hasScrollBody: false,
-        child: AniseStateFeedback(
-          isError: true,
-          title: 'Gagal Memuat Jadwal',
-          subtitle: 'Terjadi kendala saat memuat agenda akademik. Silakan coba lagi.',
-          actionButtonText: 'Coba Lagi',
-          onActionPressed: () => ref.refresh(allJournalsProvider),
+        child: AniseEmptyState(
+          title: 'Belum Ada Data Jadwal',
+          subtitle: 'Tidak ada agenda akademik atau kegiatan pembelajaran pada hari ini.',
         ),
       ),
     );

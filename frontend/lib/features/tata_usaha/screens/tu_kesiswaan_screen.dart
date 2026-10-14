@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../lapor/providers/report_provider.dart';
 
 class TuKesiswaanScreen extends ConsumerWidget {
@@ -34,21 +34,19 @@ class TuKesiswaanScreen extends ConsumerWidget {
               ),
             ),
             reportsAsync.when(
-              loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
-              error: (e, st) => SliverFillRemaining(child: Center(child: Text('Error: $e'))),
+              loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+              error: (e, st) => const SliverFillRemaining(
+                child: AniseEmptyState(
+                  title: 'Belum Ada Data Aduan',
+                  subtitle: 'Belum ada aduan kesiswaan yang tercatat pada sistem.',
+                ),
+              ),
               data: (reports) {
                 if (reports.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.w(context)),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(PhosphorIcons.folderOpen(PhosphorIconsStyle.duotone), size: 100.w(context), color: AppColors.menuPastelPurple),
-                          SizedBox(height: 24.h(context)),
-                          Text('Belum ada aduan', style: AppTextStyles.titleLarge(context, color: AppColors.onBackground)),
-                        ],
-                      ),
+                  return const SliverFillRemaining(
+                    child: AniseEmptyState(
+                      title: 'Belum Ada Data Aduan',
+                      subtitle: 'Belum ada aduan kesiswaan yang tercatat pada sistem.',
                     ),
                   );
                 }

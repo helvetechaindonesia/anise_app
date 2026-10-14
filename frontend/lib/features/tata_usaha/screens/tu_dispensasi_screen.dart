@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../providers/leave_provider.dart';
 
 class TuDispensasiScreen extends ConsumerWidget {
@@ -31,15 +32,9 @@ class TuDispensasiScreen extends ConsumerWidget {
       body: dispensasiAsync.when(
         data: (leaves) {
           if (leaves.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(PhosphorIcons.folderOpen(PhosphorIconsStyle.regular), size: 64.w(context), color: AppColors.outline),
-                  SizedBox(height: 16.h(context)),
-                  Text('Belum ada data dispensasi.', style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6))),
-                ],
-              ),
+            return const AniseEmptyState(
+              title: 'Belum Ada Data Dispensasi',
+              subtitle: 'Belum ada permohonan dispensasi siswa yang diajukan.',
             );
           }
           return RefreshIndicator(
@@ -56,8 +51,11 @@ class TuDispensasiScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Gagal memuat data: $err')),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (err, stack) => const AniseEmptyState(
+          title: 'Belum Ada Data Dispensasi',
+          subtitle: 'Belum ada permohonan dispensasi siswa yang diajukan.',
+        ),
       ),
     );
   }

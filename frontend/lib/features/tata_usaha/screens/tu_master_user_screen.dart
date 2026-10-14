@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/decorative_background.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/network/dio_client.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'tu_master_user_edit_screen.dart';
@@ -65,18 +66,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       if (_selectedFilter != null) {
         _fetchUsers();
       }
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _isLoadingRoles = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengambil data role', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 
@@ -97,18 +90,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         _users = usersRes.data['data'] ?? [];
         _isLoadingUsers = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _isLoadingUsers = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengambil data user', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 
@@ -525,7 +510,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_users.isEmpty) {
-      return const Center(child: Text("Belum ada data user."));
+      return AniseEmptyState(
+        title: 'Belum Ada Data ${_formatRoleName(_selectedFilter ?? 'User')}',
+        subtitle: 'Daftar pengguna dengan role ini belum ditambahkan ke sistem sekolah.',
+      );
     }
 
     return ListView.separated(

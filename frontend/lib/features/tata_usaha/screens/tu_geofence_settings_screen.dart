@@ -7,7 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_button.dart';
-import '../../../core/widgets/anise_state_feedback.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -71,15 +71,9 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat titik lokasi: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
-        );
       }
     }
   }
@@ -477,12 +471,9 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                       SizedBox(height: 12.h(context)),
 
                       if (_locations.isEmpty)
-                        AniseStateFeedback(
-                          title: 'Belum Ada Titik Lokasi',
-                          subtitle: 'Tambahkan titik lokasi GPS sekolah pertama Anda untuk mengaktifkan validasi radius presensi.',
-                          icon: PhosphorIcons.mapPin(PhosphorIconsStyle.bold),
-                          actionButtonText: 'Tambah Titik Lokasi',
-                          onActionPressed: () => _showLocationFormDialog(),
+                        const AniseEmptyState(
+                          title: 'Belum Ada Data Titik Lokasi',
+                          subtitle: 'Titik koordinat GPS presensi sekolah belum ditambahkan.',
                         )
                       else
                         ...List.generate(_locations.length, (index) {
