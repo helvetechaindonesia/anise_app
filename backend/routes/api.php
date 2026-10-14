@@ -234,6 +234,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
         Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+        Route::get('/operational-settings', [SchoolController::class, 'getOperationalSettings']);
+        Route::post('/operational-settings', [SchoolController::class, 'updateOperationalSettings']);
 
         // Hari Libur & Kalender
         Route::apiResource('holidays', HolidayController::class);
@@ -260,9 +262,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/jabatans/{id}', [UserController::class, 'updateJabatan']);
         Route::delete('/jabatans/{id}', [UserController::class, 'deleteJabatan']);
 
-        // Geofence
+        // Geofence & Operational
         Route::get('/school-settings/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/school-settings/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+        Route::get('/school-settings/operational', [SchoolController::class, 'getOperationalSettings']);
+        Route::post('/school-settings/operational', [SchoolController::class, 'updateOperationalSettings']);
 
         // Hari Libur (Holidays)
         Route::get('/holidays', [HolidayController::class, 'index']);
