@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+import 'package:flutter_slidable/flutter_slidable.dart';
+
 import 'tu_geofence_settings_screen.dart';
 import 'tu_hari_nonaktif_settings_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
@@ -256,7 +258,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
       child: DropdownButtonFormField<String>(
-        value: _selectedCategory,
+        initialValue: _selectedCategory,
         isExpanded: true,
         decoration: InputDecoration(
           contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
@@ -438,32 +440,15 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
             onActionPressed: type == 'Role' ? null : _openAddModal,
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16.w(context)),
-              border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 8.h(context)),
-            child: Column(
-              children: List.generate(dataSource.length, (index) {
-                final item = dataSource[index];
-                return _buildStandardItemTile(context, type, item, isLast: index == dataSource.length - 1);
-              }),
-            ),
-          ),
+          ...List.generate(dataSource.length, (index) {
+            final item = dataSource[index];
+            return _buildStandardItemTile(context, type, item, isLast: index == dataSource.length - 1);
+          }),
       ],
     );
   }
 
-  /// 5. Standarisasi Baris Data Menggunakan `ItemListTile` (Model B: Minimal Flat Tile with Divider)
+  /// 5. Standarisasi Baris Data Menggunakan `ItemListTile` & `Slidable` Swipe
   Widget _buildStandardItemTile(BuildContext context, String type, Map<String, dynamic> item, {required bool isLast}) {
     String category = '';
     String subcategory = '';
@@ -497,7 +482,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
     final canModify = type != 'Role';
 
-    return ItemListTile(
+    final tile = ItemListTile(
       category: category,
       subcategory: subcategory.isNotEmpty ? subcategory : null,
       title: title,
@@ -511,73 +496,78 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           ? () => TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData)
           : null,
       trailing: canModify
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Tombol Sunting Cepat
-                InkWell(
-                  onTap: () => TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData),
-                  borderRadius: BorderRadius.circular(8.w(context)),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8.w(context)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
-                        SizedBox(width: 4.w(context)),
-                        Text(
-                          'Sunting',
-                          style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
+          ? PopupMenuButton<String>(
+              icon: Icon(
+                PhosphorIcons.list(PhosphorIconsStyle.bold), // Hamburger Menu Icon
+                color: AppColors.onSurface.withValues(alpha: 0.6),
+                size: 22.w(context),
+              ),
+              color: AppColors.surface,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+              onSelected: (value) {
+                if (value == 'edit') {
+                  TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData);
+                } else if (value == 'delete') {
+                  TuManajemenSekolahDialogs.confirmDelete(context, ref, type, item, _fetchMasterData);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                      SizedBox(width: 10.w(context)),
+                      Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                    ],
                   ),
                 ),
-                SizedBox(width: 4.w(context)),
-
-                // Popup Aksi (Hapus)
-                PopupMenuButton<String>(
-                  icon: Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                  color: AppColors.surface,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData);
-                    } else if (value == 'delete') {
-                      TuManajemenSekolahDialogs.confirmDelete(context, ref, type, item, _fetchMasterData);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.pencilSimple(), size: 18.w(context), color: AppColors.onSurface),
-                          SizedBox(width: 8.w(context)),
-                          Text('Sunting Data', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.trash(), size: 18.w(context), color: AppColors.error),
-                          SizedBox(width: 8.w(context)),
-                          Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
-                        ],
-                      ),
-                    ),
-                  ],
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.error),
+                      SizedBox(width: 10.w(context)),
+                      Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                    ],
+                  ),
                 ),
               ],
             )
           : null,
+    );
+
+    if (!canModify) {
+      return tile;
+    }
+
+    // Swipe Menu untuk Aksi Cepat Edit & Hapus
+    return Slidable(
+      key: ValueKey(item['id'] ?? title),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.45,
+        children: [
+          SlidableAction(
+            onPressed: (_) => TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData),
+            backgroundColor: AppColors.warning,
+            foregroundColor: Colors.white,
+            icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
+            label: 'Edit',
+            borderRadius: BorderRadius.horizontal(left: Radius.circular(12.w(context))),
+          ),
+          SlidableAction(
+            onPressed: (_) => TuManajemenSekolahDialogs.confirmDelete(context, ref, type, item, _fetchMasterData),
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
+            label: 'Hapus',
+            borderRadius: BorderRadius.horizontal(right: Radius.circular(12.w(context))),
+          ),
+        ],
+      ),
+      child: tile,
     );
   }
 }

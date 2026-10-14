@@ -9,6 +9,8 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/anise_state_feedback.dart';
 import '../../../core/widgets/decorative_background.dart';
+import '../../../core/widgets/item_list_tile.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class TUGeofenceSettingsScreen extends ConsumerStatefulWidget {
   const TUGeofenceSettingsScreen({super.key});
@@ -82,23 +84,6 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
     }
   }
 
-  Future<void> _toggleLocationStatus(Map<String, dynamic> loc) async {
-    final String locId = loc['id'].toString();
-    try {
-      final dio = ref.read(dioProvider);
-      await dio.post('/master/school-locations/$locId/toggle');
-      _fetchLocations();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengubah status: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _confirmDeleteLocation(Map<String, dynamic> loc) async {
     final String locId = loc['id'].toString();
@@ -285,7 +270,7 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                   Text('Radius Jangkauan Presensi:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
                   SizedBox(height: 6.h(context)),
                   DropdownButtonFormField<String>(
-                    value: selectedRadius,
+                    initialValue: selectedRadius,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppColors.backgroundLight,
@@ -500,166 +485,91 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                           onActionPressed: () => _showLocationFormDialog(),
                         )
                       else
-                        ..._locations.map((loc) {
+                        ...List.generate(_locations.length, (index) {
+                          final loc = _locations[index];
                           final locMap = Map<String, dynamic>.from(loc);
                           final String name = locMap['name']?.toString() ?? 'Titik Sekolah';
                           final String lat = locMap['latitude']?.toString() ?? '-';
                           final String lng = locMap['longitude']?.toString() ?? '-';
                           final String rad = locMap['radius_meters']?.toString() ?? '100';
                           final bool isActive = locMap['is_active'] == true || locMap['is_active'] == 1;
+                          final bool isLast = index == _locations.length - 1;
 
-                          return Container(
-                            margin: EdgeInsets.only(bottom: 12.h(context)),
-                            padding: EdgeInsets.all(16.w(context)),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(16.w(context)),
-                              border: Border.all(
-                                color: isActive
-                                    ? AppColors.outline.withValues(alpha: 0.2)
-                                    : AppColors.outline.withValues(alpha: 0.1),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.black.withValues(alpha: 0.02),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
+                          return Slidable(
+                            key: ValueKey(locMap['id'] ?? index),
+                            endActionPane: ActionPane(
+                              motion: const DrawerMotion(),
+                              extentRatio: 0.45,
+                              children: [
+                                SlidableAction(
+                                  onPressed: (_) => _showLocationFormDialog(location: locMap),
+                                  backgroundColor: AppColors.warning,
+                                  foregroundColor: Colors.white,
+                                  icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
+                                  label: 'Edit',
+                                  borderRadius: BorderRadius.horizontal(left: Radius.circular(12.w(context))),
+                                ),
+                                SlidableAction(
+                                  onPressed: (_) => _confirmDeleteLocation(locMap),
+                                  backgroundColor: AppColors.error,
+                                  foregroundColor: Colors.white,
+                                  icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
+                                  label: 'Hapus',
+                                  borderRadius: BorderRadius.horizontal(right: Radius.circular(12.w(context))),
                                 ),
                               ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(10.w(context)),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? AppColors.primaryContainer.withValues(alpha: 0.6)
-                                            : AppColors.outline.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(12.w(context)),
-                                      ),
-                                      child: Icon(
-                                        PhosphorIcons.mapPin(PhosphorIconsStyle.bold),
-                                        color: isActive ? AppColors.primary : AppColors.onSurface.withValues(alpha: 0.4),
-                                        size: 22.w(context),
-                                      ),
-                                    ),
-                                    SizedBox(width: 12.w(context)),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            name,
-                                            style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4.h(context)),
-                                          Row(
-                                            children: [
-                                              Icon(PhosphorIcons.crosshair(), size: 14.w(context), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                                              SizedBox(width: 4.w(context)),
-                                              Expanded(
-                                                child: Text(
-                                                  '$lat, $lng',
-                                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          SizedBox(height: 2.h(context)),
-                                          Row(
-                                            children: [
-                                              Icon(PhosphorIcons.rss(), size: 14.w(context), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                                              SizedBox(width: 4.w(context)),
-                                              Text(
-                                                'Radius $rad Meter',
-                                                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
-                                      decoration: BoxDecoration(
-                                        color: isActive
-                                            ? AppColors.success.withValues(alpha: 0.12)
-                                            : AppColors.outline.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6.w(context)),
-                                      ),
-                                      child: Text(
-                                        isActive ? 'AKTIF' : 'NONAKTIF',
-                                        style: AppTextStyles.labelSmall(
-                                          context,
-                                          color: isActive ? AppColors.success : AppColors.onSurface.withValues(alpha: 0.5),
-                                        ).copyWith(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                            child: ItemListTile(
+                              category: 'Radius Jangkauan: $rad Meter',
+                              title: name,
+                              metadataIcon: PhosphorIcons.crosshair(),
+                              metadataText: 'GPS: $lat, $lng',
+                              statusIcon: isActive
+                                  ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
+                                  : PhosphorIcons.xCircle(PhosphorIconsStyle.fill),
+                              statusText: isActive ? 'Status: Aktif' : 'Status: Nonaktif',
+                              statusColor: isActive ? AppColors.success : AppColors.outline,
+                              showDivider: !isLast,
+                              onTap: () => _showLocationFormDialog(location: locMap),
+                              trailing: PopupMenuButton<String>(
+                                icon: Icon(
+                                  PhosphorIcons.list(PhosphorIconsStyle.bold), // Hamburger Menu Icon
+                                  color: AppColors.onSurface.withValues(alpha: 0.6),
+                                  size: 22.w(context),
                                 ),
-                                Divider(height: 20.h(context), color: AppColors.outline.withValues(alpha: 0.15)),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    // Tombol Toggle Aktif
-                                    TextButton.icon(
-                                      style: TextButton.styleFrom(
-                                        padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
-                                      ),
-                                      onPressed: () => _toggleLocationStatus(locMap),
-                                      icon: Icon(
-                                        isActive ? PhosphorIcons.power(PhosphorIconsStyle.bold) : PhosphorIcons.check(PhosphorIconsStyle.bold),
-                                        size: 16.w(context),
-                                        color: isActive ? AppColors.warning : AppColors.success,
-                                      ),
-                                      label: Text(
-                                        isActive ? 'Nonaktifkan' : 'Aktifkan',
-                                        style: AppTextStyles.labelSmall(context, color: isActive ? AppColors.warning : AppColors.success),
-                                      ),
+                                color: AppColors.surface,
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _showLocationFormDialog(location: locMap);
+                                  } else if (value == 'delete') {
+                                    _confirmDeleteLocation(locMap);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                                        SizedBox(width: 10.w(context)),
+                                        Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                                      ],
                                     ),
-                                    SizedBox(width: 8.w(context)),
-
-                                    // Tombol Sunting
-                                    InkWell(
-                                      onTap: () => _showLocationFormDialog(location: locMap),
-                                      borderRadius: BorderRadius.circular(8.w(context)),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(8.w(context)),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
-                                            SizedBox(width: 4.w(context)),
-                                            Text('Sunting', style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600)),
-                                          ],
-                                        ),
-                                      ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.error),
+                                        SizedBox(width: 10.w(context)),
+                                        Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                                      ],
                                     ),
-                                    SizedBox(width: 8.w(context)),
-
-                                    // Tombol Hapus
-                                    IconButton(
-                                      constraints: const BoxConstraints(),
-                                      padding: EdgeInsets.all(6.w(context)),
-                                      icon: Icon(PhosphorIcons.trash(), size: 18.w(context), color: AppColors.error),
-                                      onPressed: () => _confirmDeleteLocation(locMap),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }),

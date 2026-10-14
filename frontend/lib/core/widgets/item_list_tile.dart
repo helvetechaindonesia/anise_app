@@ -15,6 +15,7 @@ class ItemListTile extends StatelessWidget {
   final IconData? statusIcon;
   final Color? statusColor;
   final Widget? trailing;
+  final Widget? statusTrailing;
   final Widget? bottomWidget;
   final VoidCallback? onTap;
   final bool showDivider;
@@ -33,6 +34,7 @@ class ItemListTile extends StatelessWidget {
     this.statusIcon,
     this.statusColor,
     this.trailing,
+    this.statusTrailing,
     this.bottomWidget,
     this.onTap,
     this.showDivider = true,
@@ -51,90 +53,105 @@ class ItemListTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12.w(context)),
           child: Padding(
             padding: padding ?? EdgeInsets.symmetric(horizontal: 4.w(context), vertical: 14.h(context)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. Kategori / Mapel
-                if (category != null && category!.isNotEmpty) ...[
-                  Text(
-                    category!,
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onBackground).copyWith(
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: 2.h(context)),
-                ],
-
-                // 2. Subkategori / Guru
-                if (subcategory != null && subcategory!.isNotEmpty) ...[
-                  Text(
-                    subcategory!,
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.7)).copyWith(
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: 8.h(context)),
-                ],
-
-                // 3. Judul Utama (Bold 700)
-                Text(
-                  title,
-                  style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-
-                // 4. Metadata (Waktu / Tenggat / Tanggal)
-                if (metadataText != null && metadataText!.isNotEmpty) ...[
-                  SizedBox(height: 8.h(context)),
-                  Row(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (metadataIcon != null) ...[
-                        Icon(metadataIcon, size: 14.w(context), color: AppColors.onBackground),
-                        SizedBox(width: 6.w(context)),
+                      // 1. Kategori / Mapel
+                      if (category != null && category!.isNotEmpty) ...[
+                        Text(
+                          category!,
+                          style: AppTextStyles.labelSmall(context, color: AppColors.onBackground).copyWith(
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        SizedBox(height: 2.h(context)),
                       ],
+
+                      // 2. Subkategori / Guru
+                      if (subcategory != null && subcategory!.isNotEmpty) ...[
+                        Text(
+                          subcategory!,
+                          style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.7)).copyWith(
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        SizedBox(height: 8.h(context)),
+                      ],
+
+                      // 3. Judul Utama (Bold 700)
                       Text(
-                        metadataText!,
-                        style: AppTextStyles.labelMedium(context, color: AppColors.onBackground).copyWith(
-                          fontWeight: FontWeight.w400,
+                        title,
+                        style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ],
-                  ),
-                ],
 
-                // 5. Status & Trailing
-                if (statusText != null || trailing != null) ...[
-                  SizedBox(height: 8.h(context)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (statusText != null)
+                      // 4. Metadata (Waktu / Tenggat / Tanggal)
+                      if (metadataText != null && metadataText!.isNotEmpty) ...[
+                        SizedBox(height: 8.h(context)),
                         Row(
                           children: [
-                            if (statusIcon != null) ...[
-                              Icon(statusIcon, size: 14.w(context), color: statusColor ?? AppColors.onBackground),
+                            if (metadataIcon != null) ...[
+                              Icon(metadataIcon, size: 14.w(context), color: AppColors.onBackground),
                               SizedBox(width: 6.w(context)),
                             ],
-                            Text(
-                              statusText!,
-                              style: AppTextStyles.labelMedium(context, color: statusColor ?? AppColors.onBackground).copyWith(
-                                fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Text(
+                                metadataText!,
+                                style: AppTextStyles.labelMedium(context, color: AppColors.onBackground).copyWith(
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
-                        )
-                      else
-                        const SizedBox(),
-                      if (trailing != null) trailing!,
+                        ),
+                      ],
+
+                      // 5. Status & statusTrailing
+                      if (statusText != null || statusTrailing != null) ...[
+                        SizedBox(height: 8.h(context)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if (statusText != null)
+                              Row(
+                                children: [
+                                  if (statusIcon != null) ...[
+                                    Icon(statusIcon, size: 14.w(context), color: statusColor ?? AppColors.onBackground),
+                                    SizedBox(width: 6.w(context)),
+                                  ],
+                                  Text(
+                                    statusText!,
+                                    style: AppTextStyles.labelMedium(context, color: statusColor ?? AppColors.onBackground).copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              const SizedBox(),
+                            if (statusTrailing != null) statusTrailing!,
+                          ],
+                        ),
+                      ],
+
+                      // 6. Bottom Widget (misal: badge validator tepat di bawah status)
+                      if (bottomWidget != null) ...[
+                        SizedBox(height: 8.h(context)),
+                        bottomWidget!,
+                      ],
                     ],
                   ),
-                ],
-
-                // 6. Bottom Widget (misal: badge validator tepat di bawah status)
-                if (bottomWidget != null) ...[
-                  SizedBox(height: 8.h(context)),
-                  bottomWidget!,
+                ),
+                if (trailing != null) ...[
+                  SizedBox(width: 8.w(context)),
+                  trailing!,
                 ],
               ],
             ),

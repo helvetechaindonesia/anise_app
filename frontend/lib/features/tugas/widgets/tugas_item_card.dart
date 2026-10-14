@@ -66,7 +66,7 @@ class TugasItemCard extends StatelessWidget {
       showDivider: showDivider,
       dividerThickness: dividerThickness,
       dividerColor: dividerColor,
-      trailing: (isSelesai && nilai != null)
+      statusTrailing: (isSelesai && nilai != null)
           ? Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 6.h(context)),
               decoration: BoxDecoration(
