@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\LegalController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\DevController;
+use App\Http\Controllers\Api\HolidayController;
 
 // ==========================================
 // 1. AUTHENTICATION & RBAC
@@ -233,6 +234,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
         Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+
+        // Hari Libur & Kalender
+        Route::apiResource('holidays', HolidayController::class);
+        Route::get('/holidays-check', [HolidayController::class, 'checkDate']);
     });
 
     // ==========================================
@@ -258,6 +263,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Geofence
         Route::get('/school-settings/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/school-settings/geofence', [SchoolController::class, 'updateGeofenceSettings']);
+
+        // Hari Libur (Holidays)
+        Route::get('/holidays', [HolidayController::class, 'index']);
+        Route::post('/holidays', [HolidayController::class, 'store']);
+        Route::get('/holidays/{id}', [HolidayController::class, 'show']);
+        Route::put('/holidays/{id}', [HolidayController::class, 'update']);
+        Route::delete('/holidays/{id}', [HolidayController::class, 'destroy']);
+        Route::get('/holidays-check', [HolidayController::class, 'checkDate']);
 
         // Kurikulum aliases for tu_kurikulum_screen
         Route::get('/wali-kelas', [UserController::class, 'getWaliKelas']);

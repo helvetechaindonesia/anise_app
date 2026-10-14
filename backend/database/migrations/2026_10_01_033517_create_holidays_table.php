@@ -10,8 +10,13 @@ return new class extends Migration
     {
         Schema::create('holidays', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->date('tanggal')->unique();
-            $table->string('keterangan');
+            $table->foreignUuid('academic_year_id')->nullable()->constrained('academic_years')->nullOnDelete();
+            $table->string('name');
+            $table->date('start_date');
+            $table->date('end_date');
+            $table->string('type')->default('NASIONAL'); // NASIONAL, SEKOLAH, CUTI_BERSAMA, KHUSUS
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

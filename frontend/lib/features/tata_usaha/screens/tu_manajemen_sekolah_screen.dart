@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:intl/intl.dart';
 
 import 'tu_geofence_settings_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
@@ -25,12 +26,12 @@ class TuManajemenSekolahScreen extends ConsumerStatefulWidget {
 class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'Kelas'; // Default ke 'Kelas'
-  bool _isUploading = false;
   bool _isLoadingData = true;
 
   List<dynamic> _roles = [];
   List<dynamic> _kelas = [];
   List<dynamic> _jabatans = [];
+  List<dynamic> _holidays = [];
 
   final List<Map<String, dynamic>> _categoryOptions = [
     {
@@ -40,6 +41,10 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     {
       'value': 'Jabatan',
       'label': 'Jabatan Struktural',
+    },
+    {
+      'value': 'Hari Libur',
+      'label': 'Hari Libur',
     },
     {
       'value': 'Role',
@@ -66,11 +71,18 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       final rolesRes = await dio.get('/master/roles');
       final kelasRes = await dio.get('/master/kelas');
       final jabatansRes = await dio.get('/master/jabatans');
+      
+      dynamic holidaysData = [];
+      try {
+        final holidaysRes = await dio.get('/master/holidays');
+        holidaysData = holidaysRes.data['data'] ?? [];
+      } catch (_) {}
 
       setState(() {
         _roles = rolesRes.data['data'] ?? [];
         _kelas = kelasRes.data['data'] ?? [];
         _jabatans = jabatansRes.data['data'] ?? [];
+        _holidays = holidaysData;
         _isLoadingData = false;
       });
     } catch (e) {
@@ -109,10 +121,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         String fileName = picked.name;
         String filePath = picked.path!;
         
-        setState(() {
-          _isUploading = true;
-        });
-        
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -142,10 +150,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         final dio = ref.read(dioProvider);
         final response = await dio.post(endpoint, data: formData);
 
-        setState(() {
-          _isUploading = false;
-        });
-        
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           if (response.statusCode == 200 || response.statusCode == 201) {
@@ -161,7 +165,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         }
       }
     } on DioException catch (e) {
-      setState(() => _isUploading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         String errorMsg = e.response?.data is Map && e.response?.data['message'] != null
@@ -175,7 +178,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         );
       }
     } catch (e) {
-      setState(() => _isUploading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -196,6 +198,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       _showAddKelasModal(context);
     } else if (_selectedCategory == 'Jabatan') {
       _showAddJabatanModal(context);
+    } else if (_selectedCategory == 'Hari Libur') {
+      _showAddHolidayModal(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -515,6 +519,318 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
+  void _showAddHolidayModal(BuildContext context) {
+    final nameController = TextEditingController();
+    final descController = TextEditingController();
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
+    String selectedType = 'NASIONAL';
+    bool isSubmitting = false;
+
+    final typeOptions = [
+      {'val': 'NASIONAL', 'label': 'Nasional'},
+      {'val': 'SEKOLAH', 'label': 'Sekolah'},
+      {'val': 'CUTI_BERSAMA', 'label': 'Cuti Bersama'},
+      {'val': 'KHUSUS', 'label': 'Khusus'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final sDateStr = DateFormat('dd MMM yyyy', 'id_ID').format(startDate);
+          final eDateStr = DateFormat('dd MMM yyyy', 'id_ID').format(endDate);
+          final durationDays = endDate.difference(startDate).inDays + 1;
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 24.w(context),
+              right: 24.w(context),
+              top: 20.h(context),
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44.w(context),
+                      height: 5.h(context),
+                      decoration: BoxDecoration(
+                        color: AppColors.outline.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 18.h(context)),
+                  Row(
+                    children: [
+                      Icon(PhosphorIcons.calendarX(PhosphorIconsStyle.bold), color: AppColors.primary, size: 24.w(context)),
+                      SizedBox(width: 10.w(context)),
+                      Text('Tambah Hari Libur', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+                    ],
+                  ),
+                  SizedBox(height: 16.h(context)),
+
+                  // Nama Hari Libur
+                  Text('Nama Hari Libur / Agenda:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                  SizedBox(height: 8.h(context)),
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Libur Hari Raya Idul Fitri',
+                      prefixIcon: Icon(PhosphorIcons.calendarPlus(PhosphorIconsStyle.bold), color: AppColors.primary),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                    ),
+                  ),
+                  SizedBox(height: 16.h(context)),
+
+                  // Jenis Libur
+                  Text('Tipe Hari Libur:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                  SizedBox(height: 8.h(context)),
+                  Wrap(
+                    spacing: 8.w(context),
+                    runSpacing: 8.h(context),
+                    children: typeOptions.map((opt) {
+                      final isSelected = selectedType == opt['val'];
+                      return ChoiceChip(
+                        label: Text(
+                          opt['label']!,
+                          style: AppTextStyles.labelMedium(context, color: isSelected ? AppColors.onPrimary : AppColors.onSurface),
+                        ),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.surface,
+                        side: BorderSide(
+                          color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.3),
+                        ),
+                        onSelected: (val) {
+                          if (val) setModalState(() => selectedType = opt['val']!);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 16.h(context)),
+
+                  // Rentang Tanggal
+                  Text('Rentang Tanggal:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                  SizedBox(height: 8.h(context)),
+                  Row(
+                    children: [
+                      // Tanggal Mulai
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: startDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2035),
+                            );
+                            if (picked != null) {
+                              setModalState(() {
+                                startDate = picked;
+                                if (endDate.isBefore(startDate)) {
+                                  endDate = startDate;
+                                }
+                              });
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12.w(context)),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 12.h(context)),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12.w(context)),
+                              border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Mulai', style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5))),
+                                SizedBox(height: 4.h(context)),
+                                Row(
+                                  children: [
+                                    Icon(PhosphorIcons.calendarBlank(), size: 16.w(context), color: AppColors.primary),
+                                    SizedBox(width: 6.w(context)),
+                                    Expanded(
+                                      child: Text(
+                                        sDateStr,
+                                        style: AppTextStyles.bodySmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.w(context)),
+                        child: Icon(PhosphorIcons.arrowRight(), size: 16.w(context), color: AppColors.onSurface.withValues(alpha: 0.4)),
+                      ),
+                      // Tanggal Selesai
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: endDate.isBefore(startDate) ? startDate : endDate,
+                              firstDate: startDate,
+                              lastDate: DateTime(2035),
+                            );
+                            if (picked != null) {
+                              setModalState(() {
+                                endDate = picked;
+                              });
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12.w(context)),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 12.h(context)),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12.w(context)),
+                              border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Selesai', style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5))),
+                                SizedBox(height: 4.h(context)),
+                                Row(
+                                  children: [
+                                    Icon(PhosphorIcons.calendarCheck(), size: 16.w(context), color: AppColors.primary),
+                                    SizedBox(width: 6.w(context)),
+                                    Expanded(
+                                      child: Text(
+                                        eDateStr,
+                                        style: AppTextStyles.bodySmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 10.h(context)),
+
+                  // Preview Durasi
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(10.w(context)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(PhosphorIcons.clock(PhosphorIconsStyle.fill), color: AppColors.primary, size: 16.w(context)),
+                        SizedBox(width: 8.w(context)),
+                        Text(
+                          'Total durasi: $durationDays hari libur',
+                          style: AppTextStyles.bodySmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16.h(context)),
+
+                  // Keterangan / Deskripsi
+                  Text('Keterangan (Opsional):', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                  SizedBox(height: 8.h(context)),
+                  TextField(
+                    controller: descController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Berdasarkan SKB 3 Menteri atau Kalender Pendidikan',
+                      prefixIcon: Padding(
+                        padding: EdgeInsets.only(bottom: 24.h(context)),
+                        child: Icon(PhosphorIcons.note(PhosphorIconsStyle.bold), color: AppColors.primary),
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                    ),
+                  ),
+                  SizedBox(height: 24.h(context)),
+
+                  // Tombol Simpan
+                  AniseButton(
+                    text: 'Simpan Hari Libur',
+                    isLoading: isSubmitting,
+                    icon: PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final rawName = nameController.text.trim();
+                            if (rawName.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Nama hari libur wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isSubmitting = true);
+                            try {
+                              final dio = ref.read(dioProvider);
+                              await dio.post('/master/holidays', data: {
+                                'name': rawName,
+                                'type': selectedType,
+                                'start_date': DateFormat('yyyy-MM-dd').format(startDate),
+                                'end_date': DateFormat('yyyy-MM-dd').format(endDate),
+                                'description': descController.text.trim().isEmpty ? null : descController.text.trim(),
+                              });
+
+                              if (mounted) {
+                                Navigator.pop(sheetContext);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Hari libur "$rawName" berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                                _fetchMasterData();
+                              }
+                            } catch (e) {
+                              setModalState(() => isSubmitting = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Gagal menyimpan hari libur: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                                    backgroundColor: AppColors.error,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // =========================================================================
   // EDIT & DELETE ACTIONS (SUNTING DATA)
   // =========================================================================
@@ -549,6 +865,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                 String endpoint = '';
                 if (type == 'Kelas') endpoint = '/master/kelas/${item['id']}';
                 else if (type == 'Jabatan') endpoint = '/master/jabatans/${item['id']}';
+                else if (type == 'Hari Libur') endpoint = '/master/holidays/${item['id']}';
 
                 if (endpoint.isNotEmpty) {
                   await dio.delete(endpoint);
@@ -587,7 +904,18 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   void _showEditDialog(BuildContext context, String type, Map<String, dynamic> item) {
     final TextEditingController nameController = TextEditingController(text: item['name'] ?? '');
     final TextEditingController areaController = TextEditingController(text: item['task_area'] ?? '');
+    final TextEditingController descController = TextEditingController(text: item['description'] ?? '');
     int selectedGrade = int.tryParse(item['grade_level']?.toString() ?? '10') ?? 10;
+    DateTime editStartDate = DateTime.tryParse(item['start_date']?.toString() ?? '') ?? DateTime.now();
+    DateTime editEndDate = DateTime.tryParse(item['end_date']?.toString() ?? '') ?? DateTime.now();
+    String editHolidayType = item['type']?.toString() ?? 'NASIONAL';
+
+    final holidayTypes = [
+      {'val': 'NASIONAL', 'label': 'Nasional'},
+      {'val': 'SEKOLAH', 'label': 'Sekolah'},
+      {'val': 'CUTI_BERSAMA', 'label': 'Cuti Bersama'},
+      {'val': 'KHUSUS', 'label': 'Khusus'},
+    ];
     
     showDialog(
       context: context,
@@ -651,6 +979,109 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                         ),
                       ),
                     ],
+                    if (type == 'Hari Libur') ...[
+                      SizedBox(height: 14.h(context)),
+                      Text('Tipe Libur:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                      SizedBox(height: 6.h(context)),
+                      Wrap(
+                        spacing: 6.w(context),
+                        runSpacing: 6.h(context),
+                        children: holidayTypes.map((opt) {
+                          final isSelected = editHolidayType == opt['val'];
+                          return ChoiceChip(
+                            label: Text(opt['label']!, style: AppTextStyles.labelSmall(context, color: isSelected ? AppColors.onPrimary : AppColors.onSurface)),
+                            selected: isSelected,
+                            selectedColor: AppColors.primary,
+                            onSelected: (val) {
+                              if (val) setEditState(() => editHolidayType = opt['val']!);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 14.h(context)),
+                      Text('Rentang Tanggal:', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                      SizedBox(height: 6.h(context)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: editStartDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2035),
+                                );
+                                if (picked != null) {
+                                  setEditState(() {
+                                    editStartDate = picked;
+                                    if (editEndDate.isBefore(editStartDate)) {
+                                      editEndDate = editStartDate;
+                                    }
+                                  });
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(10.w(context)),
+                              child: Container(
+                                padding: EdgeInsets.all(10.w(context)),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+                                  borderRadius: BorderRadius.circular(10.w(context)),
+                                ),
+                                child: Text(
+                                  DateFormat('dd MMM yyyy', 'id_ID').format(editStartDate),
+                                  style: AppTextStyles.bodySmall(context, color: AppColors.onSurface),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6.w(context)),
+                            child: Icon(PhosphorIcons.arrowRight(), size: 14.w(context), color: AppColors.onSurface.withValues(alpha: 0.5)),
+                          ),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: editEndDate.isBefore(editStartDate) ? editStartDate : editEndDate,
+                                  firstDate: editStartDate,
+                                  lastDate: DateTime(2035),
+                                );
+                                if (picked != null) {
+                                  setEditState(() {
+                                    editEndDate = picked;
+                                  });
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(10.w(context)),
+                              child: Container(
+                                padding: EdgeInsets.all(10.w(context)),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+                                  borderRadius: BorderRadius.circular(10.w(context)),
+                                ),
+                                child: Text(
+                                  DateFormat('dd MMM yyyy', 'id_ID').format(editEndDate),
+                                  style: AppTextStyles.bodySmall(context, color: AppColors.onSurface),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 14.h(context)),
+                      TextField(
+                        controller: descController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Keterangan (Opsional)',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -675,6 +1106,15 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       } else if (type == 'Jabatan') {
                         endpoint = '/master/jabatans/${item['id']}';
                         payload['task_area'] = areaController.text.trim();
+                      } else if (type == 'Hari Libur') {
+                        endpoint = '/master/holidays/${item['id']}';
+                        payload = {
+                          'name': nameController.text.trim(),
+                          'type': editHolidayType,
+                          'start_date': DateFormat('yyyy-MM-dd').format(editStartDate),
+                          'end_date': DateFormat('yyyy-MM-dd').format(editEndDate),
+                          'description': descController.text.trim().isEmpty ? null : descController.text.trim(),
+                        };
                       }
 
                       await dio.put(endpoint, data: payload);
@@ -778,7 +1218,9 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
                       : _selectedCategory == 'Jabatan'
                           ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
-                          : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+                          : _selectedCategory == 'Hari Libur'
+                              ? PhosphorIcons.calendarX(PhosphorIconsStyle.bold)
+                              : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
                   color: AppColors.primary,
                   size: 20.w(context),
                 ),
@@ -876,6 +1318,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       countText = '${_kelas.length} Kelas';
     } else if (_selectedCategory == 'Jabatan') {
       countText = '${_jabatans.length} Jabatan';
+    } else if (_selectedCategory == 'Hari Libur') {
+      countText = '${_holidays.length} Hari Libur';
     } else {
       countText = '${_roles.length} Role';
     }
@@ -960,14 +1404,19 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     if (type == 'Role') dataSource = _roles;
     else if (type == 'Kelas') dataSource = _kelas;
     else if (type == 'Jabatan') dataSource = _jabatans;
+    else if (type == 'Hari Libur') dataSource = _holidays;
 
     if (dataSource.isEmpty) {
       return AniseStateFeedback(
         title: 'Belum Ada Data $type',
         subtitle: type == 'Role' 
             ? 'Role pengguna terisi otomatis oleh sistem.' 
-            : 'Tambahkan data $type pertama Anda secara manual atau unggah berkas Excel.',
-        icon: type == 'Kelas' ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold) : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+            : 'Tambahkan data $type pertama Anda secara manual.',
+        icon: type == 'Kelas' 
+            ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold) 
+            : type == 'Hari Libur'
+                ? PhosphorIcons.calendarX(PhosphorIconsStyle.bold)
+                : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
         actionButtonText: type == 'Role' ? null : 'Tambah $type Manual',
         onActionPressed: type == 'Role' ? null : () => _openAddModal(context),
       );
@@ -979,7 +1428,17 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         String name = (item['name'] ?? '').toString().toLowerCase();
         String code = (item['code'] ?? '').toString().toLowerCase();
         String area = (item['task_area'] ?? '').toString().toLowerCase();
-        return name.contains(searchQuery) || code.contains(searchQuery) || area.contains(searchQuery);
+        String hType = (item['type'] ?? '').toString().toLowerCase();
+        String desc = (item['description'] ?? '').toString().toLowerCase();
+        String sDate = (item['start_date'] ?? '').toString().toLowerCase();
+        String eDate = (item['end_date'] ?? '').toString().toLowerCase();
+        return name.contains(searchQuery) || 
+               code.contains(searchQuery) || 
+               area.contains(searchQuery) ||
+               hType.contains(searchQuery) ||
+               desc.contains(searchQuery) ||
+               sDate.contains(searchQuery) ||
+               eDate.contains(searchQuery);
       }).toList();
     }
 
@@ -1009,6 +1468,26 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           itemIcon = PhosphorIcons.shieldCheck();
           titlePrefix = item['name'] ?? '-';
           subtitle = (item['is_guru_wali'] == 1 || item['is_guru_wali'] == true) ? 'Hak Akses: Guru Wali' : 'Hak Akses: Standar';
+        } else if (type == 'Hari Libur') {
+          itemIcon = PhosphorIcons.calendarX();
+          titlePrefix = item['name'] ?? '-';
+          final sDateStr = item['start_date']?.toString() ?? '';
+          final eDateStr = item['end_date']?.toString() ?? '';
+          DateTime? sDate = DateTime.tryParse(sDateStr);
+          DateTime? eDate = DateTime.tryParse(eDateStr);
+          String dateLabel = '';
+          if (sDate != null && eDate != null) {
+            if (sDateStr == eDateStr) {
+              dateLabel = DateFormat('dd MMM yyyy', 'id_ID').format(sDate);
+            } else {
+              dateLabel = '${DateFormat('dd MMM', 'id_ID').format(sDate)} - ${DateFormat('dd MMM yyyy', 'id_ID').format(eDate)}';
+            }
+          } else {
+            dateLabel = '$sDateStr s/d $eDateStr';
+          }
+          final hType = (item['type'] ?? 'NASIONAL').toString().replaceAll('_', ' ');
+          final desc = (item['description'] ?? '').toString().trim();
+          subtitle = desc.isNotEmpty ? '$dateLabel • $hType\n$desc' : '$dateLabel • $hType';
         } else {
           itemIcon = PhosphorIcons.briefcase();
           titlePrefix = item['name'] ?? '-';
@@ -1264,6 +1743,12 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
               'Tambah Jabatan Struktural',
               PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
               () => _showAddJabatanModal(context),
+            ),
+            _buildAddOption(
+              context,
+              'Tambah Hari Libur',
+              PhosphorIcons.calendarX(PhosphorIconsStyle.bold),
+              () => _showAddHolidayModal(context),
             ),
             SizedBox(height: 12.h(context)),
           ],
