@@ -79,7 +79,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Pengaturan hari libur mingguan berhasil disimpan!',
+              'Pengaturan hari nonaktif mingguan berhasil disimpan!',
               style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
             ),
             backgroundColor: AppColors.success,
@@ -131,7 +131,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Minimal harus ada 1 hari libur dalam seminggu.',
+                'Minimal harus ada 1 hari nonaktif dalam seminggu.',
                 style: AppTextStyles.bodySmall(context, color: Colors.white),
               ),
               backgroundColor: AppColors.warning,
@@ -149,7 +149,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Container(
-        margin: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
+        margin: EdgeInsets.only(bottom: 16.h(context)),
         padding: EdgeInsets.all(20.w(context)),
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -161,7 +161,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
     }
 
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
+      margin: EdgeInsets.only(bottom: 16.h(context)),
       padding: EdgeInsets.all(18.w(context)),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -199,14 +199,14 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hari Operasional & Libur Rutin',
+                      'Pengaturan Hari Nonaktif Mingguan',
                       style: AppTextStyles.titleSmall(context, color: AppColors.onBackground).copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     SizedBox(height: 2.h(context)),
                     Text(
-                      'Sinkronisasi kalender presensi & jurnal sekolah',
+                      'Tentukan hari libur rutin (sinkronisasi jadwal KBM & presensi)',
                       style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
                     ),
                   ],
@@ -218,7 +218,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
 
           // Preset Sistem Hari Sekolah
           Text(
-            'Sistem Hari Sekolah:',
+            'Preset Hari Operasional Sekolah:',
             style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
           ),
           SizedBox(height: 8.h(context)),
@@ -227,7 +227,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
               Expanded(
                 child: _buildPresetChip(
                   context,
-                  label: '5 Hari (Sab & Min)',
+                  label: '5 Hari Kerja',
                   isSelected: _systemDays == '5_DAYS',
                   onTap: () => _applyPreset('5_DAYS'),
                 ),
@@ -236,7 +236,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
               Expanded(
                 child: _buildPresetChip(
                   context,
-                  label: '6 Hari (Min Saja)',
+                  label: '6 Hari Kerja',
                   isSelected: _systemDays == '6_DAYS',
                   onTap: () => _applyPreset('6_DAYS'),
                 ),
@@ -254,10 +254,26 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
           ),
           SizedBox(height: 16.h(context)),
 
-          // Hari Libur Mingguan (Tap to toggle)
-          Text(
-            'Hari Libur Rutin Mingguan (Pilih Hari Libur):',
-            style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+          // Hari Nonaktif Mingguan (Tap to toggle)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Pilih Hari Nonaktif (Libur Rutin):',
+                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 2.h(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6.w(context)),
+                ),
+                child: Text(
+                  '${_selectedOffDays.length} Hari Nonaktif',
+                  style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 8.h(context)),
           Wrap(
@@ -301,7 +317,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
                 SizedBox(width: 8.w(context)),
                 Expanded(
                   child: Text(
-                    'Hari yang ditandai merah adalah hari libur mingguan tanpa jadwal & presensi.',
+                    'Hari bertanda merah adalah Hari Nonaktif (KBM libur & presensi nonaktif). Hari lainnya adalah Hari Aktif KBM.',
                     style: AppTextStyles.labelSmall(context, color: AppColors.error),
                   ),
                 ),
@@ -312,7 +328,7 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
 
           // Tombol Simpan
           AniseButton(
-            text: 'Simpan Hari Libur Mingguan',
+            text: 'Simpan Hari Nonaktif',
             isLoading: _isSaving,
             icon: PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold),
             onPressed: _isSaving ? null : _saveSettings,

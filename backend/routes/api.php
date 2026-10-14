@@ -246,6 +246,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // 15B. MASTER DATA & PARSER ALIASES (TU Only)
     // ==========================================
     Route::prefix('master')->middleware('role:TATA_USAHA')->group(function () {
+        // Users (Master User)
+        Route::get('/users', [UserController::class, 'getUsers']);
+        Route::post('/users', [UserController::class, 'storeUser']);
+        Route::put('/users/{id}', [UserController::class, 'updateUser']);
+        Route::delete('/users/{id}', [UserController::class, 'deleteUser']);
+        Route::put('/users/{id}/freeze', [UserController::class, 'freezeUser']);
+
         // Kelas (Rombel)
         Route::get('/kelas', [CurriculumController::class, 'getClasses']);
         Route::post('/kelas', [CurriculumController::class, 'storeClass']);

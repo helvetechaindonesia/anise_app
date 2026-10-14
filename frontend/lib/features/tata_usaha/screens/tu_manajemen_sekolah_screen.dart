@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:intl/intl.dart';
 
 import 'tu_geofence_settings_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
@@ -30,7 +29,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
   List<dynamic> _roles = [];
   List<dynamic> _kelas = [];
   List<dynamic> _jabatans = [];
-  List<dynamic> _holidays = [];
 
   final List<Map<String, dynamic>> _categoryOptions = [
     {
@@ -42,8 +40,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       'label': 'Jabatan Struktural',
     },
     {
-      'value': 'Hari Libur',
-      'label': 'Hari Libur & Operasional',
+      'value': 'Hari Nonaktif',
+      'label': 'Hari Nonaktif',
     },
     {
       'value': 'Role',
@@ -70,19 +68,12 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       final rolesRes = await dio.get('/master/roles');
       final kelasRes = await dio.get('/master/kelas');
       final jabatansRes = await dio.get('/master/jabatans');
-      
-      dynamic holidaysData = [];
-      try {
-        final holidaysRes = await dio.get('/master/holidays');
-        holidaysData = holidaysRes.data['data'] ?? [];
-      } catch (_) {}
 
       if (mounted) {
         setState(() {
           _roles = rolesRes.data['data'] ?? [];
           _kelas = kelasRes.data['data'] ?? [];
           _jabatans = jabatansRes.data['data'] ?? [];
-          _holidays = holidaysData;
           _isLoadingData = false;
         });
       }
@@ -112,8 +103,13 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       TuManajemenSekolahDialogs.showAddKelas(context, ref, _fetchMasterData);
     } else if (_selectedCategory == 'Jabatan') {
       TuManajemenSekolahDialogs.showAddJabatan(context, ref, _fetchMasterData);
-    } else if (_selectedCategory == 'Hari Libur') {
-      TuManajemenSekolahDialogs.showAddHoliday(context, ref, _fetchMasterData);
+    } else if (_selectedCategory == 'Hari Nonaktif') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Atur hari nonaktif pada kartu di bawah lalu klik simpan.', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+          backgroundColor: AppColors.primary,
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -164,7 +160,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
             context,
             onAddKelas: () => TuManajemenSekolahDialogs.showAddKelas(context, ref, _fetchMasterData),
             onAddJabatan: () => TuManajemenSekolahDialogs.showAddJabatan(context, ref, _fetchMasterData),
-            onAddHoliday: () => TuManajemenSekolahDialogs.showAddHoliday(context, ref, _fetchMasterData),
           );
         },
       ),
@@ -193,7 +188,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                       ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
                       : _selectedCategory == 'Jabatan'
                           ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
-                          : _selectedCategory == 'Hari Libur'
+                          : _selectedCategory == 'Hari Nonaktif'
                               ? PhosphorIcons.calendarX(PhosphorIconsStyle.bold)
                               : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
                   color: AppColors.primary,
@@ -287,15 +282,17 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 2. Header Ringkasan Jumlah Data
+  /// 2. Header Ringkasan Jumlah Data (Disembunyikan saat kategori Hari Nonaktif)
   Widget _buildQuickActionBar(BuildContext context) {
+    if (_selectedCategory == 'Hari Nonaktif') {
+      return const SizedBox.shrink();
+    }
+
     String countText = '';
     if (_selectedCategory == 'Kelas') {
       countText = '${_kelas.length} Kelas';
     } else if (_selectedCategory == 'Jabatan') {
       countText = '${_jabatans.length} Jabatan';
-    } else if (_selectedCategory == 'Hari Libur') {
-      countText = '${_holidays.length} Hari Libur Khusus';
     } else {
       countText = '${_roles.length} Role';
     }
@@ -325,8 +322,12 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 3. Search Bar
+  /// 3. Search Bar (Disembunyikan saat kategori Hari Nonaktif)
   Widget _buildSearchBar(BuildContext context) {
+    if (_selectedCategory == 'Hari Nonaktif') {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
       child: Container(
@@ -372,17 +373,28 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 4. Konten Utama (Jika Hari Libur: Tampilkan SchoolOffDaysCard di atas, lalu list)
+  /// 4. Konten Utama
   Widget _buildDataContent(BuildContext context, String type) {
     if (_isLoadingData) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    // Khusus Hari Nonaktif: Render langsung SchoolOffDaysCard tanpa search/empty feedback palsu
+    if (type == 'Hari Nonaktif') {
+      return ListView(
+        padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
+        children: [
+          SchoolOffDaysCard(
+            onSaved: _fetchMasterData,
+          ),
+        ],
+      );
     }
 
     List<dynamic> dataSource = [];
     if (type == 'Role') dataSource = _roles;
     else if (type == 'Kelas') dataSource = _kelas;
     else if (type == 'Jabatan') dataSource = _jabatans;
-    else if (type == 'Hari Libur') dataSource = _holidays;
 
     String searchQuery = _searchController.text.toLowerCase().trim();
     if (searchQuery.isNotEmpty) {
@@ -390,39 +402,15 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
         String name = (item['name'] ?? '').toString().toLowerCase();
         String code = (item['code'] ?? '').toString().toLowerCase();
         String area = (item['task_area'] ?? '').toString().toLowerCase();
-        String hType = (item['type'] ?? '').toString().toLowerCase();
-        String desc = (item['description'] ?? '').toString().toLowerCase();
-        String sDate = (item['start_date'] ?? '').toString().toLowerCase();
-        String eDate = (item['end_date'] ?? '').toString().toLowerCase();
         return name.contains(searchQuery) || 
                code.contains(searchQuery) || 
-               area.contains(searchQuery) ||
-               hType.contains(searchQuery) ||
-               desc.contains(searchQuery) ||
-               sDate.contains(searchQuery) ||
-               eDate.contains(searchQuery);
+               area.contains(searchQuery);
       }).toList();
     }
 
     return ListView(
       padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
       children: [
-        // Khusus Kategori Hari Libur: Tampilkan Card Pengaturan Hari Libur Rutin Mingguan
-        if (type == 'Hari Libur') ...[
-          SchoolOffDaysCard(
-            onSaved: _fetchMasterData,
-          ),
-          SizedBox(height: 16.h(context)),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w(context)),
-            child: Text(
-              'Kalender Libur Khusus / Tambahan:',
-              style: AppTextStyles.titleSmall(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          SizedBox(height: 8.h(context)),
-        ],
-
         if (dataSource.isEmpty)
           AniseStateFeedback(
             title: 'Belum Ada Data $type',
@@ -431,9 +419,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                 : 'Tambahkan data $type pertama Anda secara manual atau unggah berkas Excel.',
             icon: type == 'Kelas' 
                 ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold) 
-                : type == 'Hari Libur'
-                    ? PhosphorIcons.calendarX(PhosphorIconsStyle.bold)
-                    : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
+                : PhosphorIcons.briefcase(PhosphorIconsStyle.bold),
             actionButtonText: type == 'Role' ? null : 'Tambah $type Manual',
             onActionPressed: type == 'Role' ? null : _openAddModal,
           )
@@ -486,31 +472,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       title = item['name'] ?? '-';
       metadataIcon = PhosphorIcons.shieldCheck();
       metadataText = (item['is_guru_wali'] == 1 || item['is_guru_wali'] == true) ? 'Akses: Guru Wali' : 'Akses: Standar';
-    } else if (type == 'Hari Libur') {
-      final hType = (item['type'] ?? 'SEKOLAH').toString().replaceAll('_', ' ');
-      category = 'Kalender Libur • $hType';
-      title = item['name'] ?? '-';
-      
-      final sDateStr = item['start_date']?.toString() ?? '';
-      final eDateStr = item['end_date']?.toString() ?? '';
-      DateTime? sDate = DateTime.tryParse(sDateStr);
-      DateTime? eDate = DateTime.tryParse(eDateStr);
-      if (sDate != null && eDate != null) {
-        if (sDateStr == eDateStr) {
-          metadataText = DateFormat('dd MMM yyyy', 'id_ID').format(sDate);
-        } else {
-          metadataText = '${DateFormat('dd MMM', 'id_ID').format(sDate)} - ${DateFormat('dd MMM yyyy', 'id_ID').format(eDate)}';
-        }
-      } else {
-        metadataText = '$sDateStr s/d $eDateStr';
-      }
-      metadataIcon = PhosphorIcons.calendarBlank();
-
-      if (item['description'] != null && item['description'].toString().trim().isNotEmpty) {
-        statusText = item['description'].toString().trim();
-        statusIcon = PhosphorIcons.note();
-        statusColor = AppColors.onSurface.withValues(alpha: 0.6);
-      }
     } else {
       category = 'Struktural Sekolah';
       title = item['name'] ?? '-';

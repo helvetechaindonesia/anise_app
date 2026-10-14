@@ -915,9 +915,11 @@ class TuManajemenSekolahDialogs {
               try {
                 final dio = ref.read(dioProvider);
                 String endpoint = '';
-                if (type == 'Kelas') endpoint = '/master/kelas/${item['id']}';
-                else if (type == 'Jabatan') endpoint = '/master/jabatans/${item['id']}';
-                else if (type == 'Hari Libur') endpoint = '/master/holidays/${item['id']}';
+                if (type == 'Kelas') {
+                  endpoint = '/master/kelas/${item['id']}';
+                } else if (type == 'Jabatan') {
+                  endpoint = '/master/jabatans/${item['id']}';
+                }
 
                 if (endpoint.isNotEmpty) {
                   await dio.delete(endpoint);
@@ -960,7 +962,7 @@ class TuManajemenSekolahDialogs {
     BuildContext context, {
     required VoidCallback onAddKelas,
     required VoidCallback onAddJabatan,
-    required VoidCallback onAddHoliday,
+    VoidCallback? onAddHoliday,
   }) {
     showModalBottomSheet(
       context: context,
@@ -1014,15 +1016,16 @@ class TuManajemenSekolahDialogs {
                 onAddJabatan();
               },
             ),
-            _buildChoiceTile(
-              context,
-              'Tambah Libur Kalender Sekolah',
-              PhosphorIcons.calendarX(PhosphorIconsStyle.bold),
-              () {
-                Navigator.pop(ctx);
-                onAddHoliday();
-              },
-            ),
+            if (onAddHoliday != null)
+              _buildChoiceTile(
+                context,
+                'Tambah Libur Kalender Sekolah',
+                PhosphorIcons.calendarX(PhosphorIconsStyle.bold),
+                () {
+                  Navigator.pop(ctx);
+                  onAddHoliday();
+                },
+              ),
             SizedBox(height: 12.h(context)),
           ],
         ),
