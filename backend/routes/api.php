@@ -270,6 +270,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/jabatans/{id}', [UserController::class, 'deleteJabatan']);
 
         // Geofence & Operational
+        Route::get('/school-locations', [SchoolController::class, 'getLocations']);
+        Route::post('/school-locations', [SchoolController::class, 'storeLocation']);
+        Route::put('/school-locations/{id}', [SchoolController::class, 'updateLocation']);
+        Route::delete('/school-locations/{id}', [SchoolController::class, 'deleteLocation']);
+        Route::post('/school-locations/{id}/toggle', [SchoolController::class, 'toggleLocationStatus']);
+
         Route::get('/school-settings/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/school-settings/geofence', [SchoolController::class, 'updateGeofenceSettings']);
         Route::get('/school-settings/operational', [SchoolController::class, 'getOperationalSettings']);
