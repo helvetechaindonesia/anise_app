@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'tu_geofence_settings_screen.dart';
+import 'tu_hari_nonaktif_settings_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
-import '../widgets/school_off_days_card.dart';
 import '../widgets/tu_manajemen_sekolah_dialogs.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -38,10 +38,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     {
       'value': 'Jabatan',
       'label': 'Jabatan Struktural',
-    },
-    {
-      'value': 'Hari Nonaktif',
-      'label': 'Hari Nonaktif',
     },
     {
       'value': 'Role',
@@ -103,13 +99,6 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       TuManajemenSekolahDialogs.showAddKelas(context, ref, _fetchMasterData);
     } else if (_selectedCategory == 'Jabatan') {
       TuManajemenSekolahDialogs.showAddJabatan(context, ref, _fetchMasterData);
-    } else if (_selectedCategory == 'Hari Nonaktif') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Atur hari nonaktif pada kartu di bawah lalu klik simpan.', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-          backgroundColor: AppColors.primary,
-        ),
-      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -142,7 +131,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           child: Column(
             children: [
               _buildSearchBar(context),
-              _buildFilterAndLocationBar(context),
+              _buildTopActionButtons(context),
+              _buildFullWidthDropdown(context),
               _buildQuickActionBar(context),
               Expanded(
                 child: _buildDataContent(context, _selectedCategory),
@@ -166,78 +156,14 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 1. Dropdown Filter Kategori (2/3 width) & Tombol Setup Lokasi (1/3 width)
-  Widget _buildFilterAndLocationBar(BuildContext context) {
+  /// 1. Dua Tombol Aksi di Atas Dropdown (Proporsi 50:50 Width)
+  Widget _buildTopActionButtons(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 4.h(context)),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. Dropdown Filter Kategori (2/3 width)
+          // Button 1: Setup Lokasi (50% width)
           Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              isExpanded: true,
-              decoration: InputDecoration(
-                contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
-                filled: true,
-                fillColor: AppColors.surface,
-                prefixIcon: Icon(
-                  _selectedCategory == 'Kelas' 
-                      ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
-                      : _selectedCategory == 'Jabatan'
-                          ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
-                          : _selectedCategory == 'Hari Nonaktif'
-                              ? PhosphorIcons.calendarX(PhosphorIconsStyle.bold)
-                              : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
-                  color: AppColors.primary,
-                  size: 20.w(context),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.w(context)),
-                  borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.w(context)),
-                  borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.w(context)),
-                  borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-                ),
-              ),
-              dropdownColor: AppColors.surface,
-              icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface.withValues(alpha: 0.6)),
-              items: _categoryOptions.map<DropdownMenuItem<String>>((opt) {
-                final String val = opt['value'];
-                final String label = opt['label'];
-                return DropdownMenuItem<String>(
-                  value: val,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                      fontWeight: _selectedCategory == val ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                if (newValue != null && newValue != _selectedCategory) {
-                  setState(() {
-                    _selectedCategory = newValue;
-                  });
-                }
-              },
-            ),
-          ),
-          SizedBox(width: 10.w(context)),
-
-          // 2. Tombol Setup Lokasi / Geofence (1/3 width)
-          Expanded(
-            flex: 1,
             child: InkWell(
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const TUGeofenceSettingsScreen()));
@@ -261,10 +187,53 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(PhosphorIcons.mapPin(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
-                    SizedBox(width: 6.w(context)),
+                    SizedBox(width: 8.w(context)),
                     Flexible(
                       child: Text(
                         'Lokasi',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.titleSmall(context, color: AppColors.primary).copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 12.w(context)),
+
+          // Button 2: Hari Nonaktif (50% width)
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const TUHariNonaktifSettingsScreen()));
+              },
+              borderRadius: BorderRadius.circular(16.w(context)),
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 14.h(context), horizontal: 8.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16.w(context)),
+                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.black.withValues(alpha: 0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(PhosphorIcons.calendarSlash(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                    SizedBox(width: 8.w(context)),
+                    Flexible(
+                      child: Text(
+                        'Hari Nonaktif',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTextStyles.titleSmall(context, color: AppColors.primary).copyWith(
@@ -282,12 +251,69 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 2. Header Ringkasan Jumlah Data (Disembunyikan saat kategori Hari Nonaktif)
-  Widget _buildQuickActionBar(BuildContext context) {
-    if (_selectedCategory == 'Hari Nonaktif') {
-      return const SizedBox.shrink();
-    }
+  /// 2. Dropdown Filter Kategori (FULL WIDTH)
+  Widget _buildFullWidthDropdown(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
+      child: DropdownButtonFormField<String>(
+        value: _selectedCategory,
+        isExpanded: true,
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
+          filled: true,
+          fillColor: AppColors.surface,
+          prefixIcon: Icon(
+            _selectedCategory == 'Kelas' 
+                ? PhosphorIcons.chalkboard(PhosphorIconsStyle.bold)
+                : _selectedCategory == 'Jabatan'
+                    ? PhosphorIcons.briefcase(PhosphorIconsStyle.bold)
+                    : PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
+            color: AppColors.primary,
+            size: 20.w(context),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+          ),
+        ),
+        dropdownColor: AppColors.surface,
+        icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface.withValues(alpha: 0.6)),
+        items: _categoryOptions.map<DropdownMenuItem<String>>((opt) {
+          final String val = opt['value'];
+          final String label = opt['label'];
+          return DropdownMenuItem<String>(
+            value: val,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                fontWeight: _selectedCategory == val ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: (newValue) {
+          if (newValue != null && newValue != _selectedCategory) {
+            setState(() {
+              _selectedCategory = newValue;
+            });
+          }
+        },
+      ),
+    );
+  }
 
+  /// 3. Header Ringkasan Jumlah Data
+  Widget _buildQuickActionBar(BuildContext context) {
     String countText = '';
     if (_selectedCategory == 'Kelas') {
       countText = '${_kelas.length} Kelas';
@@ -322,12 +348,8 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 3. Search Bar (Disembunyikan saat kategori Hari Nonaktif)
+  /// 4. Search Bar
   Widget _buildSearchBar(BuildContext context) {
-    if (_selectedCategory == 'Hari Nonaktif') {
-      return const SizedBox.shrink();
-    }
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
       child: Container(
@@ -373,28 +395,20 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
     );
   }
 
-  /// 4. Konten Utama
+  /// 5. Konten Utama
   Widget _buildDataContent(BuildContext context, String type) {
     if (_isLoadingData) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
-    // Khusus Hari Nonaktif: Render langsung SchoolOffDaysCard tanpa search/empty feedback palsu
-    if (type == 'Hari Nonaktif') {
-      return ListView(
-        padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
-        children: [
-          SchoolOffDaysCard(
-            onSaved: _fetchMasterData,
-          ),
-        ],
-      );
-    }
-
     List<dynamic> dataSource = [];
-    if (type == 'Role') dataSource = _roles;
-    else if (type == 'Kelas') dataSource = _kelas;
-    else if (type == 'Jabatan') dataSource = _jabatans;
+    if (type == 'Role') {
+      dataSource = _roles;
+    } else if (type == 'Kelas') {
+      dataSource = _kelas;
+    } else if (type == 'Jabatan') {
+      dataSource = _jabatans;
+    }
 
     String searchQuery = _searchController.text.toLowerCase().trim();
     if (searchQuery.isNotEmpty) {
