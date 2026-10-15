@@ -19,9 +19,74 @@ class ExcelParserUserController extends Controller
 {
     use ApiResponser;
 
+    /**
+     * Memvalidasi apakah isi berkas Excel cocok dengan tipe role pengguna yang dipilih.
+     */
+    private function validateUserFileContent($collection, string $roleType): ?string
+    {
+        // Kumpulkan teks dari 3 baris pertama untuk identifikasi template
+        $textBlob = '';
+        $rowCount = 0;
+        foreach ($collection as $row) {
+            $rowArr = (array)$row;
+            $textBlob .= ' ' . implode(' ', array_keys($rowArr)) . ' ' . implode(' ', array_values($rowArr));
+            $rowCount++;
+            if ($rowCount >= 3) break;
+        }
+        $textLower = strtolower($textBlob);
+
+        // 1. Cek jika berkas ternyata milik modul manajemen sekolah
+        if (str_contains($textLower, 'areatugas') || str_contains($textLower, 'area tugas') || (str_contains($textLower, 'jabatan') && !str_contains($textLower, 'kredensial') && !str_contains($textLower, 'nuptk'))) {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai Master Jabatan, bukan data pengguna.';
+        }
+        if ((str_contains($textLower, 'isguruwali') || str_contains($textLower, 'is_guru_wali') || str_contains($textLower, 'peran')) && !str_contains($textLower, 'kredensial') && !str_contains($textLower, 'nama lengkap')) {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai Master Role, bukan data pengguna.';
+        }
+        if ((str_contains($textLower, 'tingkat') || str_contains($textLower, 'rombel')) && !str_contains($textLower, 'kredensial') && !str_contains($textLower, 'nisn')) {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai Master Kelas, bukan data pengguna.';
+        }
+
+        // 2. Cek kecocokan antar jenis user (Siswa vs Guru/GTK)
+        if ($roleType === 'SISWA') {
+            $hasSiswaIndicator = str_contains($textLower, 'nisn') || str_contains($textLower, 'nis') || str_contains($textLower, 'data siswa');
+            $hasGtkIndicator = str_contains($textLower, 'nuptk') || str_contains($textLower, 'guru pengajar') || str_contains($textLower, 'kepala sekolah') || str_contains($textLower, 'tata usaha');
+
+            if ($hasGtkIndicator && !$hasSiswaIndicator) {
+                return 'Berkas ditolak! Anda memilih impor Siswa, tetapi berkas yang diunggah terdeteksi sebagai data Guru / GTK.';
+            }
+            if (!$hasSiswaIndicator && !str_contains($textLower, 'nama lengkap') && !str_contains($textLower, 'nama')) {
+                return 'Berkas ditolak! Struktur berkas tidak sesuai untuk data Siswa (kolom NIS/NISN tidak ditemukan).';
+            }
+        } else {
+            // GTK (Guru, Guru BK, Staff TU, Kepsek)
+            $hasSiswaIndicator = (str_contains($textLower, 'nisn') || str_contains($textLower, 'data siswa')) && !str_contains($textLower, 'nuptk');
+            if ($hasSiswaIndicator) {
+                return 'Berkas ditolak! Anda memilih impor data ' . str_replace('_', ' ', $roleType) . ', tetapi berkas yang diunggah terdeteksi sebagai data Siswa (memuat NIS/NISN).';
+            }
+
+            // Deteksi spesifik jika judul template tertulis peran lain
+            if ($roleType === 'GURU' && str_contains($textLower, 'data staff tata usaha')) {
+                return 'Berkas ditolak! Anda memilih impor Guru, tetapi berkas terdeteksi sebagai data Staf Tata Usaha.';
+            }
+            if ($roleType === 'TATA_USAHA' && str_contains($textLower, 'data guru pengajar')) {
+                return 'Berkas ditolak! Anda memilih impor Staf Tata Usaha, tetapi berkas terdeteksi sebagai data Guru Pengajar.';
+            }
+            if ($roleType === 'KEPALA_SEKOLAH' && !str_contains($textLower, 'kepala sekolah') && (str_contains($textLower, 'data guru pengajar') || str_contains($textLower, 'data staff'))) {
+                return 'Berkas ditolak! Anda memilih impor Kepala Sekolah, tetapi berkas terdeteksi sebagai data Guru/Staf.';
+            }
+
+            // Cek minimal indikator data GTK / Pegawai
+            $hasGtkOrUser = str_contains($textLower, 'nuptk') || str_contains($textLower, 'nip') || str_contains($textLower, 'kredensial') || str_contains($textLower, 'username') || str_contains($textLower, 'nama lengkap') || str_contains($textLower, 'nama');
+            if (!$hasGtkOrUser) {
+                return 'Berkas ditolak! Format berkas tidak sesuai untuk data ' . str_replace('_', ' ', $roleType) . ' (kolom Nama / Kredensial / NUPTK tidak ditemukan).';
+            }
+        }
+
+        return null; // Lolos verifikasi
+    }
+
     public function parseUser(Request $request, $type)
     {
-        // Hilangkan batasan waktu eksekusi
         set_time_limit(0);
 
         try {
@@ -66,6 +131,12 @@ class ExcelParserUserController extends Controller
             $collection = (new FastExcel)->import($file->path());
             if ($collection->isEmpty()) {
                 return $this->error('Berkas Excel kosong atau tidak memuat data yang valid!', 422);
+            }
+
+            // Validasi kecocokan isi template berkas dengan role yang dipilih
+            $contentError = $this->validateUserFileContent($collection, $roleType);
+            if ($contentError !== null) {
+                return $this->error($contentError, 422);
             }
 
             $academicYear = AcademicYear::where('is_active', true)->first();
@@ -136,12 +207,14 @@ class ExcelParserUserController extends Controller
                     }
                 }
 
-                // Perlindungan: Jangan hapus akun user yang sedang login saat ini atau akun admin/tu_dev
-                $deleteQuery = User::where('role_id', $roleId)->whereNotIn('id', $syncedUserIds);
-                if ($currentUserId) {
-                    $deleteQuery->where('id', '!=', $currentUserId);
+                // Perlindungan: Jangan hapus akun user jika data kosong, atau akun user yang sedang login saat ini, atau akun admin/tu_dev
+                if (count($syncedUserIds) > 0) {
+                    $deleteQuery = User::where('role_id', $roleId)->whereNotIn('id', $syncedUserIds);
+                    if ($currentUserId) {
+                        $deleteQuery->where('id', '!=', $currentUserId);
+                    }
+                    $deleteQuery->whereNotIn('username', ['tu_dev', 'admin', 'administrator'])->delete();
                 }
-                $deleteQuery->whereNotIn('username', ['tu_dev', 'admin', 'administrator'])->delete();
             });
 
             if (count($syncedUserIds) === 0) {
