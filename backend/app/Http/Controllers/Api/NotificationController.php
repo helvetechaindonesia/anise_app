@@ -6,22 +6,39 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Traits\ApiResponser;
 
+use App\Models\Notification;
+
 class NotificationController extends Controller
 {
     use ApiResponser;
 
     public function getNotifications(Request $request)
     {
-        return $this->success([]);
+        $userId = $request->user()?->id;
+        if (!$userId) {
+            return $this->success([]);
+        }
+
+        $notifications = Notification::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        return $this->success($notifications);
     }
 
     public function markAsRead(Request $request, $id)
     {
+        Notification::where('user_id', $request->user()?->id)
+            ->where('id', $id)
+            ->update(['is_read' => true]);
         return $this->success(null, 'Marked as read');
     }
 
     public function markAllAsRead(Request $request)
     {
+        Notification::where('user_id', $request->user()?->id)
+            ->update(['is_read' => true]);
         return $this->success(null, 'All marked as read');
     }
 }
