@@ -78,7 +78,8 @@ class ExcelParserController extends Controller
     }
 
     /**
-     * 1. PARSE MASTER ROLE
+     * 1. PARSE MASTER ROLE (STRICT VALIDATION)
+     * Kolom wajib: Nama Role / Peran. Kolom lainnya (isGuruWali) opsional.
      */
     public function parseMasterRole(Request $request)
     {
@@ -100,12 +101,48 @@ class ExcelParserController extends Controller
             return $this->error('Berkas ditolak! Berkas yang Anda unggah bukan berkas Master Role. Kolom "Peran" atau "Role" tidak ditemukan.', 422);
         }
 
-        // Cek jika berkas terdeteksi milik modul lain (contoh: berkas Kelas atau Jabatan)
+        // Cek jika berkas terdeteksi milik modul lain
         if ($this->hasHeaderMatching($headers, ['tingkat', 'rombel', 'grade', 'koderombel'])) {
             return $this->error('Berkas ditolak! Berkas ini terdeteksi sebagai data Master Kelas/Rombel, bukan Master Role.', 422);
         }
         if ($this->hasHeaderMatching($headers, ['areatugas', 'lingkuptugas'])) {
             return $this->error('Berkas ditolak! Berkas ini terdeteksi sebagai data Master Jabatan, bukan Master Role.', 422);
+        }
+
+        $rowErrors = [];
+        $rowNum = 1;
+
+        // Validasi Ketat: Nama Role wajib diisi untuk tiap baris
+        foreach ($collection as $row) {
+            $rowNum++;
+            $rowArr = (array)$row;
+
+            $hasAnyData = false;
+            foreach ($rowArr as $v) {
+                if ($v !== null && trim((string)$v) !== '') {
+                    $hasAnyData = true;
+                    break;
+                }
+            }
+            if (!$hasAnyData) continue;
+
+            $peranRaw = $this->getValueBySemantics($rowArr, $roleKeywords);
+            if (empty($peranRaw)) {
+                $rowErrors[] = "Baris $rowNum: Nama Role/Peran wajib diisi.";
+            }
+        }
+
+        if (!empty($rowErrors)) {
+            $errorSlice = array_slice($rowErrors, 0, 5);
+            $msg = "Validasi gagal:\n" . implode("\n", $errorSlice);
+            if (count($rowErrors) > 5) {
+                $msg .= "\n... dan " . (count($rowErrors) - 5) . " error lainnya.";
+            }
+            return response()->json([
+                'status' => 'error',
+                'message' => $msg,
+                'errors' => $rowErrors
+            ], 422);
         }
 
         $syncedIds = [];
@@ -140,20 +177,9 @@ class ExcelParserController extends Controller
         });
 
         if (count($syncedIds) <= 5 && $collection->count() > 0) {
-            // Jika yang tersimpan hanya protected roles saja dan 0 data dari file berhasil dibaca
             $nonProtectedCount = Role::whereIn('id', $syncedIds)->whereNotIn('name', ['TATA_USAHA', 'KEPALA_SEKOLAH', 'GURU', 'GURU_BK', 'SISWA'])->count();
             if ($nonProtectedCount === 0) {
-                // Periksa apakah peran di file memang ada yang cocok
-                $hasValidPeranInFile = false;
-                foreach ($collection as $r) {
-                    if (!empty($this->getValueBySemantics((array)$r, $roleKeywords))) {
-                        $hasValidPeranInFile = true;
-                        break;
-                    }
-                }
-                if (!$hasValidPeranInFile) {
-                    return $this->error('Berkas ditolak! Tidak ada data Peran/Role yang valid di dalam file ini.', 422);
-                }
+                return $this->error('Berkas ditolak! Tidak ada data Peran/Role yang valid di dalam file ini.', 422);
             }
         }
 
@@ -161,7 +187,8 @@ class ExcelParserController extends Controller
     }
 
     /**
-     * 2. PARSE MASTER KELAS
+     * 2. PARSE MASTER KELAS (STRICT VALIDATION)
+     * Semua kolom wajib diisi tanpa terkecuali (Tingkat, Nama Kelas, Kode Kelas).
      */
     public function parseMasterKelas(Request $request)
     {
@@ -200,6 +227,50 @@ class ExcelParserController extends Controller
         $nameKeywords = ['namakelas', 'namarombel', 'rombel', 'kelas', 'nama'];
         $gradeKeywords = ['tingkat', 'tingkatkelas', 'grade', 'level', 'jenjang'];
         $codeKeywords = ['kodekelas', 'koderombel', 'kode', 'code', 'classcode'];
+
+        $rowErrors = [];
+        $rowNum = 1;
+
+        // Validasi Ketat: Semua kolom wajib diisi tanpa terkecuali
+        foreach ($collection as $row) {
+            $rowNum++;
+            $rowArr = (array)$row;
+
+            $hasAnyData = false;
+            foreach ($rowArr as $v) {
+                if ($v !== null && trim((string)$v) !== '') {
+                    $hasAnyData = true;
+                    break;
+                }
+            }
+            if (!$hasAnyData) continue;
+
+            $nameRaw = $this->getValueBySemantics($rowArr, $nameKeywords);
+            $codeRaw = $this->getValueBySemantics($rowArr, $codeKeywords);
+            $gradeRaw = $this->getValueBySemantics($rowArr, $gradeKeywords);
+
+            $missing = [];
+            if (empty($gradeRaw)) $missing[] = 'Tingkat';
+            if (empty($nameRaw)) $missing[] = 'Nama Kelas';
+            if (empty($codeRaw)) $missing[] = 'Kode Kelas';
+
+            if (!empty($missing)) {
+                $rowErrors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Kolom " . implode(', ', $missing) . " belum diisi).";
+            }
+        }
+
+        if (!empty($rowErrors)) {
+            $errorSlice = array_slice($rowErrors, 0, 5);
+            $msg = "Validasi gagal:\n" . implode("\n", $errorSlice);
+            if (count($rowErrors) > 5) {
+                $msg .= "\n... dan " . (count($rowErrors) - 5) . " error lainnya.";
+            }
+            return response()->json([
+                'status' => 'error',
+                'message' => $msg,
+                'errors' => $rowErrors
+            ], 422);
+        }
 
         $syncedIds = [];
         DB::transaction(function () use ($collection, $academicYear, $major, $nameKeywords, $gradeKeywords, $codeKeywords, &$syncedIds) {
@@ -247,7 +318,8 @@ class ExcelParserController extends Controller
     }
 
     /**
-     * 3. PARSE MASTER JABATAN
+     * 3. PARSE MASTER JABATAN (STRICT VALIDATION)
+     * Semua kolom wajib diisi tanpa terkecuali (Jabatan dan Area Tugas).
      */
     public function parseMasterJabatan(Request $request)
     {
@@ -275,6 +347,48 @@ class ExcelParserController extends Controller
         }
 
         $areaKeywords = ['areatugas', 'area', 'tugas', 'deskripsi', 'taskarea', 'lingkuptugas', 'bidang'];
+
+        $rowErrors = [];
+        $rowNum = 1;
+
+        // Validasi Ketat: Semua kolom wajib diisi tanpa terkecuali (Jabatan & Area Tugas)
+        foreach ($collection as $row) {
+            $rowNum++;
+            $rowArr = (array)$row;
+
+            $hasAnyData = false;
+            foreach ($rowArr as $v) {
+                if ($v !== null && trim((string)$v) !== '') {
+                    $hasAnyData = true;
+                    break;
+                }
+            }
+            if (!$hasAnyData) continue;
+
+            $jabatanRaw = $this->getValueBySemantics($rowArr, $jabatanKeywords);
+            $areaRaw = $this->getValueBySemantics($rowArr, $areaKeywords);
+
+            $missing = [];
+            if (empty($jabatanRaw)) $missing[] = 'Jabatan';
+            if (empty($areaRaw)) $missing[] = 'Area Tugas';
+
+            if (!empty($missing)) {
+                $rowErrors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Kolom " . implode(' & ', $missing) . " belum diisi).";
+            }
+        }
+
+        if (!empty($rowErrors)) {
+            $errorSlice = array_slice($rowErrors, 0, 5);
+            $msg = "Validasi gagal:\n" . implode("\n", $errorSlice);
+            if (count($rowErrors) > 5) {
+                $msg .= "\n... dan " . (count($rowErrors) - 5) . " error lainnya.";
+            }
+            return response()->json([
+                'status' => 'error',
+                'message' => $msg,
+                'errors' => $rowErrors
+            ], 422);
+        }
 
         $syncedIds = [];
         DB::transaction(function () use ($collection, $jabatanKeywords, $areaKeywords, &$syncedIds) {

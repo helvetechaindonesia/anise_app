@@ -170,7 +170,7 @@ class ExcelParserUserController extends Controller
         $valuesLower = strtolower(implode(' ', $headerRowValues));
         $hasHeadersInFirstValues = str_contains($valuesLower, 'nama') && str_contains($valuesLower, 'kredensial');
 
-        // Default fallback mapping
+        // Default fallback mapping (kolom terakhir adalah agama)
         $colMap = [
             'name' => 0,
             'kredensial' => 1,
@@ -179,6 +179,7 @@ class ExcelParserUserController extends Controller
             'nisn' => 3,
             'email' => ($roleType === 'SISWA') ? 4 : 3,
             'gender' => ($roleType === 'SISWA') ? 7 : 5,
+            'agama' => ($roleType === 'SISWA') ? 8 : 6,
         ];
 
         $headerList = $hasHeadersInFirstValues ? $headerRowValues : $keys;
@@ -198,6 +199,8 @@ class ExcelParserUserController extends Controller
                 $colMap['nuptk'] = $idx;
             } elseif (in_array($cleanHdr, ['gender', 'jeniskelamin', 'jk', 'sex'])) {
                 $colMap['gender'] = $idx;
+            } elseif (in_array($cleanHdr, ['agama', 'religion', 'kepercayaan', 'keyakinan'])) {
+                $colMap['agama'] = $idx;
             }
         }
 
@@ -231,16 +234,33 @@ class ExcelParserUserController extends Controller
             $rawName = isset($rowValues[$colMap['name']]) ? trim((string)$rowValues[$colMap['name']]) : '';
             $rawKredensial = isset($rowValues[$colMap['kredensial']]) ? trim((string)$rowValues[$colMap['kredensial']]) : '';
             $rawEmail = isset($rowValues[$colMap['email']]) ? trim((string)$rowValues[$colMap['email']]) : '';
+            $rawAgama = isset($rowValues[$colMap['agama']]) ? trim((string)$rowValues[$colMap['agama']]) : '';
 
             $missingFields = [];
             if ($rawName === '') {
                 $missingFields[] = 'Nama Lengkap';
             }
+
+            if ($roleType === 'SISWA') {
+                $rawNisn = isset($rowValues[$colMap['nisn']]) ? trim((string)$rowValues[$colMap['nisn']]) : '';
+                if ($rawNisn === '') {
+                    $missingFields[] = 'NISN';
+                }
+            } else {
+                $rawNuptk = isset($rowValues[$colMap['nuptk']]) ? trim((string)$rowValues[$colMap['nuptk']]) : '';
+                if ($rawNuptk === '') {
+                    $missingFields[] = 'NIP/NUPTK';
+                }
+            }
+
+            if ($rawEmail === '') {
+                $missingFields[] = 'Email';
+            }
             if ($rawKredensial === '') {
                 $missingFields[] = 'Kredensial';
             }
-            if ($rawEmail === '') {
-                $missingFields[] = 'Email';
+            if ($rawAgama === '') {
+                $missingFields[] = 'Agama';
             }
 
             if (!empty($missingFields)) {
@@ -251,7 +271,7 @@ class ExcelParserUserController extends Controller
                     $identifier = " (Kredensial: {$rawKredensial})";
                 }
 
-                $rowErrors[] = "Baris {$excelRowNum}{$identifier}: Kolom " . implode(' & ', $missingFields) . " belum diisi.";
+                $rowErrors[] = "Baris {$excelRowNum}{$identifier}: Kolom " . implode(', ', $missingFields) . " wajib diisi.";
             }
         }
 
@@ -316,7 +336,7 @@ class ExcelParserUserController extends Controller
                 return $this->error($contentError, 422);
             }
 
-            // Validasi keketatan kolom wajib (Nama, Kredensial, Email)
+            // Validasi keketatan kolom wajib (Nama, Kredensial, Email, NISN/NUPTK, Agama)
             $validation = $this->validateRequiredColumns($collection, $roleType);
             $columnErrors = $validation['errors'] ?? [];
 
@@ -324,25 +344,24 @@ class ExcelParserUserController extends Controller
                 $currentUser = $request->user();
                 $userId = $currentUser?->id ?? User::where('username', 'tu_dev')->first()?->id ?? User::first()?->id;
 
+                $totalErr = count($columnErrors);
+                $errorSlice = array_slice($columnErrors, 0, 5);
+                $detailList = implode("\n", $errorSlice);
+                if ($totalErr > 5) {
+                    $detailList .= "\n... dan " . ($totalErr - 5) . " baris lainnya.";
+                }
+
                 if ($userId) {
                     $notifTitle = '⚠️ Impor Data ' . str_replace('_', ' ', $roleType) . ' Ditolak';
-                    $totalErr = count($columnErrors);
-                    $errorSlice = array_slice($columnErrors, 0, 15);
-                    $detailList = implode("\n• ", $errorSlice);
-                    if ($totalErr > 15) {
-                        $detailList .= "\n... dan " . ($totalErr - 15) . " baris lainnya.";
-                    }
-
-                    $notifMessage = "Berkas impor data " . str_replace('_', ' ', $roleType) . " ditolak karena terdapat kolom wajib (Nama Lengkap, Kredensial, atau Email) yang belum terisi pada {$totalErr} baris data:\n\n• " . $detailList . "\n\nSilakan perbaiki baris data di atas pada berkas Excel Anda lalu unggah kembali.";
-
+                    $notifMessage = "Berkas impor data " . str_replace('_', ' ', $roleType) . " ditolak karena terdapat kolom wajib yang belum terisi pada {$totalErr} baris data:\n\n• " . implode("\n• ", array_slice($columnErrors, 0, 15)) . "\n\nSilakan perbaiki baris data di atas pada berkas Excel Anda lalu unggah kembali.";
                     NotificationService::sendInAppNotification($userId, $notifTitle, $notifMessage);
                 }
 
-                $countErr = count($columnErrors);
-                return $this->error(
-                    "Berkas ditolak! Ditemukan {$countErr} baris data yang belum lengkap (Nama, Email, atau Kredensial kosong). Silakan cek detail baris yang perlu diperbaiki di Halaman Notifikasi.",
-                    422
-                );
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Validasi gagal:\n" . $detailList,
+                    'errors' => $columnErrors
+                ], 422);
             }
 
             $academicYear = AcademicYear::where('is_active', true)->first();
@@ -365,6 +384,7 @@ class ExcelParserUserController extends Controller
                     $fullName = isset($values[$colMap['name']]) ? trim((string)$values[$colMap['name']]) : null;
                     $kredensial = isset($values[$colMap['kredensial']]) ? trim((string)$values[$colMap['kredensial']]) : null;
                     $email = isset($values[$colMap['email']]) ? trim((string)$values[$colMap['email']]) : null;
+                    $rawAgama = isset($values[$colMap['agama']]) ? trim((string)$values[$colMap['agama']]) : null;
                     
                     if (empty($fullName) || empty($kredensial) || empty($email)) continue;
 
@@ -395,6 +415,7 @@ class ExcelParserUserController extends Controller
                     $user->email = $email;
                     $user->role_id = $roleId;
                     $user->gender = $gender;
+                    $user->religion = $rawAgama ?: null;
                     $user->is_active = true;
                     $user->save();
                     

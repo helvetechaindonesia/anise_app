@@ -30,6 +30,7 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
   late TextEditingController _nipController;
   late TextEditingController _nisnController;
   late TextEditingController _nisController;
+  late TextEditingController _religionController;
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -44,6 +45,7 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
     _passwordController = TextEditingController();
     _phoneController = TextEditingController(text: u?['phone'] ?? '');
     _addressController = TextEditingController(text: u?['address'] ?? '');
+    _religionController = TextEditingController(text: u?['religion'] ?? '');
 
     String initNip = '';
     if (u?['guru_profile']?['nip_nuptk'] != null) {
@@ -69,6 +71,7 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
     _passwordController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _religionController.dispose();
     _nipController.dispose();
     _nisnController.dispose();
     _nisController.dispose();
@@ -106,6 +109,7 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
         'email': email,
         'phone': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
+        'religion': _religionController.text.trim(),
       };
 
       if (_passwordController.text.trim().isNotEmpty) {
@@ -336,6 +340,16 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
               hint: 'Jl. Merdeka No. 10...',
               maxLines: 2,
               icon: PhosphorIcons.mapPin(PhosphorIconsStyle.bold),
+            ),
+            SizedBox(height: 14.h(context)),
+
+            // 9. Agama
+            _buildTextField(
+              context: context,
+              controller: _religionController,
+              label: 'Agama',
+              hint: 'Islam / Kristen / Katolik / Hindu / Buddha / Khonghucu',
+              icon: PhosphorIcons.handsPraying(PhosphorIconsStyle.bold),
             ),
             SizedBox(height: 28.h(context)),
 

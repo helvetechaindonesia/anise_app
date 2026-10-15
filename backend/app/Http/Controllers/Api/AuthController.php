@@ -70,6 +70,7 @@ class AuthController extends Controller
                 'phone' => $user->phone,
                 'address' => $user->address,
                 'gender' => $user->gender,
+                'religion' => $user->religion,
             ]
         ], 'Login successful');
     }
@@ -146,6 +147,7 @@ class AuthController extends Controller
                     'phone' => $user->phone,
                     'address' => $user->address,
                     'gender' => $user->gender,
+                    'religion' => $user->religion,
                     'is_active' => $user->is_active,
                 ]
             ]

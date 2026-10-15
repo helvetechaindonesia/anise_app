@@ -37,6 +37,8 @@ class UserController extends Controller
             'nip_nuptk' => 'nullable|string|max:50',
             'nisn' => 'nullable|string|max:50',
             'nis' => 'nullable|string|max:50',
+            'gender' => 'nullable|string|in:L,P',
+            'religion' => 'nullable|string|max:50',
         ]);
 
         $password = $request->filled('password') ? $request->password : $request->username;
@@ -47,6 +49,8 @@ class UserController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'address' => $request->address,
+            'gender' => $request->gender ?? 'L',
+            'religion' => $request->religion,
             'password_hash' => \Illuminate\Support\Facades\Hash::make($password),
             'role_id' => $request->role_id,
             'is_active' => true,
@@ -80,10 +84,12 @@ class UserController extends Controller
             'nip_nuptk' => 'nullable|string|max:50',
             'nisn' => 'nullable|string|max:50',
             'nis' => 'nullable|string|max:50',
+            'gender' => 'nullable|string|in:L,P',
+            'religion' => 'nullable|string|max:50',
         ]);
 
         $credentialsChanged = false;
-        $data = $request->only('full_name', 'username', 'email', 'phone', 'address');
+        $data = $request->only('full_name', 'username', 'email', 'phone', 'address', 'gender', 'religion');
         if ($request->filled('password')) {
             $data['password_hash'] = \Illuminate\Support\Facades\Hash::make($request->password);
             $credentialsChanged = true;

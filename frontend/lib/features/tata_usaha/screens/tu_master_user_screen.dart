@@ -435,12 +435,14 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         final phone = (user['phone'] ?? '').toString().toLowerCase();
         final nisn = (user['siswa_profile']?['nisn'] ?? '').toString().toLowerCase();
         final nip = (user['guru_profile']?['nip_nuptk'] ?? '').toString().toLowerCase();
+        final religion = (user['religion'] ?? '').toString().toLowerCase();
         return name.contains(query) ||
             username.contains(query) ||
             email.contains(query) ||
             phone.contains(query) ||
             nisn.contains(query) ||
-            nip.contains(query);
+            nip.contains(query) ||
+            religion.contains(query);
       }).toList();
     }
 
@@ -465,13 +467,18 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         final bool isActive = user['is_active'] == true || user['is_active'] == 1;
         final bool isLast = index == filteredUsers.length - 1;
 
+        final religion = (user['religion'] ?? '').toString().trim();
+        final credText = religion.isNotEmpty
+            ? 'Kredensial: $username • Agama: $religion'
+            : 'Kredensial: $username';
+
         final tile = ItemListTile(
           category: 'Hak Akses: ${_formatRoleName(roleName)}',
           title: fullName,
           metadataIcon: PhosphorIcons.envelope(),
           metadataText: 'Email: $email',
           secondaryMetadataIcon: PhosphorIcons.identificationCard(),
-          secondaryMetadataText: 'Kredensial: $username',
+          secondaryMetadataText: credText,
           statusIcon: isActive
               ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
               : PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
