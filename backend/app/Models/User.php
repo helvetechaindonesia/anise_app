@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['full_name', 'username', 'email', 'password_hash', 'role_id', 'is_active', 'phone', 'address'])]
+#[Fillable(['full_name', 'username', 'email', 'password_hash', 'role_id', 'is_active', 'phone', 'address', 'gender'])]
 #[Hidden(['password_hash', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, \Laravel\Sanctum\HasApiTokens, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+    use HasFactory, Notifiable, \Laravel\Sanctum\HasApiTokens, \Illuminate\Database\Eloquent\Concerns\HasUuids, \Illuminate\Database\Eloquent\SoftDeletes;
 
     /**
      * Get the password for the user.

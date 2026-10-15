@@ -82,11 +82,24 @@ class UserController extends Controller
             'nis' => 'nullable|string|max:50',
         ]);
 
+        $credentialsChanged = false;
         $data = $request->only('full_name', 'username', 'email', 'phone', 'address');
         if ($request->filled('password')) {
             $data['password_hash'] = \Illuminate\Support\Facades\Hash::make($request->password);
+            $credentialsChanged = true;
         }
+        if ($request->filled('email') && $request->email !== $user->email) {
+            $credentialsChanged = true;
+        }
+        if ($request->filled('username') && $request->username !== $user->username) {
+            $credentialsChanged = true;
+        }
+
         $user->update($data);
+
+        if ($credentialsChanged) {
+            $user->tokens()->delete();
+        }
 
         // Update profile terkait jika ada
         if ($request->filled('nip_nuptk')) {
@@ -119,6 +132,7 @@ class UserController extends Controller
             return $this->error('Anda tidak dapat menghapus akun Anda sendiri!', 400);
         }
 
+        $user->tokens()->delete();
         $user->delete();
         return $this->success(null, 'User berhasil dihapus');
     }
@@ -134,6 +148,10 @@ class UserController extends Controller
 
         $user->is_active = !$user->is_active;
         $user->save();
+
+        if (!$user->is_active) {
+            $user->tokens()->delete();
+        }
 
         $statusText = $user->is_active ? 'diaktifkan kembali' : 'berhasil dibekukan';
         return $this->success($user, "Akun {$user->full_name} {$statusText}");

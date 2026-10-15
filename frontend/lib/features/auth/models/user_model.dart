@@ -94,5 +94,41 @@ class UserModel {
       className: json['siswa_profile']?['class']?['name']?.toString() ?? 'XII M2', // Provide fallback just in case
     );
   }
+
+  UserModel copyWith({
+    String? id,
+    String? fullName,
+    String? username,
+    String? email,
+    String? phone,
+    String? address,
+    String? parentName,
+    String? uniqueId,
+    UserRole? role,
+    bool? isWaliKelas,
+    bool? isWaliAsuh,
+    List<String>? tugasTambahan,
+    String? nis,
+    String? nip,
+    String? className,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      username: username ?? this.username,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      parentName: parentName ?? this.parentName,
+      uniqueId: uniqueId ?? this.uniqueId,
+      role: role ?? this.role,
+      isWaliKelas: isWaliKelas ?? this.isWaliKelas,
+      isWaliAsuh: isWaliAsuh ?? this.isWaliAsuh,
+      tugasTambahan: tugasTambahan ?? this.tugasTambahan,
+      nis: nis ?? this.nis,
+      nip: nip ?? this.nip,
+      className: className ?? this.className,
+    );
+  }
 }
 

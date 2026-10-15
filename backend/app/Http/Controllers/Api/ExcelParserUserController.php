@@ -384,6 +384,11 @@ class ExcelParserUserController extends Controller
                     
                     if (!$user->exists) {
                         $user->password_hash = Hash::make((string)$kredensial, ['rounds' => 4]);
+                    } else {
+                        // Jika email berubah pada user yang sudah ada, cabut semua token aktifnya
+                        if ($user->email && $user->email !== $email) {
+                            $user->tokens()->delete();
+                        }
                     }
                     
                     $user->full_name = $fullName;
@@ -420,7 +425,11 @@ class ExcelParserUserController extends Controller
                     if ($currentUserId) {
                         $deleteQuery->where('id', '!=', $currentUserId);
                     }
-                    $deleteQuery->whereNotIn('username', ['tu_dev', 'admin', 'administrator'])->delete();
+                    $usersToDelete = $deleteQuery->whereNotIn('username', ['tu_dev', 'admin', 'administrator'])->get();
+                    foreach ($usersToDelete as $uDel) {
+                        $uDel->tokens()->delete();
+                        $uDel->delete();
+                    }
                 }
             });
 

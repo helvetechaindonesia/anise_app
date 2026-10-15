@@ -44,13 +44,19 @@ class AuthController extends Controller
         }
 
         if (!$user->is_active) {
-            return $this->error('Account is inactive', 403);
+            return response()->json([
+                'status' => 'error',
+                'code' => 'ACCOUNT_FROZEN',
+                'message' => 'Akun Anda sedang dibekukan (freeze) oleh administrator. Silakan hubungi Tata Usaha.',
+            ], 403);
         }
 
-        // Revoke all older tokens for single device login, or just issue a new one
+        // Revoke all older tokens for single device login
         $user->tokens()->delete();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Sertakan signature kredensial (email, username, password) pada nama token
+        $credSig = md5($user->email . '|' . $user->username . '|' . $user->password_hash);
+        $token = $user->createToken('auth:' . $credSig)->plainTextToken;
 
         return $this->success([
             'access_token' => $token,
@@ -59,9 +65,91 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'full_name' => $user->full_name,
                 'username' => $user->username,
+                'email' => $user->email,
                 'role_type' => $user->role_type,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'gender' => $user->gender,
             ]
         ], 'Login successful');
+    }
+
+    /**
+     * Check real-time session status & return latest user profile data.
+     */
+    public function sessionStatus(Request $request)
+    {
+        $plainToken = $request->bearerToken();
+        $userId = $request->header('X-User-Id') ?: $request->query('user_id');
+
+        $user = null;
+        if ($userId) {
+            $user = User::withTrashed()->find($userId);
+        }
+
+        $tokenModel = null;
+        if ($plainToken) {
+            $tokenModel = \Laravel\Sanctum\PersonalAccessToken::findToken($plainToken);
+            if ($tokenModel && !$user) {
+                $user = User::withTrashed()->find($tokenModel->tokenable_id);
+            }
+        }
+
+        // 1. Cek apakah user telah dihapus (soft-delete atau terhapus)
+        if (!$user || $user->trashed()) {
+            if ($tokenModel) {
+                try { $tokenModel->delete(); } catch (\Throwable $e) {}
+            }
+            return response()->json([
+                'status' => 'error',
+                'code' => 'ACCOUNT_DELETED',
+                'message' => 'Akun Anda telah dihapus dari sistem oleh Administrator.',
+            ], 403);
+        }
+
+        // 2. Cek apakah user sedang dibekukan (freeze)
+        if (!$user->is_active) {
+            if ($tokenModel) {
+                try { $tokenModel->delete(); } catch (\Throwable $e) {}
+            }
+            return response()->json([
+                'status' => 'error',
+                'code' => 'ACCOUNT_FROZEN',
+                'message' => 'Akun Anda sedang dibekukan (freeze) oleh Administrator. Silakan hubungi Tata Usaha.',
+            ], 403);
+        }
+
+        // 3. Cek apakah email, username, atau password telah diubah
+        $currentSig = md5($user->email . '|' . $user->username . '|' . $user->password_hash);
+        if (!$tokenModel || $tokenModel->name !== 'auth:' . $currentSig) {
+            if ($tokenModel) {
+                try { $tokenModel->delete(); } catch (\Throwable $e) {}
+            }
+            return response()->json([
+                'status' => 'error',
+                'code' => 'CREDENTIALS_CHANGED',
+                'message' => 'Email atau kredensial akun Anda telah diubah oleh Administrator. Silakan masuk kembali menggunakan data terbaru.',
+            ], 401);
+        }
+
+        // 4. Sesi aktif dan valid! Kembalikan profil user terbaru untuk realtime update
+        return response()->json([
+            'status' => 'success',
+            'code' => 'SESSION_ACTIVE',
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'full_name' => $user->full_name,
+                    'username' => $user->username,
+                    'email' => $user->email,
+                    'role_type' => $user->role_type,
+                    'phone' => $user->phone,
+                    'address' => $user->address,
+                    'gender' => $user->gender,
+                    'is_active' => $user->is_active,
+                ]
+            ]
+        ]);
     }
 
     /**

@@ -38,8 +38,9 @@ use App\Http\Controllers\Api\HolidayController;
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:forgot-password');
+    Route::get('/session-status', [AuthController::class, 'sessionStatus']);
     
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -57,7 +58,7 @@ Route::match(['get', 'post'], '/dev/reset-clean', [DevController::class, 'resetC
 // Export Presensi XLSX (Dapat diakses via Browser/Download Manager dengan parameter ?token=... atau Bearer Header)
 Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXlsx']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     
     // ==========================================
     // 2. PRESENSI (ATTENDANCE)

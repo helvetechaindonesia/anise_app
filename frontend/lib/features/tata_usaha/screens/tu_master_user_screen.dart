@@ -304,18 +304,6 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           'Manajemen User',
           style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotificationScreen()),
-              );
-            },
-          ),
-          SizedBox(width: 8.w(context)),
-        ],
       ),
       body: DecorativeBackground(
         child: SafeArea(

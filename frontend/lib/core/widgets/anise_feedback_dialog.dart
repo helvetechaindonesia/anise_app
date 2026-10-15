@@ -163,6 +163,44 @@ class AniseFeedbackDialog extends StatelessWidget {
     );
   }
 
+  static bool _isSessionDialogShowing = false;
+
+  /// 5. Dialog Sesi Tidak Berlaku / Dibekukan / Dihapus / Kredensial Berubah
+  /// Dialog ini WAJIB tidak dapat di-close lewat tap latar maupun back gesture (PopScope canPop: false).
+  /// Hanya ada SATU tombol aksi (misal "Log Out" atau "Login").
+  static Future<void> showSessionExpired(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String buttonText,
+    required VoidCallback onAction,
+    AniseFeedbackType type = AniseFeedbackType.error,
+  }) async {
+    if (_isSessionDialogShowing) return;
+    _isSessionDialogShowing = true;
+
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AniseFeedbackDialog(
+          type: type,
+          title: title,
+          message: message,
+          confirmText: buttonText,
+          onConfirm: () {
+            _isSessionDialogShowing = false;
+            Navigator.pop(ctx);
+            onAction();
+          },
+        ),
+      ),
+    ).then((_) {
+      _isSessionDialogShowing = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     IconData iconData;

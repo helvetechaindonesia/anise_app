@@ -26,6 +26,9 @@ class AuthService {
         final token = data['access_token'];
         
         await SharedPrefs.setToken(token);
+        if (data['user']?['id'] != null) {
+          await SharedPrefs.setUserId(data['user']['id'].toString());
+        }
         
         return UserModel.fromJson(data['user']);
       } else {
@@ -44,7 +47,9 @@ class AuthService {
       final response = await _dio.get(ApiConstants.meEndpoint);
 
       if (response.data['status'] == 'success') {
-        return UserModel.fromJson(response.data['data']);
+        final user = UserModel.fromJson(response.data['data']);
+        await SharedPrefs.setUserId(user.id);
+        return user;
       } else {
         throw Exception(response.data['message'] ?? 'Failed to get user info');
       }
@@ -53,6 +58,24 @@ class AuthService {
         throw Exception(e.response?.data['message'] ?? 'Failed to get user info');
       }
       throw Exception('Network error');
+    }
+  }
+
+  /// Memeriksa status sesi pengguna secara real-time dan mengambil pembaruan profil
+  Future<Map<String, dynamic>?> checkSessionStatus() async {
+    try {
+      final response = await _dio.get(ApiConstants.sessionStatusEndpoint);
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.data is Map) {
+        return Map<String, dynamic>.from(e.response!.data as Map);
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 

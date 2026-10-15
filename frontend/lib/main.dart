@@ -5,6 +5,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'core/constants/colors.dart';
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
@@ -17,6 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Anise Smart Education',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
