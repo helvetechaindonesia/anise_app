@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\ApiResponser;
 
 use App\Models\Subject;
+use App\Models\SubjectTeacher;
 use App\Models\Schedule;
 use App\Models\StructuralAssignment;
 use App\Models\SchoolClass;
@@ -36,7 +37,7 @@ class ExcelParserKurikulumController extends Controller
 
             DB::transaction(function () use ($collection, $type, $academicYear, &$errors) {
                 if ($type === 'mapel') {
-                    $errors = $this->parseMapel($collection);
+                    $errors = $this->parseMapel($collection, $academicYear);
                 } elseif ($type === 'jurnal_mengajar') {
                     $errors = $this->parseJurnalMengajar($collection, $academicYear);
                 } elseif ($type === 'penugasan') {
@@ -83,61 +84,127 @@ class ExcelParserKurikulumController extends Controller
         }
     }
 
-    private function parseMapel($collection)
+    // =========================================================================
+    // 1. MASTER MAPEL (STRICT VALIDATION)
+    // =========================================================================
+    private function parseMapel($collection, $academicYear)
     {
         $errors = [];
         $rowNum = 1;
-        // Headers di Row 1
+
         foreach ($collection as $row) {
             $rowNum++;
             $values = array_values((array)$row);
-            
-            $namaMapel = $values[0] ?? null;
-            $kodeMapel = $values[1] ?? null;
 
-            if (empty($namaMapel) || empty($kodeMapel)) {
-                $errors[] = "Baris $rowNum: Nama/Kode Mapel kosong.";
+            $val0 = strtolower($this->cleanString($values[0] ?? ''));
+            $val1 = strtolower($this->cleanString($values[1] ?? ''));
+
+            // Abaikan baris header / banner
+            if (str_contains($val0, 'mata pelajaran') || str_contains($val0, 'nama mapel') || str_contains($val1, 'kode') || str_contains($val0, 'master mapel')) {
                 continue;
             }
 
-            Subject::updateOrCreate(
+            $namaMapel = $this->cleanString($values[0] ?? '');
+            $kodeMapel = strtoupper($this->cleanString($values[1] ?? ''));
+            $tingkat = strtoupper($this->cleanString($values[2] ?? ''));
+            $namaKelas = $this->cleanString($values[3] ?? '');
+            $namaTendik = $this->cleanString($values[4] ?? '');
+            $nuptk = $this->cleanString($values[5] ?? '');
+
+            // Abaikan jika baris kosong total
+            if (empty($namaMapel) && empty($kodeMapel) && empty($namaKelas) && empty($nuptk)) {
+                continue;
+            }
+
+            // Validasi Ketat: Semua 6 kolom wajib diisi
+            if (empty($namaMapel) || empty($kodeMapel) || empty($tingkat) || empty($namaKelas) || empty($namaTendik) || empty($nuptk)) {
+                $errors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Nama Mata Pelajaran, Kode Mapel, Tingkat, Nama Kelas, Nama Tendik(pengampu), NUPTK/NIP).";
+                continue;
+            }
+
+            // Validasi Relasi: User Guru/Tendik berdasarkan NUPTK/NIP
+            $teacher = User::where('username', $nuptk)->first();
+            if (!$teacher) {
+                $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
+                continue;
+            }
+
+            // Validasi Relasi: Nama Tendik harus identik cocok
+            if (!$this->isSameName($teacher->full_name, $namaTendik)) {
+                $errors[] = "Baris $rowNum: Nama pengampu '$namaTendik' tidak cocok dengan nama terdaftar ('{$teacher->full_name}') untuk NUPTK/NIP '$nuptk'.";
+                continue;
+            }
+
+            // Validasi Relasi: Kelas
+            $class = $this->findClass($tingkat, $namaKelas);
+            if (!$class) {
+                $errors[] = "Baris $rowNum: Kelas '$tingkat $namaKelas' tidak ditemukan di Master Kelas.";
+                continue;
+            }
+
+            // Simpan / Update Master Subject
+            $subject = Subject::updateOrCreate(
                 ['code' => $kodeMapel],
                 ['name' => $namaMapel]
             );
+
+            // Simpan / Update Relasi Pengampu Mapel Kelas
+            SubjectTeacher::updateOrCreate(
+                [
+                    'subject_id' => $subject->id,
+                    'class_id' => $class->id,
+                    'teacher_id' => $teacher->id,
+                    'academic_year_id' => $academicYear ? $academicYear->id : null,
+                ]
+            );
         }
+
         return $errors;
     }
 
+    // =========================================================================
+    // 2. MASTER JURNAL MENGAJAR / JADWAL KBM (STRICT VALIDATION)
+    // =========================================================================
     private function parseJurnalMengajar($collection, $academicYear)
     {
         $errors = [];
         $rowNum = 1;
-        // Headers di Row 1, kita baca dari row 2
-        // Hari(0), Jam ke-(1), Jam Mulai(2), Jam Selesai(3), Tingkat(4), Nama Kelas(5), Kode Mapel(6), Nama Mata Pelajaran(7), Nama Tendik(8), NUPTK(9)
+
         foreach ($collection as $row) {
             $rowNum++;
             $values = array_values((array)$row);
-            
-            $hari = $values[0] ?? null;
-            if (empty($hari)) continue;
 
+            $val0 = strtolower($this->cleanString($values[0] ?? ''));
+            if ($val0 === 'hari' || str_contains($val0, 'master jurnal')) {
+                continue; // Skip header / banner
+            }
+
+            $hari = $this->cleanString($values[0] ?? '');
+            $jamKe = $this->cleanString($values[1] ?? '');
             $jamMulai = $this->formatTime($values[2] ?? null);
             $jamSelesai = $this->formatTime($values[3] ?? null);
-            $namaKelas = $values[5] ?? null;
-            $kodeMapel = $values[6] ?? null;
-            $nuptk = $values[9] ?? null;
+            $tingkat = strtoupper($this->cleanString($values[4] ?? ''));
+            $namaKelas = $this->cleanString($values[5] ?? '');
+            $kodeMapel = strtoupper($this->cleanString($values[6] ?? ''));
+            $namaMapel = $this->cleanString($values[7] ?? '');
+            $namaTendik = $this->cleanString($values[8] ?? '');
+            $nuptk = $this->cleanString($values[9] ?? '');
 
-            if (empty($jamMulai) || empty($jamSelesai) || empty($namaKelas) || empty($kodeMapel)) {
-                $errors[] = "Baris $rowNum: Data jam/kelas/mapel tidak lengkap.";
+            // Abaikan jika baris kosong total
+            if (empty($hari) && empty($kodeMapel) && empty($namaKelas) && empty($jamMulai)) {
                 continue;
             }
 
-            $class = SchoolClass::whereRaw("CONCAT(grade_level, ' ', name) = ?", [$namaKelas])
-                                ->orWhere('name', $namaKelas)
-                                ->first();
+            // Validasi Kolom Wajib Dasar (semua baris termasuk KEG)
+            if (empty($hari) || empty($jamKe) || empty($jamMulai) || empty($jamSelesai) || empty($tingkat) || empty($namaKelas) || empty($kodeMapel) || empty($namaMapel)) {
+                $errors[] = "Baris $rowNum: Kolom Hari, Jam ke-, Jam Mulai, Jam Selesai, Tingkat, Nama Kelas, Kode Mapel, dan Nama Mapel wajib diisi.";
+                continue;
+            }
 
+            // Validasi Relasi Kelas
+            $class = $this->findClass($tingkat, $namaKelas);
             if (!$class) {
-                $errors[] = "Baris $rowNum: Kelas '$namaKelas' tidak ditemukan.";
+                $errors[] = "Baris $rowNum: Kelas '$tingkat $namaKelas' tidak ditemukan di Master Kelas.";
                 continue;
             }
 
@@ -146,20 +213,45 @@ class ExcelParserKurikulumController extends Controller
             $activityName = null;
 
             if ($kodeMapel === 'KEG') {
-                $activityName = $values[7] ?? 'Kegiatan Sekolah'; // Nama Mata Pelajaran as activity name
+                // Kode KEG tidak wajib mengisi nama tendik dan NUPTK/NIP
+                $activityName = $namaMapel;
             } else {
-                if (empty($nuptk) || $nuptk === '-') {
-                    $errors[] = "Baris $rowNum: NUPTK wajib diisi untuk mapel reguler.";
+                // Mapel reguler: Nama Tendik dan NUPTK/NIP WAJIB DIISI!
+                if (empty($namaTendik) || empty($nuptk) || $nuptk === '-') {
+                    $errors[] = "Baris $rowNum: Nama Tendik dan NUPTK/NIP wajib diisi untuk mapel reguler (selain KEG).";
                     continue;
                 }
-                
+
+                // Cek Master Mapel
                 $subject = Subject::where('code', $kodeMapel)->first();
+                if (!$subject) {
+                    $errors[] = "Baris $rowNum: Kode Mapel '$kodeMapel' tidak ditemukan di Master Mapel. Silakan upload Master Mapel terlebih dahulu.";
+                    continue;
+                }
+
+                // Cek Master User Guru
                 $teacher = User::where('username', $nuptk)->first();
+                if (!$teacher) {
+                    $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
+                    continue;
+                }
 
-                if (!$subject) $errors[] = "Baris $rowNum: Mapel '$kodeMapel' tidak ditemukan.";
-                if (!$teacher) $errors[] = "Baris $rowNum: NUPTK '$nuptk' tidak ditemukan di master user.";
+                // Cek Nama Guru identik
+                if (!$this->isSameName($teacher->full_name, $namaTendik)) {
+                    $errors[] = "Baris $rowNum: Nama Tendik '$namaTendik' tidak cocok dengan data terdaftar ('{$teacher->full_name}') untuk NUPTK/NIP '$nuptk'.";
+                    continue;
+                }
 
-                if (!$subject || !$teacher) continue;
+                // Cek Relasi Pengampu Mapel dari Master Mapel (Cross-check)
+                $isAssigned = SubjectTeacher::where('subject_id', $subject->id)
+                    ->where('class_id', $class->id)
+                    ->where('teacher_id', $teacher->id)
+                    ->exists();
+
+                if (!$isAssigned) {
+                    $errors[] = "Baris $rowNum: Guru '$namaTendik' ($nuptk) tidak terdaftar sebagai pengampu mapel '$kodeMapel' di kelas '{$class->grade_level} {$class->name}' pada Master Mapel.";
+                    continue;
+                }
 
                 $subjectId = $subject->id;
                 $teacherId = $teacher->id;
@@ -183,154 +275,228 @@ class ExcelParserKurikulumController extends Controller
         return $errors;
     }
 
+    // =========================================================================
+    // 3. MASTER PENUGASAN STRUKTURAL (STRICT VALIDATION)
+    // =========================================================================
     private function parsePenugasan($collection, $academicYear)
     {
         $errors = [];
         $rowNum = 1;
-        // Judul di Row 1, Headers di Row 2. Kita skip row 1.
-        // Nama Tendik(0), Tugas Tambahan(1), Area Penugasan(2)
-        $isFirst = true;
+
         foreach ($collection as $row) {
             $rowNum++;
-            if ($isFirst) {
-                $isFirst = false;
+            $values = array_values((array)$row);
+
+            $val0 = strtolower($this->cleanString($values[0] ?? ''));
+            $val1 = strtolower($this->cleanString($values[1] ?? ''));
+
+            // Deteksi header/banner
+            if (str_contains($val0, 'nama tendik') || str_contains($val1, 'tugas tambahan') || str_contains($val0, 'master penugasan')) {
                 continue;
             }
 
-            $values = array_values((array)$row);
-            $namaTendik = $values[0] ?? null;
-            $tugasTambahan = $values[1] ?? null;
-            
-            if (empty($namaTendik) || empty($tugasTambahan) || $namaTendik === 'Nama Tendik') {
-                continue; // Kosong atau header kedua
+            $namaTendik = $this->cleanString($values[0] ?? '');
+            $tugasTambahan = $this->cleanString($values[1] ?? '');
+            $area = $this->cleanString($values[2] ?? '');
+
+            // Abaikan baris kosong
+            if (empty($namaTendik) && empty($tugasTambahan)) {
+                continue;
             }
 
-            $user = User::where('full_name', $namaTendik)->first();
-            $jabatan = Jabatan::where('name', $tugasTambahan)->first();
-
-            if (!$user) $errors[] = "Baris $rowNum: Nama '$namaTendik' tidak ditemukan di master user.";
-            if (!$jabatan) $errors[] = "Baris $rowNum: Jabatan '$tugasTambahan' tidak ada di master jabatan.";
-
-            if ($user && $jabatan) {
-                StructuralAssignment::updateOrCreate(
-                    [
-                        'guru_id' => $user->id,
-                        'academic_year_id' => $academicYear ? $academicYear->id : null,
-                    ],
-                    [
-                        'jabatan_id' => $jabatan->id,
-                    ]
-                );
+            // Validasi Ketat: Nama Tendik dan Tugas Tambahan wajib diisi, area opsional
+            if (empty($namaTendik) || empty($tugasTambahan)) {
+                $errors[] = "Baris $rowNum: Nama Tendik dan Tugas Tambahan wajib diisi.";
+                continue;
             }
+
+            // Validasi Relasi: User Tendik
+            $user = User::whereRaw('LOWER(TRIM(full_name)) = ?', [mb_strtolower($namaTendik)])->first();
+            if (!$user) {
+                $user = User::all()->first(fn($u) => $this->isSameName($u->full_name, $namaTendik));
+            }
+            if (!$user) {
+                $errors[] = "Baris $rowNum: Nama Tendik '$namaTendik' tidak ditemukan di Master User.";
+                continue;
+            }
+
+            // Validasi Relasi: Jabatan
+            $jabatan = Jabatan::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($tugasTambahan)])->first();
+            if (!$jabatan) {
+                $errors[] = "Baris $rowNum: Tugas Tambahan / Jabatan '$tugasTambahan' tidak ditemukan di Master Jabatan.";
+                continue;
+            }
+
+            StructuralAssignment::updateOrCreate(
+                [
+                    'guru_id' => $user->id,
+                    'academic_year_id' => $academicYear ? $academicYear->id : null,
+                ],
+                [
+                    'jabatan_id' => $jabatan->id,
+                ]
+            );
         }
         return $errors;
     }
 
+    // =========================================================================
+    // 4. MASTER WALI KELAS (STRICT VALIDATION)
+    // =========================================================================
     private function parseWaliKelas($collection)
     {
         $errors = [];
         $rowNum = 1;
-        // Judul di Row 1, Headers di Row 2. Skip row 1.
-        // Tingkat(0), Nama Kelas(1), Nama Wali Kelas(2), NUPTK/NIP Wali Kelas(3)
-        $isFirst = true;
+
         foreach ($collection as $row) {
             $rowNum++;
-            if ($isFirst) {
-                $isFirst = false;
+            $values = array_values((array)$row);
+
+            $val0 = strtolower($this->cleanString($values[0] ?? ''));
+            $val1 = strtolower($this->cleanString($values[1] ?? ''));
+
+            // Deteksi header / banner
+            if (str_contains($val0, 'tingkat') || str_contains($val1, 'kelas') || str_contains($val0, 'master wali kelas') || str_contains($val1, 'master wali kelas')) {
                 continue;
             }
 
-            $values = array_values((array)$row);
-            $tingkat = $values[0] ?? null;
-            $namaKelas = $values[1] ?? null;
-            $nuptk = $values[3] ?? null;
-            
-            if (empty($tingkat) || empty($namaKelas) || empty($nuptk) || $tingkat === 'Tingkat') continue;
+            $tingkat = strtoupper($this->cleanString($values[0] ?? ''));
+            $namaKelas = $this->cleanString($values[1] ?? '');
+            $namaWali = $this->cleanString($values[2] ?? '');
+            $nuptk = $this->cleanString($values[3] ?? '');
 
-            $fullClassName = $tingkat . ' ' . $namaKelas;
-
-            $class = SchoolClass::whereRaw("CONCAT(grade_level, ' ', name) = ?", [$fullClassName])
-                                ->orWhere('name', $namaKelas)
-                                ->first();
-            $user = User::where('username', $nuptk)->first();
-
-            if (!$class) $errors[] = "Baris $rowNum: Kelas '$fullClassName' tidak ditemukan.";
-            if (!$user) $errors[] = "Baris $rowNum: NUPTK '$nuptk' tidak ditemukan di master user.";
-
-            if ($class && $user) {
-                $class->wali_kelas_id = $user->id;
-                $class->save();
+            // Abaikan baris kosong
+            if (empty($tingkat) && empty($namaKelas) && empty($nuptk)) {
+                continue;
             }
+
+            // Validasi Ketat: Semua 4 kolom wajib diisi
+            if (empty($tingkat) || empty($namaKelas) || empty($namaWali) || empty($nuptk)) {
+                $errors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Tingkat, Nama Kelas, Nama Wali Kelas, NUPTK/NIP Wali Kelas).";
+                continue;
+            }
+
+            // Validasi Relasi: Kelas
+            $class = $this->findClass($tingkat, $namaKelas);
+            if (!$class) {
+                $errors[] = "Baris $rowNum: Kelas '$tingkat $namaKelas' tidak ditemukan di Master Kelas.";
+                continue;
+            }
+
+            // Validasi Relasi: User Guru
+            $user = User::where('username', $nuptk)->first();
+            if (!$user) {
+                $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
+                continue;
+            }
+
+            // Validasi Relasi: Nama Wali Kelas harus cocok
+            if (!$this->isSameName($user->full_name, $namaWali)) {
+                $errors[] = "Baris $rowNum: Nama wali '$namaWali' tidak cocok dengan data terdaftar ('{$user->full_name}') untuk NUPTK/NIP '$nuptk'.";
+                continue;
+            }
+
+            $class->wali_kelas_id = $user->id;
+            $class->save();
         }
         return $errors;
     }
 
+    // =========================================================================
+    // 5. MASTER GURU WALI (PENEMPATAN KELAS & GURU WALI - STRICT VALIDATION)
+    // =========================================================================
     private function parseGuruWali($collection, $academicYear)
     {
         $errors = [];
         $rowNum = 1;
-        // Judul di Row 1, Headers di Row 2. Skip row 1.
-        // Nama Siswa(0), NISN(1), Tingkat(2), Nama Kelas(3), Nama Guru BK(4)
-        $isFirst = true;
+
         foreach ($collection as $row) {
             $rowNum++;
-            if ($isFirst) {
-                $isFirst = false;
+            $values = array_values((array)$row);
+
+            $val0 = strtolower($this->cleanString($values[0] ?? ''));
+            $val1 = strtolower($this->cleanString($values[1] ?? ''));
+
+            // Deteksi header / banner
+            if (str_contains($val0, 'nama lengkap') || (str_contains($val0, 'nama') && str_contains($val1, 'nisn')) || str_contains($val0, 'master penempatan kelas')) {
                 continue;
             }
 
-            $values = array_values((array)$row);
-            $namaSiswa = $values[0] ?? null;
-            $nisn = $values[1] ?? null;
-            $tingkat = $values[2] ?? null;
-            $namaKelas = $values[3] ?? null;
-            $namaGuruWali = $values[4] ?? null;
-            
-            if (empty($namaSiswa) || empty($nisn) || empty($tingkat) || empty($namaKelas) || $namaSiswa === 'Nama Siswa') continue;
+            $namaSiswa = $this->cleanString($values[0] ?? '');
+            $nisn = $this->cleanString($values[1] ?? '');
+            $tingkat = strtoupper($this->cleanString($values[2] ?? ''));
+            $namaKelas = $this->cleanString($values[3] ?? '');
+            $namaGuruWali = $this->cleanString($values[4] ?? '');
 
-            $fullClassName = $tingkat . ' ' . $namaKelas;
+            // Abaikan baris kosong
+            if (empty($namaSiswa) && empty($nisn) && empty($namaKelas) && empty($namaGuruWali)) {
+                continue;
+            }
 
-            $class = SchoolClass::whereRaw("CONCAT(grade_level, ' ', name) = ?", [$fullClassName])
-                                ->orWhere('name', $namaKelas)
-                                ->first();
+            // Validasi Ketat: Semua 5 kolom wajib diisi
+            if (empty($namaSiswa) || empty($nisn) || empty($tingkat) || empty($namaKelas) || empty($namaGuruWali)) {
+                $errors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Nama Lengkap, NISN, Tingkat Kelas, Nama Kelas, Guru Wali).";
+                continue;
+            }
+
+            // Validasi Relasi: Siswa di Master User
             $student = User::where('username', $nisn)->first();
-
-            if (!$class) $errors[] = "Baris $rowNum: Kelas '$fullClassName' tidak ditemukan.";
-            if (!$student) $errors[] = "Baris $rowNum: NISN '$nisn' tidak ditemukan di master user.";
-
-            if ($class && $student) {
-                // Update class_id of student
-                \App\Models\ClassStudent::updateOrCreate(
-                    [
-                        'student_id' => $student->id,
-                    ],
-                    [
-                        'class_id' => $class->id,
-                        'status' => 'ACTIVE'
-                    ]
-                );
+            if (!$student) {
+                $errors[] = "Baris $rowNum: Siswa dengan NISN '$nisn' tidak ditemukan di Master User.";
+                continue;
             }
 
-            if (!empty($namaGuruWali) && $student) {
-                $guruWali = User::where('full_name', $namaGuruWali)->first();
-                if (!$guruWali) {
-                    $errors[] = "Baris $rowNum: Guru Wali '$namaGuruWali' tidak ditemukan di master user.";
-                } else {
-                    \App\Models\GuruWaliStudent::updateOrCreate(
-                        [
-                            'student_id' => $student->id,
-                            'academic_year_id' => $academicYear ? $academicYear->id : null,
-                        ],
-                        [
-                            'guru_id' => $guruWali->id,
-                        ]
-                    );
-                }
+            // Validasi Relasi: Nama Siswa harus cocok
+            if (!$this->isSameName($student->full_name, $namaSiswa)) {
+                $errors[] = "Baris $rowNum: Nama siswa '$namaSiswa' tidak cocok dengan data terdaftar ('{$student->full_name}') untuk NISN '$nisn'.";
+                continue;
             }
+
+            // Validasi Relasi: Kelas
+            $class = $this->findClass($tingkat, $namaKelas);
+            if (!$class) {
+                $errors[] = "Baris $rowNum: Kelas '$tingkat $namaKelas' tidak ditemukan di Master Kelas.";
+                continue;
+            }
+
+            // Validasi Relasi: Guru Wali di Master User Guru
+            $guruWali = User::whereRaw('LOWER(TRIM(full_name)) = ?', [mb_strtolower($namaGuruWali)])->first();
+            if (!$guruWali) {
+                $guruWali = User::all()->first(fn($u) => $this->isSameName($u->full_name, $namaGuruWali));
+            }
+            if (!$guruWali) {
+                $errors[] = "Baris $rowNum: Guru Wali '$namaGuruWali' tidak ditemukan di Master User.";
+                continue;
+            }
+
+            // Update Penempatan Kelas Siswa
+            \App\Models\ClassStudent::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                ],
+                [
+                    'class_id' => $class->id,
+                    'status' => 'ACTIVE'
+                ]
+            );
+
+            // Update Guru Wali Siswa
+            \App\Models\GuruWaliStudent::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'academic_year_id' => $academicYear ? $academicYear->id : null,
+                ],
+                [
+                    'guru_id' => $guruWali->id,
+                ]
+            );
         }
         return $errors;
     }
 
+    // =========================================================================
+    // 6. MASTER KALENDER AKADEMIK (STRICT VALIDATION)
+    // =========================================================================
     private function parseKalenderAkademik($collection, $academicYear)
     {
         $errors = [];
@@ -346,7 +512,7 @@ class ExcelParserKurikulumController extends Controller
             $val1 = $values[1] ?? '';
             $secondCol = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
 
-            // 1. Deteksi Baris Header Kolom
+            // Deteksi Baris Header Kolom
             if (!$headerFound) {
                 if ($firstCol === 'nama' && str_contains($secondCol, 'jenis')) {
                     $headerFound = true;
@@ -354,21 +520,26 @@ class ExcelParserKurikulumController extends Controller
                 continue;
             }
 
-            $nama = trim(($val0 instanceof \DateTimeInterface) ? $val0->format('Y-m-d') : (string)$val0);
-            $jenisRaw = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
+            $nama = $this->cleanString(($val0 instanceof \DateTimeInterface) ? $val0->format('Y-m-d') : (string)$val0);
+            $jenisRaw = strtolower($this->cleanString(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
             $mulaiRaw = $values[2] ?? null;
             $selesaiRaw = $values[3] ?? null;
             $val4 = $values[4] ?? '';
-            $tingkatRaw = strtoupper(trim(($val4 instanceof \DateTimeInterface) ? $val4->format('Y-m-d') : (string)$val4));
+            $tingkatRaw = strtoupper($this->cleanString(($val4 instanceof \DateTimeInterface) ? $val4->format('Y-m-d') : (string)$val4));
 
             // Skip jika baris benar-benar kosong
             if (empty($nama) && empty($jenisRaw) && empty($mulaiRaw)) {
                 continue;
             }
 
-            // Validasi Ketat: Nama Agenda
-            if (empty($nama) || strlen($nama) < 3) {
-                $errors[] = "Baris $rowNum: Nama agenda wajib diisi (minimal 3 karakter).";
+            // Validasi Ketat: Semua kolom wajib diisi tanpa terkecuali
+            if (empty($nama) || empty($jenisRaw) || empty($mulaiRaw) || empty($selesaiRaw) || empty($tingkatRaw)) {
+                $errors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Nama, Jenis, Mulai, Selesai, Tingkat).";
+                continue;
+            }
+
+            if (strlen($nama) < 3) {
+                $errors[] = "Baris $rowNum: Nama agenda minimal 3 karakter.";
                 continue;
             }
 
@@ -381,7 +552,7 @@ class ExcelParserKurikulumController extends Controller
                 'libur' => 'LIBUR',
             ];
             if (!isset($validTypes[$jenisRaw])) {
-                $errors[] = "Baris $rowNum: Jenis '$jenisRaw' tidak valid. Pilihan: asesmen, kegiatan, seremonial, administrasi.";
+                $errors[] = "Baris $rowNum: Jenis '$jenisRaw' tidak valid. Pilihan: asesmen, kegiatan, seremonial, administrasi, libur.";
                 continue;
             }
             $type = $validTypes[$jenisRaw];
@@ -404,7 +575,7 @@ class ExcelParserKurikulumController extends Controller
             }
 
             // Validasi Ketat: Tingkat (Single / Multi dengan penghubung '+')
-            if (in_array($tingkatRaw, ['#', '*', 'ALL', 'SEMUA', ''])) {
+            if (in_array($tingkatRaw, ['#', '*', 'ALL', 'SEMUA'])) {
                 $tingkat = 'SEMUA';
             } else {
                 $parts = array_map('trim', explode('+', $tingkatRaw));
@@ -469,6 +640,9 @@ class ExcelParserKurikulumController extends Controller
         return $errors;
     }
 
+    // =========================================================================
+    // 7. MASTER HARI LIBUR (STRICT VALIDATION)
+    // =========================================================================
     private function parseHariLibur($collection, $academicYear)
     {
         $errors = [];
@@ -484,7 +658,7 @@ class ExcelParserKurikulumController extends Controller
             $val1 = $values[1] ?? '';
             $secondCol = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
 
-            // 1. Deteksi Baris Header Kolom
+            // Deteksi Baris Header Kolom
             if (!$headerFound) {
                 if (str_contains($firstCol, 'waktu') || str_contains($firstCol, 'tanggal') || str_contains($secondCol, 'keterangan')) {
                     $headerFound = true;
@@ -493,23 +667,28 @@ class ExcelParserKurikulumController extends Controller
             }
 
             $waktuRaw = $values[0] ?? null;
-            $keterangan = trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1);
+            $keterangan = $this->cleanString(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1);
 
             // Skip jika baris benar-benar kosong
             if (empty($waktuRaw) && empty($keterangan)) {
                 continue;
             }
 
-            // Validasi Ketat: Keterangan
-            if (empty($keterangan) || strlen($keterangan) < 3) {
-                $errors[] = "Baris $rowNum: Keterangan hari libur wajib diisi (minimal 3 karakter).";
+            // Validasi Ketat: Semua kolom wajib diisi tanpa terkecuali
+            if (empty($waktuRaw) || empty($keterangan)) {
+                $errors[] = "Baris $rowNum: Semua kolom wajib diisi tanpa terkecuali (Waktu dan Keterangan).";
+                continue;
+            }
+
+            if (strlen($keterangan) < 3) {
+                $errors[] = "Baris $rowNum: Keterangan hari libur minimal 3 karakter.";
                 continue;
             }
 
             // Validasi Ketat: Tanggal Waktu
             $date = $this->formatDate($waktuRaw);
             if (!$date || !$this->isValidDate($date)) {
-                $errors[] = "Baris $rowNum: Format tanggal waktu hari libur tidak valid. Gunakan format DD/MM/YYYY.";
+                $errors[] = "Baris $rowNum: Format tanggal waktu '$waktuRaw' tidak valid. Gunakan format DD/MM/YYYY.";
                 continue;
             }
 
@@ -533,6 +712,52 @@ class ExcelParserKurikulumController extends Controller
         }
 
         return $errors;
+    }
+
+    // =========================================================================
+    // HELPER METHODS
+    // =========================================================================
+    private function cleanString($val)
+    {
+        if ($val === null) return '';
+        $str = str_replace(["\xc2\xa0", "\u{00A0}"], ' ', (string)$val);
+        $str = preg_replace('/\s+/', ' ', $str);
+        return trim($str);
+    }
+
+    private function isSameName($name1, $name2)
+    {
+        $n1 = mb_strtolower($this->cleanString($name1));
+        $n2 = mb_strtolower($this->cleanString($name2));
+        return $n1 === $n2;
+    }
+
+    private function findClass($tingkat, $namaKelas)
+    {
+        $tingkat = strtoupper($this->cleanString($tingkat));
+        $namaKelas = $this->cleanString($namaKelas);
+        if (empty($namaKelas)) return null;
+
+        $numericGrade = match($tingkat) { 'X' => '10', 'XI' => '11', 'XII' => '12', default => $tingkat };
+
+        // 1. Coba cocokkan grade_level dan name
+        $class = SchoolClass::where(function($q) use ($tingkat, $numericGrade) {
+            $q->where('grade_level', $tingkat)->orWhere('grade_level', $numericGrade);
+        })->where('name', $namaKelas)->first();
+
+        if ($class) return $class;
+
+        // 2. Coba CONCAT grade_level dan name (e.g. "X Cut Nyak Dhien" atau "10 Cut Nyak Dhien")
+        $full1 = $tingkat . ' ' . $namaKelas;
+        $full2 = $numericGrade . ' ' . $namaKelas;
+        $class = SchoolClass::whereRaw("CONCAT(grade_level, ' ', name) = ?", [$full1])
+            ->orWhereRaw("CONCAT(grade_level, ' ', name) = ?", [$full2])
+            ->first();
+
+        if ($class) return $class;
+
+        // 3. Coba cari berdasarkan nama kelas saja
+        return SchoolClass::where('name', $namaKelas)->first();
     }
 
     private function formatDate($val)
@@ -575,6 +800,10 @@ class ExcelParserKurikulumController extends Controller
         if ($val instanceof \DateTimeInterface) {
             return $val->format('H:i:s');
         }
-        return (string)$val;
+        $str = trim((string)$val);
+        if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $str)) {
+            return strlen($str) === 5 ? $str . ':00' : $str;
+        }
+        return $str;
     }
 }

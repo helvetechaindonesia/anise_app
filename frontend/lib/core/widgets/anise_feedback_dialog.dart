@@ -270,10 +270,15 @@ class AniseFeedbackDialog extends StatelessWidget {
             SizedBox(height: 12.h(context)),
 
             // Deskripsi Pesan
-            Text(
-              message,
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.85)),
-              textAlign: TextAlign.center,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: 280.h(context)),
+              child: SingleChildScrollView(
+                child: Text(
+                  message,
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.85)),
+                  textAlign: message.contains('\n') ? TextAlign.left : TextAlign.center,
+                ),
+              ),
             ),
             SizedBox(height: 24.h(context)),
 

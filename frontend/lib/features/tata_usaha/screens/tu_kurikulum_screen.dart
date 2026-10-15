@@ -38,7 +38,7 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
     },
     {
       'value': 'guru_wali',
-      'label': 'Guru Wali (BK / Siswa Asuh)',
+      'label': 'Guru Wali',
       'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.fill),
     },
     {
