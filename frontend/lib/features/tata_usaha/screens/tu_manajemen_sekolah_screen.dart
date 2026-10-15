@@ -15,7 +15,6 @@ import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
-import '../../notifications/screens/notification_screen.dart';
 
 class TuManajemenSekolahScreen extends ConsumerStatefulWidget {
   const TuManajemenSekolahScreen({super.key});

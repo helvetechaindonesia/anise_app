@@ -13,7 +13,6 @@ import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
-import '../../notifications/screens/notification_screen.dart';
 import 'tu_master_user_edit_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
 
