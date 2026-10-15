@@ -11,6 +11,8 @@ class ItemListTile extends StatelessWidget {
   final String title;
   final String? metadataText;
   final IconData? metadataIcon;
+  final String? secondaryMetadataText;
+  final IconData? secondaryMetadataIcon;
   final String? statusText;
   final IconData? statusIcon;
   final Color? statusColor;
@@ -30,6 +32,8 @@ class ItemListTile extends StatelessWidget {
     required this.title,
     this.metadataText,
     this.metadataIcon,
+    this.secondaryMetadataText,
+    this.secondaryMetadataIcon,
     this.statusText,
     this.statusIcon,
     this.statusColor,
@@ -103,6 +107,29 @@ class ItemListTile extends StatelessWidget {
                               child: Text(
                                 metadataText!,
                                 style: AppTextStyles.labelMedium(context, color: AppColors.onBackground).copyWith(
+                                  fontWeight: FontWeight.w400,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // 4b. Secondary Metadata (Kredensial / Info Tambahan)
+                      if (secondaryMetadataText != null && secondaryMetadataText!.isNotEmpty) ...[
+                        SizedBox(height: 4.h(context)),
+                        Row(
+                          children: [
+                            if (secondaryMetadataIcon != null) ...[
+                              Icon(secondaryMetadataIcon, size: 14.w(context), color: AppColors.onBackground.withValues(alpha: 0.6)),
+                              SizedBox(width: 6.w(context)),
+                            ],
+                            Expanded(
+                              child: Text(
+                                secondaryMetadataText!,
+                                style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.8)).copyWith(
                                   fontWeight: FontWeight.w400,
                                 ),
                                 maxLines: 1,

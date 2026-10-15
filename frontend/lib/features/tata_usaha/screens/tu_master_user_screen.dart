@@ -226,17 +226,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         final ext = fileName.split('.').last.toLowerCase();
         if (ext != 'xlsx' && ext != 'xls') {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  ext == 'pdf'
-                      ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
-                      : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
-                  style: AppTextStyles.bodyMedium(context, color: Colors.white),
-                ),
-                backgroundColor: AppColors.error,
-                duration: const Duration(seconds: 4),
-              ),
+            _showRejectionDialog(
+              ext == 'pdf'
+                  ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
+                  : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
             );
           }
           return;
@@ -308,28 +301,113 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       }
 
       if (mounted) {
-        final hasNotifWord = errorMessage.toLowerCase().contains('notifikasi');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: hasNotifWord ? 8 : 5),
-            action: hasNotifWord
-                ? SnackBarAction(
-                    label: 'Buka Notif',
-                    textColor: Colors.amberAccent,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
-                      );
-                    },
-                  )
-                : null,
-          ),
-        );
+        _showRejectionDialog(errorMessage);
       }
     }
+  }
+
+  /// Popup Dialog Penolakan Berkas Modern
+  void _showRejectionDialog(String errorMessage) {
+    if (!mounted) return;
+    final hasNotifWord = errorMessage.toLowerCase().contains('notifikasi');
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.w(context)),
+          ),
+          backgroundColor: AppColors.surface,
+          elevation: 8,
+          child: Padding(
+            padding: EdgeInsets.all(24.w(context)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56.w(context),
+                  height: 56.w(context),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Icon(
+                      PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
+                      color: AppColors.error,
+                      size: 32.w(context),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16.h(context)),
+                Text(
+                  'Berkas Ditolak',
+                  style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 12.h(context)),
+                Text(
+                  errorMessage,
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.85)),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24.h(context)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.w(context)),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 12.h(context)),
+                        ),
+                        child: Text(
+                          'Tutup',
+                          style: AppTextStyles.labelLarge(context, color: AppColors.onSurface),
+                        ),
+                      ),
+                    ),
+                    if (hasNotifWord) ...[
+                      SizedBox(width: 12.w(context)),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                            );
+                          },
+                          icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), size: 18.w(context)),
+                          label: Text(
+                            'Buka Notif',
+                            style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.w(context)),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12.h(context)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -547,8 +625,6 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       );
     }
 
-    final isSiswa = filter.toLowerCase().contains('siswa');
-
     return ListView.builder(
       padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
       itemCount: filteredUsers.length,
@@ -556,21 +632,18 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         final user = Map<String, dynamic>.from(filteredUsers[index]);
         final fullName = user['full_name'] ?? 'Unknown Name';
         final username = user['username'] ?? '-';
+        final email = user['email'] ?? '-';
+        final roleName = user['role_name'] ?? _selectedFilter ?? filter;
         final bool isActive = user['is_active'] == true || user['is_active'] == 1;
         final bool isLast = index == filteredUsers.length - 1;
 
-        String idNumber = username;
-        if (isSiswa && user['siswa_profile']?['nisn'] != null) {
-          idNumber = user['siswa_profile']['nisn'].toString();
-        } else if (!isSiswa && user['guru_profile']?['nip_nuptk'] != null) {
-          idNumber = user['guru_profile']['nip_nuptk'].toString();
-        }
-
         final tile = ItemListTile(
-          category: 'Hak Akses: ${_formatRoleName(filter)}',
+          category: 'Hak Akses: ${_formatRoleName(roleName)}',
           title: fullName,
-          metadataIcon: isSiswa ? PhosphorIcons.student() : PhosphorIcons.identificationBadge(),
-          metadataText: isSiswa ? 'NISN/User: $idNumber' : 'NIP/User: $idNumber',
+          metadataIcon: PhosphorIcons.envelope(),
+          metadataText: 'Email: $email',
+          secondaryMetadataIcon: PhosphorIcons.identificationCard(),
+          secondaryMetadataText: 'Kredensial: $username',
           statusIcon: isActive
               ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
               : PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
