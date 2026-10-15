@@ -3,14 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
-
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
+import '../../../core/widgets/anise_search_bar.dart';
+import '../../../core/widgets/anise_slidable_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
 import 'tu_master_user_edit_screen.dart';
@@ -329,48 +329,11 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
 
   /// 1. Search Bar Realtime
   Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-            SizedBox(width: 12.w(context)),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: 'Cari nama, username, NISN, atau NIP...',
-                  hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            if (_searchController.text.isNotEmpty)
-              IconButton(
-                icon: Icon(PhosphorIcons.xCircle(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onSurface.withValues(alpha: 0.4)),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {});
-                },
-              ),
-          ],
-        ),
-      ),
+    return AniseSearchBar(
+      controller: _searchController,
+      hintText: 'Cari nama, username, NISN, atau NIP...',
+      onChanged: (_) => setState(() {}),
+      onClear: () => setState(() {}),
     );
   }
 
@@ -587,47 +550,22 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           ),
         );
 
-        return Slidable(
+        return AniseSlidableTile(
           key: ValueKey(user['id'] ?? index),
-          endActionPane: ActionPane(
-            motion: const DrawerMotion(),
-            extentRatio: 0.65,
-            children: [
-              SlidableAction(
-                onPressed: (_) async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
-                    ),
-                  );
-                  if (result == true) {
-                    _fetchUsers();
-                  }
-                },
-                backgroundColor: AppColors.warning,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
-                label: 'Edit',
-                borderRadius: BorderRadius.horizontal(left: Radius.circular(12.w(context))),
+          isFrozen: !isActive,
+          onEdit: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
               ),
-              SlidableAction(
-                onPressed: (_) => _toggleFreezeUser(user),
-                backgroundColor: AppColors.menuPastelBlue,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
-                label: isActive ? 'Freeze' : 'Aktifkan',
-              ),
-              SlidableAction(
-                onPressed: (_) => _confirmDeleteUser(user),
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
-                label: 'Hapus',
-                borderRadius: BorderRadius.horizontal(right: Radius.circular(12.w(context))),
-              ),
-            ],
-          ),
+            );
+            if (result == true) {
+              _fetchUsers();
+            }
+          },
+          onFreeze: () => _toggleFreezeUser(user),
+          onDelete: () => _confirmDeleteUser(user),
           child: tile,
         );
       },

@@ -37,6 +37,8 @@ Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. 
 
 ---
 
+---
+
 ## 📢 4. Modal & Dialog Umpan Balik (Modals & Feedback)
 
 | Komponen | Peran & Letak | Tautan Dokumen Detail |
@@ -45,8 +47,18 @@ Dokumen ini adalah **peta induk (blueprint)** seluruh komponen antarmuka Anise. 
 
 ---
 
+## 🔍 5. Pencarian & Aksi Geser (Search & Swipe Actions)
+
+| Komponen | Peran & Letak | Tautan Dokumen Detail |
+| :--- | :--- | :--- |
+| **`AniseSearchBar`** | Bilah pencarian real-time terstandarisasi dengan ikon kaca pembesar dan tombol clear reaktif otomatis. | [specs/anise_search_bar.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_search_bar.md) |
+| **`AniseSlidableTile`** | Pembungkus aksi geser CRUD (Edit, Freeze/Aktifkan, Hapus) dengan rasio lebar adaptif dan warna token baku. | [specs/anise_slidable_tile.md](file:///f:/projek/anise_app/docs/frontend/UI/components/specs/anise_slidable_tile.md) |
+
+---
+
 ## 📌 Aturan Penggunaan Komponen
 1. **Single Source of Truth:** Semua widget terstandarisasi diletakkan di `lib/core/widgets/` (atau direktori widget modul terkait).
 2. **Strict Design Tokens:** Dilarang memberi warna di luar `AppColors` dan dilarang ukuran font di luar `AppTextStyles`.
 3. **Fluid Layout:** Semua dimensi margin, padding, dan radius wajib menggunakan extension `.w(context)` dan `.h(context)`.
 4. **Header Cleanliness Policy:** Ikon notifikasi (lonceng) DILARANG ditaruh pada sub-header halaman turunan; hanya eksklusif di Header Dashboard Utama (`MainHeader`).
+

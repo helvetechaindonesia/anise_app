@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import 'package:flutter_slidable/flutter_slidable.dart';
-
 import 'tu_geofence_settings_screen.dart';
 import 'tu_hari_nonaktif_settings_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
@@ -13,6 +11,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
+import '../../../core/widgets/anise_search_bar.dart';
+import '../../../core/widgets/anise_slidable_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
 
@@ -332,48 +332,11 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
 
   /// 4. Search Bar
   Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-            SizedBox(width: 12.w(context)),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  hintText: 'Cari data $_selectedCategory...',
-                  hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            if (_searchController.text.isNotEmpty)
-              IconButton(
-                icon: Icon(PhosphorIcons.xCircle(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onSurface.withValues(alpha: 0.4)),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {});
-                },
-              ),
-          ],
-        ),
-      ),
+    return AniseSearchBar(
+      controller: _searchController,
+      hintText: 'Cari data $_selectedCategory...',
+      onChanged: (_) => setState(() {}),
+      onClear: () => setState(() {}),
     );
   }
 
@@ -519,31 +482,11 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
       return tile;
     }
 
-    // Swipe Menu untuk Aksi Cepat Edit & Hapus
-    return Slidable(
+    // Swipe Menu terstandarisasi untuk Aksi Cepat Edit & Hapus
+    return AniseSlidableTile(
       key: ValueKey(item['id'] ?? title),
-      endActionPane: ActionPane(
-        motion: const DrawerMotion(),
-        extentRatio: 0.45,
-        children: [
-          SlidableAction(
-            onPressed: (_) => TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData),
-            backgroundColor: AppColors.warning,
-            foregroundColor: Colors.white,
-            icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
-            label: 'Edit',
-            borderRadius: BorderRadius.horizontal(left: Radius.circular(12.w(context))),
-          ),
-          SlidableAction(
-            onPressed: (_) => TuManajemenSekolahDialogs.confirmDelete(context, ref, type, item, _fetchMasterData),
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
-            label: 'Hapus',
-            borderRadius: BorderRadius.horizontal(right: Radius.circular(12.w(context))),
-          ),
-        ],
-      ),
+      onEdit: () => TuManajemenSekolahDialogs.showEditDialog(context, ref, type, item, _fetchMasterData),
+      onDelete: () => TuManajemenSekolahDialogs.confirmDelete(context, ref, type, item, _fetchMasterData),
       child: tile,
     );
   }
