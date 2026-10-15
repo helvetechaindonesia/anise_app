@@ -15,6 +15,8 @@ use App\Models\SchoolClass;
 use App\Models\Jabatan;
 use App\Models\AcademicYear;
 use App\Models\User;
+use App\Models\AcademicCalendar;
+use App\Models\SchoolHoliday;
 
 class ExcelParserKurikulumController extends Controller
 {
@@ -43,6 +45,10 @@ class ExcelParserKurikulumController extends Controller
                     $errors = $this->parseWaliKelas($collection);
                 } elseif ($type === 'guru_wali') {
                     $errors = $this->parseGuruWali($collection, $academicYear);
+                } elseif ($type === 'kalender_akademik') {
+                    $errors = $this->parseKalenderAkademik($collection, $academicYear);
+                } elseif ($type === 'hari_libur') {
+                    $errors = $this->parseHariLibur($collection, $academicYear);
                 } else {
                     throw new \Exception("Tipe kurikulum tidak valid: $type");
                 }
@@ -323,6 +329,105 @@ class ExcelParserKurikulumController extends Controller
             }
         }
         return $errors;
+    }
+
+    private function parseKalenderAkademik($collection, $academicYear)
+    {
+        $errors = [];
+        $rowNum = 1;
+        // Kolom: Nama Agenda (0), Tanggal Mulai (1), Tanggal Selesai (2), Libur Kegiatan (3) (Ya/Tidak)
+        $isFirst = true;
+        foreach ($collection as $row) {
+            $rowNum++;
+            if ($isFirst) {
+                $isFirst = false;
+                continue;
+            }
+
+            $values = array_values((array)$row);
+            $nama = $values[0] ?? null;
+            $start = $this->formatDate($values[1] ?? null);
+            $end = $this->formatDate($values[2] ?? null) ?? $start;
+            $isHolidayVal = strtolower(trim((string)($values[3] ?? 'tidak')));
+            $isHoliday = in_array($isHolidayVal, ['ya', 'true', '1', 'yes']);
+
+            if (empty($nama) || empty($start)) {
+                $errors[] = "Baris $rowNum: Nama agenda atau tanggal mulai kosong.";
+                continue;
+            }
+
+            AcademicCalendar::updateOrCreate(
+                [
+                    'name' => $nama,
+                    'academic_year_id' => $academicYear ? $academicYear->id : null,
+                ],
+                [
+                    'start_date' => $start,
+                    'end_date' => $end,
+                    'is_holiday' => $isHoliday,
+                ]
+            );
+        }
+        return $errors;
+    }
+
+    private function parseHariLibur($collection, $academicYear)
+    {
+        $errors = [];
+        $rowNum = 1;
+        // Kolom: Nama Hari Libur (0), Tanggal Mulai (1), Tanggal Selesai (2), Tipe (3), Keterangan (4)
+        $isFirst = true;
+        foreach ($collection as $row) {
+            $rowNum++;
+            if ($isFirst) {
+                $isFirst = false;
+                continue;
+            }
+
+            $values = array_values((array)$row);
+            $nama = $values[0] ?? null;
+            $start = $this->formatDate($values[1] ?? null);
+            $end = $this->formatDate($values[2] ?? null) ?? $start;
+            $type = strtoupper(trim((string)($values[3] ?? 'NASIONAL')));
+            if (!in_array($type, ['NASIONAL', 'SEKOLAH', 'CUTI_BERSAMA', 'KHUSUS'])) {
+                $type = 'NASIONAL';
+            }
+            $description = $values[4] ?? null;
+
+            if (empty($nama) || empty($start)) {
+                $errors[] = "Baris $rowNum: Nama hari libur atau tanggal mulai kosong.";
+                continue;
+            }
+
+            SchoolHoliday::updateOrCreate(
+                [
+                    'name' => $nama,
+                    'start_date' => $start,
+                ],
+                [
+                    'end_date' => $end,
+                    'type' => $type,
+                    'description' => $description,
+                    'academic_year_id' => $academicYear ? $academicYear->id : null,
+                    'is_active' => true,
+                ]
+            );
+        }
+        return $errors;
+    }
+
+    private function formatDate($val)
+    {
+        if (empty($val)) return null;
+        if ($val instanceof \DateTimeInterface) {
+            return $val->format('Y-m-d');
+        }
+        $str = trim((string)$val);
+        $timestamp = strtotime($str);
+        if ($timestamp !== false) {
+            return date('Y-m-d', $timestamp);
+        }
+        return $str;
     }
 
     private function formatTime($val)

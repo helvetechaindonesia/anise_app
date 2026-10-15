@@ -1,32 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:dio/dio.dart';
+
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
+import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/anise_search_bar.dart';
+import '../../../core/widgets/anise_dropdown.dart';
+import '../../../core/widgets/item_list_tile.dart';
+import '../../../core/widgets/anise_slidable_tile.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/network/dio_client.dart';
-
-final kurikulumFilterProvider = StateProvider<String>((ref) => 'Wali Kelas');
-
-final kurikulumDataProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
-  final type = ref.watch(kurikulumFilterProvider);
-  final dio = ref.read(dioProvider);
-  String endpoint = '';
-  switch (type) {
-    case 'Wali Kelas': endpoint = '/master/wali-kelas'; break;
-    case 'Guru Wali': endpoint = '/master/guru-wali'; break;
-    case 'Penugasan': endpoint = '/master/penugasan'; break;
-    case 'Mapel': endpoint = '/master/mapel'; break;
-    case 'Jadwal KBM': endpoint = '/master/schedules'; break;
-  }
-  final response = await dio.get(endpoint);
-  return response.data['data'] as List<dynamic>;
-});
+import '../widgets/custom_expandable_fab.dart';
+import '../widgets/tu_kurikulum_dialogs.dart';
 
 class TuKurikulumScreen extends ConsumerStatefulWidget {
-  const TuKurikulumScreen({Key? key}) : super(key: key);
+  const TuKurikulumScreen({super.key});
 
   @override
   ConsumerState<TuKurikulumScreen> createState() => _TuKurikulumScreenState();
@@ -34,7 +25,56 @@ class TuKurikulumScreen extends ConsumerStatefulWidget {
 
 class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
   final TextEditingController _searchController = TextEditingController();
-  bool _isUploading = false;
+  String _searchQuery = '';
+  String _selectedCategory = 'wali_kelas';
+  bool _isLoading = true;
+  List<dynamic> _items = [];
+
+  final List<Map<String, dynamic>> _categories = [
+    {
+      'value': 'wali_kelas',
+      'label': 'Wali Kelas',
+      'icon': PhosphorIcons.chalkboardTeacher(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'guru_wali',
+      'label': 'Guru Wali (BK / Siswa Asuh)',
+      'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'penugasan',
+      'label': 'Penugasan Tambahan',
+      'icon': PhosphorIcons.briefcase(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'mapel',
+      'label': 'Mata Pelajaran (Mapel)',
+      'icon': PhosphorIcons.books(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'jadwal',
+      'label': 'Jadwal KBM',
+      'icon': PhosphorIcons.calendar(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'kalender_akademik',
+      'label': 'Kalender Akademik',
+      'icon': PhosphorIcons.calendarCheck(PhosphorIconsStyle.fill),
+    },
+    {
+      'value': 'hari_libur',
+      'label': 'Hari Libur Nasional & Sekolah',
+      'icon': PhosphorIcons.sun(PhosphorIconsStyle.fill),
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchData();
+    });
+  }
 
   @override
   void dispose() {
@@ -42,411 +82,426 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
     super.dispose();
   }
 
+  String _getEndpoint(String category) {
+    switch (category) {
+      case 'wali_kelas':
+        return '/curriculum/classes';
+      case 'guru_wali':
+        return '/curriculum/guru-wali';
+      case 'penugasan':
+        return '/curriculum/assignments';
+      case 'mapel':
+        return '/curriculum/subjects';
+      case 'jadwal':
+        return '/curriculum/schedules';
+      case 'kalender_akademik':
+        return '/curriculum/academic-calendars';
+      case 'hari_libur':
+        return '/curriculum/holidays';
+      default:
+        return '/curriculum/classes';
+    }
+  }
+
+  Future<void> _fetchData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dio = ref.read(dioProvider);
+      final endpoint = _getEndpoint(_selectedCategory);
+      final response = await dio.get(endpoint);
+
+      if (mounted) {
+        setState(() {
+          _items = response.data['data'] as List<dynamic>? ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _items = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  List<dynamic> _getFilteredItems() {
+    if (_searchQuery.trim().isEmpty) return _items;
+
+    final q = _searchQuery.toLowerCase();
+    return _items.where((item) {
+      if (_selectedCategory == 'wali_kelas') {
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final wali = (item['wali_kelas']?['full_name'] ?? '').toString().toLowerCase();
+        final code = (item['code'] ?? '').toString().toLowerCase();
+        return name.contains(q) || wali.contains(q) || code.contains(q);
+      } else if (_selectedCategory == 'guru_wali') {
+        final student = (item['student']?['full_name'] ?? '').toString().toLowerCase();
+        final guru = (item['guru']?['full_name'] ?? '').toString().toLowerCase();
+        return student.contains(q) || guru.contains(q);
+      } else if (_selectedCategory == 'penugasan') {
+        final guru = (item['guru']?['full_name'] ?? '').toString().toLowerCase();
+        final jabatan = (item['jabatan']?['name'] ?? '').toString().toLowerCase();
+        return guru.contains(q) || jabatan.contains(q);
+      } else if (_selectedCategory == 'mapel') {
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final code = (item['code'] ?? '').toString().toLowerCase();
+        return name.contains(q) || code.contains(q);
+      } else if (_selectedCategory == 'jadwal') {
+        final subject = (item['subject']?['name'] ?? item['activity_name'] ?? '').toString().toLowerCase();
+        final teacher = (item['teacher']?['full_name'] ?? '').toString().toLowerCase();
+        final className = (item['class']?['name'] ?? '').toString().toLowerCase();
+        final day = (item['day_of_week'] ?? '').toString().toLowerCase();
+        return subject.contains(q) || teacher.contains(q) || className.contains(q) || day.contains(q);
+      } else if (_selectedCategory == 'kalender_akademik') {
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final start = (item['start_date'] ?? '').toString().toLowerCase();
+        return name.contains(q) || start.contains(q);
+      } else if (_selectedCategory == 'hari_libur') {
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final type = (item['type'] ?? '').toString().toLowerCase();
+        final desc = (item['description'] ?? '').toString().toLowerCase();
+        return name.contains(q) || type.contains(q) || desc.contains(q);
+      }
+      return false;
+    }).toList();
+  }
+
+  void _handleManualAdd() {
+    switch (_selectedCategory) {
+      case 'mapel':
+        TuKurikulumDialogs.showMapelForm(context, ref, onSuccess: _fetchData);
+        break;
+      case 'kalender_akademik':
+        TuKurikulumDialogs.showKalenderAkademikForm(context, ref, onSuccess: _fetchData);
+        break;
+      case 'hari_libur':
+        TuKurikulumDialogs.showHariLiburForm(context, ref, onSuccess: _fetchData);
+        break;
+      default:
+        // Untuk data yang biasanya terdistribusi dari file induk
+        TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final selectedFilter = ref.watch(kurikulumFilterProvider);
-    final dataAsync = ref.watch(kurikulumDataProvider);
+    final filtered = _getFilteredItems();
+    final categoryMeta = _categories.firstWhere(
+      (c) => c['value'] == _selectedCategory,
+      orElse: () => _categories.first,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundLight,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Kurikulum',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-        ),
+      appBar: const AniseAppBar(
+        title: 'Kurikulum',
       ),
       body: DecorativeBackground(
         child: SafeArea(
           child: Column(
             children: [
-              _buildSearchBar(context),
-              _buildDropdownFilter(context, selectedFilter),
-              Expanded(
-                child: dataAsync.when(
-                  data: (data) => _buildDataList(context, selectedFilter, data),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Gagal memuat data: $err')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _showUploadOptions(context);
-        },
-        backgroundColor: AppColors.primary,
-        icon: Icon(PhosphorIcons.upload(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-        label: Text('Upload Excel', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
-      ),
-    );
-  }
-
-  void _showUploadOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: EdgeInsets.only(
-          top: 24,
-          left: 24,
-          right: 24,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.outline.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Upload Data Kurikulum',
-                  style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Pilih jenis data konektor/penugasan yang ingin diupload.',
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                ),
-                const SizedBox(height: 16),
-                _buildUploadOption(context, 'Master Wali Kelas', PhosphorIcons.chalkboardTeacher()),
-                _buildUploadOption(context, 'Master Guru Wali (BK)', PhosphorIcons.usersThree()),
-                _buildUploadOption(context, 'Master Penugasan', PhosphorIcons.briefcase()),
-                _buildUploadOption(context, 'Master Mapel', PhosphorIcons.books()),
-                _buildUploadOption(context, 'Master Jadwal KBM', PhosphorIcons.calendar()),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleUpload(String title) async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls'],
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        PlatformFile picked = result.files.first;
-        String? filePath = picked.path;
-        String? fileName = picked.name;
-        
-        if (filePath == null) return;
-
-        setState(() {
-          _isUploading = true;
-        });
-
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext context) {
-              return Dialog(
-                backgroundColor: AppColors.surface,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 24),
-                      Text('Mengupload data ${title}...', style: AppTextStyles.bodyMedium(context)),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        }
-
-        String type = 'mapel';
-        String lowerTitle = title.toLowerCase().replaceAll('_', ' ');
-        if (lowerTitle.contains('wali kelas')) type = 'wali_kelas';
-        else if (lowerTitle.contains('guru wali')) type = 'guru_wali';
-        else if (lowerTitle.contains('penugasan')) type = 'penugasan';
-        else if (lowerTitle.contains('mapel')) type = 'mapel';
-        else if (lowerTitle.contains('jadwal')) type = 'jurnal_mengajar';
-
-        FormData formData = FormData.fromMap({
-          'file': await MultipartFile.fromFile(filePath, filename: fileName),
-        });
-
-        final dio = ref.read(dioProvider);
-        final response = await dio.post('/parse/kurikulum/$type', data: formData);
-
-        if (mounted) {
-          Navigator.pop(context); // close dialog
-        }
-
-        setState(() {
-          _isUploading = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response.data['message'] ?? 'Upload berhasil!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-          ref.invalidate(kurikulumDataProvider); // Refresh data
-        }
-      }
-    } catch (e) {
-      if (_isUploading && mounted) {
-        Navigator.pop(context);
-        setState(() {
-          _isUploading = false;
-        });
-      }
-      
-      String errorMessage = 'Gagal mengupload file: $e';
-      
-      if (e is DioException && e.response?.data != null) {
-        if (e.response!.data is Map && e.response!.data['message'] != null) {
-          errorMessage = e.response!.data['message']; // The backend sends our formatted message!
-        }
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 6),
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _buildUploadOption(BuildContext context, String title, IconData icon) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.primaryContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: AppColors.primary),
-      ),
-      title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
-      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3)),
-      contentPadding: EdgeInsets.zero,
-      onTap: () {
-        Navigator.pop(context); // Pops the bottom sheet
-        _handleUpload(title);
-      },
-    );
-  }
-
-
-
-  Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
+              // 1. Search Bar Terstandarisasi
+              AniseSearchBar(
                 controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Cari jadwal, guru, mapel...',
-                  hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-                  border: InputBorder.none,
+                hintText: 'Cari data ${categoryMeta['label']}...',
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
+                onClear: () {
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+              ),
+
+              // 2. Dropdown Kategori Terstandarisasi
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
+                child: AniseDropdown<String>(
+                  value: _selectedCategory,
+                  items: _categories.map((cat) {
+                    return DropdownMenuItem<String>(
+                      value: cat['value'] as String,
+                      child: Row(
+                        children: [
+                          Icon(cat['icon'] as IconData, size: 18.w(context), color: AppColors.primary),
+                          SizedBox(width: 10.w(context)),
+                          Expanded(
+                            child: Text(
+                              cat['label'] as String,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (newVal) {
+                    if (newVal != null && newVal != _selectedCategory) {
+                      setState(() {
+                        _selectedCategory = newVal;
+                        _searchController.clear();
+                        _searchQuery = '';
+                      });
+                      _fetchData();
+                    }
+                  },
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildDropdownFilter(BuildContext context, String selectedFilter) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedFilter,
-          isExpanded: true,
-          icon: Icon(PhosphorIcons.caretDown(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-          style: AppTextStyles.titleSmall(context, color: AppColors.onSurface),
-          onChanged: (String? newValue) {
-            if (newValue != null) {
-              ref.read(kurikulumFilterProvider.notifier).state = newValue;
-            }
-          },
-          items: <String>['Wali Kelas', 'Guru Wali', 'Penugasan', 'Mapel', 'Jadwal KBM']
-              .map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDataList(BuildContext context, String type, List<dynamic> data) {
-    if (data.isEmpty) {
-      return Center(
-        child: Text(
-          'Tidak ada data untuk $type',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-        ),
-      );
-    }
-
-    IconData icon;
-    switch (type) {
-      case 'Wali Kelas': icon = PhosphorIcons.chalkboardTeacher(); break;
-      case 'Guru Wali': icon = PhosphorIcons.usersThree(); break;
-      case 'Penugasan': icon = PhosphorIcons.briefcase(); break;
-      case 'Mapel': icon = PhosphorIcons.books(); break;
-      case 'Jadwal KBM': icon = PhosphorIcons.calendar(); break;
-      default: icon = PhosphorIcons.file();
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 80),
-      itemCount: data.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final item = data[index];
-        String titleText = '';
-        String subtitleText = '';
-
-        if (type == 'Wali Kelas') {
-          titleText = item['name'] ?? '';
-          subtitleText = 'Wali Kelas: ${item['wali_kelas']?['full_name'] ?? '-'}';
-        } else if (type == 'Guru Wali') {
-          titleText = item['student']?['full_name'] ?? '';
-          subtitleText = 'Guru Wali: ${item['guru']?['full_name'] ?? '-'}';
-        } else if (type == 'Penugasan') {
-          titleText = item['guru']?['full_name'] ?? '';
-          subtitleText = 'Jabatan: ${item['jabatan']?['name'] ?? '-'}';
-        } else if (type == 'Mapel') {
-          titleText = item['name'] ?? '';
-          subtitleText = 'Kode: ${item['code'] ?? '-'}';
-        } else if (type == 'Jadwal KBM') {
-          if (item['subject'] != null) {
-            titleText = '${item['subject']['name']} - ${item['class']?['name'] ?? ''}';
-          } else {
-            titleText = '${item['activity_name'] ?? 'Kegiatan'} - ${item['class']?['name'] ?? ''}';
-          }
-          
-          String teacherName = item['teacher']?['full_name'] ?? 'Tanpa Guru';
-          subtitleText = '${item['day_of_week'] ?? ''}, ${item['start_time']} - ${item['end_time']} ($teacherName)';
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              )
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: AppColors.primary),
-              ),
-              const SizedBox(width: 16),
+              // 3. List Data Terstandarisasi dengan Pull-To-Refresh
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      titleText,
-                      style: AppTextStyles.titleSmall(context, color: AppColors.onSurface),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitleText,
-                      style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-                    ),
-                  ],
-                ),
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : RefreshIndicator(
+                        onRefresh: _fetchData,
+                        color: AppColors.primary,
+                        child: filtered.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  SizedBox(height: 60.h(context)),
+                                  AniseEmptyState(
+                                    title: 'Belum Ada Data ${categoryMeta['label']}',
+                                    subtitle: _searchQuery.isNotEmpty
+                                        ? 'Tidak ditemukan data yang cocok dengan kata kunci "$_searchQuery".'
+                                        : 'Master data untuk kategori ini belum tersedia atau disinkronkan.',
+                                  ),
+                                ],
+                              )
+                            : ListView.separated(
+                                padding: EdgeInsets.only(
+                                  left: 24.w(context),
+                                  right: 24.w(context),
+                                  top: 8.h(context),
+                                  bottom: 100.h(context),
+                                ),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) => SizedBox(height: 12.h(context)),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final isLast = index == filtered.length - 1;
+                                  return _buildItemRow(context, item, categoryMeta['label'] as String, isLast);
+                                },
+                              ),
+                      ),
               ),
-              Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.4)),
             ],
           ),
+        ),
+      ),
+      floatingActionButton: CustomExpandableFab(
+        onUploadPressed: () {
+          TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
+        },
+        onAddPressed: _handleManualAdd,
+      ),
+    );
+  }
+
+  Widget _buildItemRow(BuildContext context, Map<String, dynamic> item, String categoryLabel, bool isLast) {
+    String title = '';
+    String subtitle = '';
+    String? detail;
+    IconData icon = PhosphorIcons.file();
+
+    VoidCallback? onEdit;
+    VoidCallback? onDelete;
+
+    if (_selectedCategory == 'wali_kelas') {
+      title = 'Kelas ${item['name'] ?? '-'}';
+      final waliName = item['wali_kelas']?['full_name'];
+      subtitle = 'Wali: ${waliName ?? 'Belum Ditentukan'}';
+      detail = 'Kode: ${item['code'] ?? '-'} • Jurusan: ${item['major']?['name'] ?? 'Umum'}';
+      icon = PhosphorIcons.chalkboardTeacher(PhosphorIconsStyle.fill);
+    } else if (_selectedCategory == 'guru_wali') {
+      title = item['student']?['full_name'] ?? '-';
+      subtitle = 'Guru Wali: ${item['guru']?['full_name'] ?? '-'}';
+      detail = 'Tahun Ajaran: ${item['academic_year']?['name'] ?? '-'}';
+      icon = PhosphorIcons.usersThree(PhosphorIconsStyle.fill);
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Guru Wali',
+          '/curriculum/guru-wali',
+          item['id'].toString(),
+          title,
+          _fetchData,
         );
-      },
+      };
+    } else if (_selectedCategory == 'penugasan') {
+      title = item['guru']?['full_name'] ?? '-';
+      subtitle = 'Jabatan: ${item['jabatan']?['name'] ?? '-'}';
+      detail = 'Tahun: ${item['academic_year']?['name'] ?? '-'}';
+      icon = PhosphorIcons.briefcase(PhosphorIconsStyle.fill);
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Penugasan',
+          '/curriculum/assignments',
+          item['id'].toString(),
+          title,
+          _fetchData,
+        );
+      };
+    } else if (_selectedCategory == 'mapel') {
+      title = item['name'] ?? '-';
+      subtitle = 'Kode: ${item['code'] ?? '-'}';
+      detail = 'KKM Kelulusan: ${item['passing_grade'] ?? '75'}';
+      icon = PhosphorIcons.books(PhosphorIconsStyle.fill);
+      onEdit = () {
+        TuKurikulumDialogs.showMapelForm(context, ref, item: item, onSuccess: _fetchData);
+      };
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Mata Pelajaran',
+          '/curriculum/subjects',
+          item['id'].toString(),
+          title,
+          _fetchData,
+        );
+      };
+    } else if (_selectedCategory == 'jadwal') {
+      final subjectName = item['subject']?['name'] ?? item['activity_name'] ?? 'Kegiatan';
+      final className = item['class']?['name'] ?? '';
+      title = '$subjectName ($className)';
+      final day = item['day_of_week'] ?? '';
+      final start = item['start_time'] ?? '';
+      final end = item['end_time'] ?? '';
+      subtitle = '$day • $start - $end';
+      detail = 'Guru: ${item['teacher']?['full_name'] ?? 'Tanpa Guru'}';
+      icon = PhosphorIcons.calendar(PhosphorIconsStyle.fill);
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Jadwal KBM',
+          '/curriculum/schedules',
+          item['id'].toString(),
+          title,
+          _fetchData,
+        );
+      };
+    } else if (_selectedCategory == 'kalender_akademik') {
+      title = item['name'] ?? '-';
+      subtitle = '${item['start_date']} s/d ${item['end_date']}';
+      final isHoli = item['is_holiday'] == true;
+      detail = isHoli ? '🔴 Libur Kegiatan / Pembelajaran' : '🔵 Agenda Ujian / Kegiatan Aktif';
+      icon = PhosphorIcons.calendarCheck(PhosphorIconsStyle.fill);
+      onEdit = () {
+        TuKurikulumDialogs.showKalenderAkademikForm(context, ref, item: item, onSuccess: _fetchData);
+      };
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Kalender Akademik',
+          '/curriculum/academic-calendars',
+          item['id'].toString(),
+          title,
+          _fetchData,
+        );
+      };
+    } else if (_selectedCategory == 'hari_libur') {
+      title = item['name'] ?? '-';
+      subtitle = '${item['start_date']} s/d ${item['end_date']}';
+      final type = item['type'] ?? 'NASIONAL';
+      final desc = item['description'] != null ? ' • ${item['description']}' : '';
+      detail = 'Tipe: $type$desc';
+      icon = PhosphorIcons.sun(PhosphorIconsStyle.fill);
+      onEdit = () {
+        TuKurikulumDialogs.showHariLiburForm(context, ref, item: item, onSuccess: _fetchData);
+      };
+      onDelete = () {
+        TuKurikulumDialogs.confirmDelete(
+          context,
+          ref,
+          'Hari Libur',
+          '/curriculum/holidays',
+          item['id'].toString(),
+          title,
+          _fetchData,
+        );
+      };
+    }
+
+    final hasAction = onEdit != null || onDelete != null;
+
+    final tile = ItemListTile(
+      category: categoryLabel,
+      title: title,
+      metadataIcon: icon,
+      metadataText: subtitle,
+      secondaryMetadataText: detail,
+      showDivider: !isLast,
+      trailing: hasAction
+          ? PopupMenuButton<String>(
+              icon: Icon(
+                PhosphorIcons.list(PhosphorIconsStyle.bold),
+                color: AppColors.onSurface.withValues(alpha: 0.6),
+                size: 22.w(context),
+              ),
+              color: AppColors.surface,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+              onSelected: (value) {
+                if (value == 'edit' && onEdit != null) {
+                  onEdit();
+                } else if (value == 'delete' && onDelete != null) {
+                  onDelete();
+                }
+              },
+              itemBuilder: (context) => [
+                if (onEdit != null)
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.warning),
+                        SizedBox(width: 10.w(context)),
+                        Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                      ],
+                    ),
+                  ),
+                if (onDelete != null)
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.error),
+                        SizedBox(width: 10.w(context)),
+                        Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                      ],
+                    ),
+                  ),
+              ],
+            )
+          : null,
+    );
+
+    if (!hasAction) {
+      return tile;
+    }
+
+    return AniseSlidableTile(
+      key: ValueKey(item['id'] ?? title),
+      onEdit: onEdit,
+      onDelete: onDelete,
+      child: tile,
     );
   }
 }

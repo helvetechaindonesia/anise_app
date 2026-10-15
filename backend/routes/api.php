@@ -171,22 +171,61 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 13. KURIKULUM (MASTER DATA)
     // ==========================================
     Route::prefix('curriculum')->middleware('role:TATA_USAHA')->group(function () {
+        // 1. Kelas & Wali Kelas
         Route::get('/classes', [CurriculumController::class, 'getClasses']);
         Route::post('/classes', [CurriculumController::class, 'storeClass']);
         Route::put('/classes/{id}', [CurriculumController::class, 'updateClass']);
         Route::delete('/classes/{id}', [CurriculumController::class, 'deleteClass']);
+        Route::put('/classes/{id}/wali-kelas', [CurriculumController::class, 'assignWaliKelas']);
         
+        // 2. Guru Wali & Siswa Asuh
+        Route::get('/guru-wali', [CurriculumController::class, 'getGuruWali']);
+        Route::post('/guru-wali', [CurriculumController::class, 'storeGuruWali']);
+        Route::delete('/guru-wali/{id}', [CurriculumController::class, 'deleteGuruWali']);
+
+        // 3. Mata Pelajaran (Mapel)
         Route::get('/subjects', [CurriculumController::class, 'getSubjects']);
+        Route::post('/subjects', [CurriculumController::class, 'storeSubject']);
+        Route::put('/subjects/{id}', [CurriculumController::class, 'updateSubject']);
         Route::delete('/subjects/{id}', [CurriculumController::class, 'deleteSubject']);
         
+        // 4. Jadwal KBM
         Route::get('/schedules', [CurriculumController::class, 'getSchedules']);
+        Route::post('/schedules', [CurriculumController::class, 'storeSchedule']);
+        Route::put('/schedules/{id}', [CurriculumController::class, 'updateSchedule']);
         Route::delete('/schedules/{id}', [CurriculumController::class, 'deleteSchedule']);
         
+        // 5. Penugasan Struktural
         Route::get('/assignments', [CurriculumController::class, 'getStructuralAssignments']);
+        Route::post('/assignments', [CurriculumController::class, 'storeStructuralAssignment']);
         Route::delete('/assignments/{id}', [CurriculumController::class, 'deleteStructuralAssignment']);
         
-        // Excel Parser (TBD)
+        // 6. Kalender Akademik (Agenda Kegiatan & Sumatif)
+        Route::get('/academic-calendars', [CurriculumController::class, 'getAcademicCalendars']);
+        Route::post('/academic-calendars', [CurriculumController::class, 'storeAcademicCalendar']);
+        Route::put('/academic-calendars/{id}', [CurriculumController::class, 'updateAcademicCalendar']);
+        Route::delete('/academic-calendars/{id}', [CurriculumController::class, 'deleteAcademicCalendar']);
+
+        // 7. Hari Libur (Holidays)
+        Route::get('/holidays', [HolidayController::class, 'index']);
+        Route::post('/holidays', [HolidayController::class, 'store']);
+        Route::get('/holidays/{id}', [HolidayController::class, 'show']);
+        Route::put('/holidays/{id}', [HolidayController::class, 'update']);
+        Route::delete('/holidays/{id}', [HolidayController::class, 'destroy']);
+        Route::get('/holidays-check', [HolidayController::class, 'checkDate']);
+
+        // 8. Excel Parser
         Route::post('/parse/{type}', [ExcelParserKurikulumController::class, 'parseKurikulum']);
+    });
+
+    // Alias untuk /school/holidays sesuai test suite
+    Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
+        Route::get('/holidays', [HolidayController::class, 'index']);
+        Route::post('/holidays', [HolidayController::class, 'store']);
+        Route::get('/holidays/{id}', [HolidayController::class, 'show']);
+        Route::put('/holidays/{id}', [HolidayController::class, 'update']);
+        Route::delete('/holidays/{id}', [HolidayController::class, 'destroy']);
+        Route::get('/holidays-check', [HolidayController::class, 'checkDate']);
     });
 
     // ==========================================
