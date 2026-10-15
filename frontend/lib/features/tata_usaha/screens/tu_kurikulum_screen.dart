@@ -106,18 +106,21 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
   List<dynamic> _groupHolidays(List<dynamic> rawHolidays) {
     if (rawHolidays.isEmpty) return [];
 
-    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    // 1. Kelompokkan data mentah berdasarkan nama/keterangan yang sama
+    final Map<String, List<Map<String, dynamic>>> groupedByName = {};
 
     for (final raw in rawHolidays) {
       if (raw is! Map<String, dynamic>) continue;
       final name = (raw['name'] ?? raw['description'] ?? 'Hari Libur').toString().trim();
       final key = name.toLowerCase();
-      grouped.putIfAbsent(key, () => []).add(raw);
+      groupedByName.putIfAbsent(key, () => []).add(raw);
     }
 
     final List<Map<String, dynamic>> result = [];
 
-    grouped.forEach((key, list) {
+    // 2. Untuk setiap nama, kelompokkan tanggal yang benar-benar berurutan (kontigu)
+    // Jika ada gap hari kerja yang bolong (misal 25 Des kosong), maka otomatis terpotong menjadi 2 blok!
+    groupedByName.forEach((key, list) {
       if (list.isEmpty) return;
 
       list.sort((a, b) {
@@ -126,26 +129,46 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
         return dateA.compareTo(dateB);
       });
 
-      final first = list.first;
-      final last = list.last;
+      List<Map<String, dynamic>> currentCluster = [];
+      DateTime? clusterEnd;
 
-      final minStart = first['start_date']?.toString() ?? '';
-      final maxEnd = (last['end_date'] ?? last['start_date'])?.toString() ?? minStart;
-      final allIds = list.map((e) => e['id']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
+      for (final item in list) {
+        final startStr = (item['start_date'] ?? '').toString();
+        final endStr = (item['end_date'] ?? item['start_date'] ?? '').toString();
+        final startDate = DateTime.tryParse(startStr);
+        final endDate = DateTime.tryParse(endStr) ?? startDate;
 
-      result.add({
-        'id': first['id'],
-        'ids': allIds,
-        'name': first['name'] ?? first['description'] ?? 'Hari Libur',
-        'start_date': minStart,
-        'end_date': maxEnd,
-        'description': first['description'],
-        'type': first['type'] ?? 'LIBUR',
-        'total_entries': list.length,
-        'raw_items': list,
-      });
+        if (startDate == null || endDate == null) {
+          result.add(item);
+          continue;
+        }
+
+        if (currentCluster.isEmpty) {
+          currentCluster.add(item);
+          clusterEnd = endDate;
+        } else {
+          if (_isContiguous(clusterEnd!, startDate)) {
+            // Kontigu: masukkan ke dalam klaster yang sama
+            currentCluster.add(item);
+            if (endDate.isAfter(clusterEnd)) {
+              clusterEnd = endDate;
+            }
+          } else {
+            // Ada gap (hari kerja yang bolong / tidak diisi):
+            // Selesaikan klaster saat ini dan mulai klaster baru terpotong
+            result.add(_buildClusteredItem(currentCluster));
+            currentCluster = [item];
+            clusterEnd = endDate;
+          }
+        }
+      }
+
+      if (currentCluster.isNotEmpty) {
+        result.add(_buildClusteredItem(currentCluster));
+      }
     });
 
+    // 3. Urutkan seluruh grup berdasarkan tanggal mulai
     result.sort((a, b) {
       final dateA = (a['start_date'] ?? '').toString();
       final dateB = (b['start_date'] ?? '').toString();
@@ -153,6 +176,42 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
     });
 
     return result;
+  }
+
+  bool _isContiguous(DateTime end, DateTime nextStart) {
+    final diff = nextStart.difference(end).inDays;
+    if (diff <= 1) return true; // Hari yang sama atau hari berikutnya persis
+
+    // Jika selisih lebih dari 1 hari, periksa apakah hari di antaranya hanya weekend (Sabtu/Minggu)
+    DateTime cursor = end.add(const Duration(days: 1));
+    while (cursor.isBefore(nextStart)) {
+      if (cursor.weekday != DateTime.saturday && cursor.weekday != DateTime.sunday) {
+        return false; // Ada hari kerja (Senin-Jumat) yang bolong!
+      }
+      cursor = cursor.add(const Duration(days: 1));
+    }
+    return true; // Hanya terlewati akhir pekan
+  }
+
+  Map<String, dynamic> _buildClusteredItem(List<Map<String, dynamic>> list) {
+    final first = list.first;
+    final last = list.last;
+
+    final minStart = first['start_date']?.toString() ?? '';
+    final maxEnd = (last['end_date'] ?? last['start_date'])?.toString() ?? minStart;
+    final allIds = list.map((e) => e['id']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
+
+    return {
+      'id': first['id'],
+      'ids': allIds,
+      'name': first['name'] ?? first['description'] ?? 'Hari Libur',
+      'start_date': minStart,
+      'end_date': maxEnd,
+      'description': first['description'],
+      'type': first['type'] ?? 'LIBUR',
+      'total_entries': list.length,
+      'raw_items': list,
+    };
   }
 
   Future<void> _fetchData() async {
