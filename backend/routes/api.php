@@ -301,6 +301,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/master-kelas', [ExcelParserController::class, 'parseMasterKelas']);
         Route::post('/master-role', [ExcelParserController::class, 'parseMasterRole']);
         Route::post('/master-jabatan', [ExcelParserController::class, 'parseMasterJabatan']);
+        Route::post('/user/{type}', [ExcelParserUserController::class, 'parseUser']);
     });
 
     // ==========================================

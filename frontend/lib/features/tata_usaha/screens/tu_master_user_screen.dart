@@ -3,17 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
+
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'tu_master_user_edit_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
 
 class TuMasterUserScreen extends ConsumerStatefulWidget {
-  const TuMasterUserScreen({Key? key}) : super(key: key);
+  const TuMasterUserScreen({super.key});
 
   @override
   ConsumerState<TuMasterUserScreen> createState() => _TuMasterUserScreenState();
@@ -22,10 +25,10 @@ class TuMasterUserScreen extends ConsumerStatefulWidget {
 class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedFilter;
-  
+
   bool _isLoadingRoles = true;
   List<dynamic> _roles = [];
-  
+
   bool _isLoadingUsers = false;
   bool _isUploading = false;
   List<dynamic> _users = [];
@@ -38,6 +41,12 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   String _formatRoleName(String role) {
     if (role.isEmpty) return role;
     return role.split('_').map((word) {
@@ -47,62 +56,160 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
   }
 
   Future<void> _fetchRoles() async {
-    setState(() {
-      _isLoadingRoles = true;
-    });
+    setState(() => _isLoadingRoles = true);
 
     try {
       final dio = ref.read(dioProvider);
       final rolesRes = await dio.get('/master/roles');
-      
-      setState(() {
-        _roles = rolesRes.data['data'] ?? [];
-        if (_roles.isNotEmpty) {
-          _selectedFilter = _roles.first['name'];
+
+      if (mounted) {
+        setState(() {
+          _roles = rolesRes.data['data'] ?? [];
+          if (_roles.isNotEmpty && _selectedFilter == null) {
+            _selectedFilter = _roles.first['name'];
+          }
+          _isLoadingRoles = false;
+        });
+
+        if (_selectedFilter != null) {
+          _fetchUsers();
         }
-        _isLoadingRoles = false;
-      });
-      
-      if (_selectedFilter != null) {
-        _fetchUsers();
       }
     } catch (_) {
-      setState(() {
-        _isLoadingRoles = false;
-      });
+      if (mounted) {
+        setState(() => _isLoadingRoles = false);
+      }
     }
   }
 
   Future<void> _fetchUsers() async {
     if (_selectedFilter == null) return;
-    
-    setState(() {
-      _isLoadingUsers = true;
-    });
+
+    setState(() => _isLoadingUsers = true);
 
     try {
       final dio = ref.read(dioProvider);
-      // Memastikan parameter role selalu dalam format UPPERCASE_UNDERSCORE (contoh: TATA_USAHA)
       final sanitizedRole = _selectedFilter!.toUpperCase().replaceAll(' ', '_');
       final usersRes = await dio.get('/master/users', queryParameters: {'role': sanitizedRole});
-      
-      setState(() {
-        _users = usersRes.data['data'] ?? [];
-        _isLoadingUsers = false;
-      });
+
+      if (mounted) {
+        setState(() {
+          _users = usersRes.data['data'] ?? [];
+          _isLoadingUsers = false;
+        });
+      }
     } catch (_) {
-      setState(() {
-        _isLoadingUsers = false;
-      });
+      if (mounted) {
+        setState(() => _isLoadingUsers = false);
+      }
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  /// Toggle Freeze / Unfreeze Akun
+  Future<void> _toggleFreezeUser(Map<String, dynamic> user) async {
+    try {
+      final dio = ref.read(dioProvider);
+      final res = await dio.put('/master/users/${user['id']}/freeze');
+
+      if (mounted) {
+        final message = res.data['message'] ?? 'Status akun berhasil diperbarui!';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        _fetchUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        String errorMessage = 'Gagal mengubah status akun: $e';
+        if (e is DioException && e.response?.data != null) {
+          final resData = e.response!.data;
+          if (resData is Map && resData['message'] != null) {
+            errorMessage = resData['message'].toString();
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
+  /// Konfirmasi Hapus Akun
+  void _confirmDeleteUser(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+        backgroundColor: AppColors.surface,
+        title: Row(
+          children: [
+            Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), color: AppColors.error, size: 24.w(context)),
+            SizedBox(width: 8.w(context)),
+            Text('Hapus Pengguna?', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus akun "${user['full_name']}"? Akun yang dihapus tidak akan dapat mengakses sistem kembali.',
+          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final dio = ref.read(dioProvider);
+                await dio.delete('/master/users/${user['id']}');
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Akun "${user['full_name']}" berhasil dihapus!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                  _fetchUsers();
+                }
+              } catch (e) {
+                if (mounted) {
+                  String errorMessage = 'Gagal menghapus akun: $e';
+                  if (e is DioException && e.response?.data != null) {
+                    final resData = e.response!.data;
+                    if (resData is Map && resData['message'] != null) {
+                      errorMessage = resData['message'].toString();
+                    }
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Upload Berkas Excel
   Future<void> _pickExcelFile(String title) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -110,22 +217,40 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         allowedExtensions: ['xlsx', 'xls'],
       );
 
-      if (result != null && result.files.isNotEmpty) {
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
         PlatformFile picked = result.files.first;
         String fileName = picked.name;
         String filePath = picked.path!;
-        
-        setState(() {
-          _isUploading = true;
-        });
 
+        final ext = fileName.split('.').last.toLowerCase();
+        if (ext != 'xlsx' && ext != 'xls') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ext == 'pdf'
+                      ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
+                      : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
+                  style: AppTextStyles.bodyMedium(context, color: Colors.white),
+                ),
+                backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() => _isUploading = true);
+
+        if (!mounted) return;
         // Tampilkan loading overlay
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (BuildContext context) {
-            return WillPopScope(
-              onWillPop: () async => false,
+            return PopScope(
+              canPop: false,
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -135,11 +260,17 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
 
         String type = 'siswa';
         String lowerTitle = title.toLowerCase().replaceAll('_', ' ');
-        if (lowerTitle.contains('siswa')) type = 'siswa';
-        else if (lowerTitle.contains('kepala') || lowerTitle.contains('kepsek')) type = 'kepsek';
-        else if (lowerTitle.contains('tata usaha') || lowerTitle.contains('tu')) type = 'staff-tu';
-        else if (lowerTitle.contains('bk')) type = 'guru-bk';
-        else if (lowerTitle.contains('guru')) type = 'guru';
+        if (lowerTitle.contains('siswa')) {
+          type = 'siswa';
+        } else if (lowerTitle.contains('kepala') || lowerTitle.contains('kepsek')) {
+          type = 'kepsek';
+        } else if (lowerTitle.contains('tata usaha') || lowerTitle.contains('tu') || lowerTitle.contains('staf')) {
+          type = 'staff-tu';
+        } else if (lowerTitle.contains('bk')) {
+          type = 'guru-bk';
+        } else if (lowerTitle.contains('guru')) {
+          type = 'guru';
+        }
 
         FormData formData = FormData.fromMap({
           'file': await MultipartFile.fromFile(filePath, filename: fileName),
@@ -148,48 +279,39 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
         final dio = ref.read(dioProvider);
         final response = await dio.post('/parse/user/$type', data: formData);
 
-        // Tutup loading overlay
         if (mounted) {
-          Navigator.pop(context);
-        }
+          Navigator.pop(context); // Tutup loading overlay
+          setState(() => _isUploading = false);
 
-        setState(() {
-          _isUploading = false;
-        });
-
-        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.data['message'] ?? 'Upload berhasil!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.success,
             ),
           );
           _fetchUsers();
         }
       }
     } catch (e) {
-      // Tutup loading overlay jika masih terbuka
       if (_isUploading && mounted) {
         Navigator.pop(context);
-        setState(() {
-          _isUploading = false;
-        });
+        setState(() => _isUploading = false);
       }
-      
-      String errorMessage = 'Gagal mengupload file: $e';
-      
-      // Jika errornya dari Dio, coba ambil pesan asli dari backend
+
+      String errorMessage = 'Gagal mengupload berkas: $e';
       if (e is DioException && e.response?.data != null) {
-        if (e.response!.data is Map && e.response!.data['message'] != null) {
-          errorMessage = 'Backend Error: ${e.response!.data['message']}';
+        final resData = e.response!.data;
+        if (resData is Map && resData['message'] != null) {
+          errorMessage = resData['message'].toString();
         }
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -219,23 +341,332 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
             children: [
               _buildSearchBar(context),
               _buildFilterDropdown(context),
+              _buildHeaderCounter(context),
               Expanded(
-                child: _isLoadingRoles 
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildUserList(context, _selectedFilter ?? ''),
+                child: _isLoadingRoles
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    : _buildUserList(context, _selectedFilter ?? ''),
               ),
             ],
           ),
         ),
       ),
       floatingActionButton: CustomExpandableFab(
-        onUploadPressed: () {
-          _showUploadOptions(context);
-        },
-        onAddPressed: () {
-          _showAddOptions(context);
+        onUploadPressed: () => _showUploadOptions(context),
+        onAddPressed: () => _showAddOptions(context),
+      ),
+    );
+  }
+
+  /// 1. Search Bar Realtime
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 8.h(context)),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16.w(context)),
+          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
+            SizedBox(width: 12.w(context)),
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Cari nama, username, NISN, atau NIP...',
+                  hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            if (_searchController.text.isNotEmpty)
+              IconButton(
+                icon: Icon(PhosphorIcons.xCircle(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onSurface.withValues(alpha: 0.4)),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {});
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 2. Dropdown Filter Role Full-Width
+  Widget _buildFilterDropdown(BuildContext context) {
+    if (_isLoadingRoles || _roles.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 6.h(context)),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey(_selectedFilter),
+        initialValue: _selectedFilter,
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16.w(context)),
+            borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+          ),
+        ),
+        dropdownColor: AppColors.surface,
+        icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface.withValues(alpha: 0.6)),
+        items: _roles.map<DropdownMenuItem<String>>((dynamic role) {
+          String roleName = role['name'] ?? 'Unknown';
+          return DropdownMenuItem<String>(
+            value: roleName,
+            child: Text(
+              _formatRoleName(roleName),
+              style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(
+                fontWeight: _selectedFilter == roleName ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          );
+        }).toList(),
+        onChanged: (newValue) {
+          if (newValue != null && newValue != _selectedFilter) {
+            setState(() {
+              _selectedFilter = newValue;
+              _searchController.clear();
+            });
+            _fetchUsers();
+          }
         },
       ),
+    );
+  }
+
+  /// 3. Header Counter Total Pengguna
+  Widget _buildHeaderCounter(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 4.h(context)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Daftar Pengguna ${_formatRoleName(_selectedFilter ?? '')}',
+            style: AppTextStyles.titleSmall(context, color: AppColors.onBackground),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8.w(context)),
+            ),
+            child: Text(
+              '${_users.length} Akun',
+              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 4. List User dengan Standar `ItemListTile` & `Slidable`
+  Widget _buildUserList(BuildContext context, String filter) {
+    if (_isLoadingUsers) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    List<dynamic> filteredUsers = _users;
+    final query = _searchController.text.toLowerCase().trim();
+    if (query.isNotEmpty) {
+      filteredUsers = _users.where((user) {
+        final name = (user['full_name'] ?? '').toString().toLowerCase();
+        final username = (user['username'] ?? '').toString().toLowerCase();
+        final email = (user['email'] ?? '').toString().toLowerCase();
+        final phone = (user['phone'] ?? '').toString().toLowerCase();
+        final nisn = (user['siswa_profile']?['nisn'] ?? '').toString().toLowerCase();
+        final nip = (user['guru_profile']?['nip_nuptk'] ?? '').toString().toLowerCase();
+        return name.contains(query) ||
+            username.contains(query) ||
+            email.contains(query) ||
+            phone.contains(query) ||
+            nisn.contains(query) ||
+            nip.contains(query);
+      }).toList();
+    }
+
+    if (filteredUsers.isEmpty) {
+      return AniseEmptyState(
+        title: 'Belum Ada Data ${_formatRoleName(_selectedFilter ?? 'User')}',
+        subtitle: query.isNotEmpty
+            ? 'Tidak ada pengguna yang cocok dengan kata kunci "$query".'
+            : 'Daftar pengguna dengan role ini belum ditambahkan ke sistem sekolah.',
+      );
+    }
+
+    final isSiswa = filter.toLowerCase().contains('siswa');
+
+    return ListView.builder(
+      padding: EdgeInsets.only(left: 24.w(context), right: 24.w(context), top: 8.h(context), bottom: 90.h(context)),
+      itemCount: filteredUsers.length,
+      itemBuilder: (context, index) {
+        final user = Map<String, dynamic>.from(filteredUsers[index]);
+        final fullName = user['full_name'] ?? 'Unknown Name';
+        final username = user['username'] ?? '-';
+        final bool isActive = user['is_active'] == true || user['is_active'] == 1;
+        final bool isLast = index == filteredUsers.length - 1;
+
+        String idNumber = username;
+        if (isSiswa && user['siswa_profile']?['nisn'] != null) {
+          idNumber = user['siswa_profile']['nisn'].toString();
+        } else if (!isSiswa && user['guru_profile']?['nip_nuptk'] != null) {
+          idNumber = user['guru_profile']['nip_nuptk'].toString();
+        }
+
+        final tile = ItemListTile(
+          category: 'Hak Akses: ${_formatRoleName(filter)}',
+          title: fullName,
+          metadataIcon: isSiswa ? PhosphorIcons.student() : PhosphorIcons.identificationBadge(),
+          metadataText: isSiswa ? 'NISN/User: $idNumber' : 'NIP/User: $idNumber',
+          statusIcon: isActive
+              ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
+              : PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
+          statusText: isActive ? 'Status: Aktif' : 'Status: Dibekukan',
+          statusColor: isActive ? AppColors.success : AppColors.error,
+          showDivider: !isLast,
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
+              ),
+            );
+            if (result == true) {
+              _fetchUsers();
+            }
+          },
+          trailing: PopupMenuButton<String>(
+            icon: Icon(
+              PhosphorIcons.list(PhosphorIconsStyle.bold), // Hamburger Menu Icon
+              color: AppColors.onSurface.withValues(alpha: 0.6),
+              size: 22.w(context),
+            ),
+            color: AppColors.surface,
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+            onSelected: (value) async {
+              if (value == 'edit') {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
+                  ),
+                );
+                if (result == true) {
+                  _fetchUsers();
+                }
+              } else if (value == 'freeze') {
+                _toggleFreezeUser(user);
+              } else if (value == 'delete') {
+                _confirmDeleteUser(user);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                    SizedBox(width: 10.w(context)),
+                    Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'freeze',
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.snowflake(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.menuPastelBlue),
+                    SizedBox(width: 10.w(context)),
+                    Text(isActive ? 'Bekukan (Freeze)' : 'Aktifkan Kembali', style: AppTextStyles.bodyMedium(context, color: AppColors.menuPastelBlue)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.error),
+                    SizedBox(width: 10.w(context)),
+                    Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Slidable(
+          key: ValueKey(user['id'] ?? index),
+          endActionPane: ActionPane(
+            motion: const DrawerMotion(),
+            extentRatio: 0.65,
+            children: [
+              SlidableAction(
+                onPressed: (_) async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
+                    ),
+                  );
+                  if (result == true) {
+                    _fetchUsers();
+                  }
+                },
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.white,
+                icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
+                label: 'Edit',
+                borderRadius: BorderRadius.horizontal(left: Radius.circular(12.w(context))),
+              ),
+              SlidableAction(
+                onPressed: (_) => _toggleFreezeUser(user),
+                backgroundColor: AppColors.menuPastelBlue,
+                foregroundColor: Colors.white,
+                icon: PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
+                label: isActive ? 'Freeze' : 'Aktifkan',
+              ),
+              SlidableAction(
+                onPressed: (_) => _confirmDeleteUser(user),
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
+                label: 'Hapus',
+                borderRadius: BorderRadius.horizontal(right: Radius.circular(12.w(context))),
+              ),
+            ],
+          ),
+          child: tile,
+        );
+      },
     );
   }
 
@@ -244,10 +675,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24.w(context)),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -255,46 +686,52 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 44.w(context),
+                height: 4.h(context),
                 decoration: BoxDecoration(
-                  color: AppColors.outline.withValues(alpha: 0.2),
+                  color: AppColors.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 18.h(context)),
             Text(
-              'Upload Data Master',
-              style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
+              'Unggah Berkas Master User',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 6.h(context)),
             Text(
-              'Pilih jenis data user yang ingin diupload.',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+              'Pilih jenis peran pengguna yang ingin diunggah via Excel.',
+              style: AppTextStyles.bodySmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h(context)),
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: _isLoadingRoles
-                      ? [const Center(child: CircularProgressIndicator())]
+                      ? [const Center(child: CircularProgressIndicator(color: AppColors.primary))]
                       : _roles.map((role) {
                           String roleName = role['name'] ?? 'Unknown';
                           String formattedRole = _formatRoleName(roleName);
-                          IconData icon = PhosphorIcons.user(); // Default
-                          if (roleName.toLowerCase().contains('siswa')) icon = PhosphorIcons.student();
-                          else if (roleName.toLowerCase().contains('guru')) icon = PhosphorIcons.chalkboardTeacher();
-                          else if (roleName.toLowerCase().contains('kepala') || roleName.toLowerCase().contains('kepsek')) icon = PhosphorIcons.crown();
-                          else if (roleName.toLowerCase().contains('staf') || roleName.toLowerCase().contains('tu')) icon = PhosphorIcons.desktop();
-                          
+                          IconData icon = PhosphorIcons.user();
+                          final lRole = roleName.toLowerCase();
+                          if (lRole.contains('siswa')) {
+                            icon = PhosphorIcons.student();
+                          } else if (lRole.contains('guru')) {
+                            icon = PhosphorIcons.chalkboardTeacher();
+                          } else if (lRole.contains('kepala') || lRole.contains('kepsek')) {
+                            icon = PhosphorIcons.crown();
+                          } else if (lRole.contains('staf') || lRole.contains('tu')) {
+                            icon = PhosphorIcons.desktop();
+                          }
+
                           return _buildUploadOption(context, 'Master $formattedRole', icon, roleName);
                         }).toList(),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h(context)),
           ],
         ),
       ),
@@ -306,10 +743,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24.w(context)),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -317,46 +754,52 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 44.w(context),
+                height: 4.h(context),
                 decoration: BoxDecoration(
-                  color: AppColors.outline.withValues(alpha: 0.2),
+                  color: AppColors.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 18.h(context)),
             Text(
-              'Tambah Data Master',
-              style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
+              'Tambah Pengguna Baru',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 6.h(context)),
             Text(
-              'Pilih role user yang ingin ditambahkan.',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+              'Pilih role pengguna yang ingin ditambahkan secara manual.',
+              style: AppTextStyles.bodySmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h(context)),
             Flexible(
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: _isLoadingRoles
-                      ? [const Center(child: CircularProgressIndicator())]
+                      ? [const Center(child: CircularProgressIndicator(color: AppColors.primary))]
                       : _roles.map((role) {
                           String roleName = role['name'] ?? 'Unknown';
                           String formattedRole = _formatRoleName(roleName);
-                          IconData icon = PhosphorIcons.user(); // Default
-                          if (roleName.toLowerCase().contains('siswa')) icon = PhosphorIcons.student();
-                          else if (roleName.toLowerCase().contains('guru')) icon = PhosphorIcons.chalkboardTeacher();
-                          else if (roleName.toLowerCase().contains('kepala') || roleName.toLowerCase().contains('kepsek')) icon = PhosphorIcons.crown();
-                          else if (roleName.toLowerCase().contains('staf') || roleName.toLowerCase().contains('tu')) icon = PhosphorIcons.desktop();
-                          
+                          IconData icon = PhosphorIcons.user();
+                          final lRole = roleName.toLowerCase();
+                          if (lRole.contains('siswa')) {
+                            icon = PhosphorIcons.student();
+                          } else if (lRole.contains('guru')) {
+                            icon = PhosphorIcons.chalkboardTeacher();
+                          } else if (lRole.contains('kepala') || lRole.contains('kepsek')) {
+                            icon = PhosphorIcons.crown();
+                          } else if (lRole.contains('staf') || lRole.contains('tu')) {
+                            icon = PhosphorIcons.desktop();
+                          }
+
                           return _buildAddOption(context, 'Tambah $formattedRole', icon, roleName);
                         }).toList(),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h(context)),
           ],
         ),
       ),
@@ -366,15 +809,15 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
   Widget _buildAddOption(BuildContext context, String title, IconData icon, String originalRoleName) {
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(8.w(context)),
         decoration: BoxDecoration(
           color: AppColors.primaryContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.w(context)),
         ),
-        child: Icon(icon, color: AppColors.primary),
+        child: Icon(icon, color: AppColors.primary, size: 20.w(context)),
       ),
       title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
-      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3)),
+      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3), size: 16.w(context)),
       contentPadding: EdgeInsets.zero,
       onTap: () async {
         Navigator.pop(context);
@@ -394,274 +837,19 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
   Widget _buildUploadOption(BuildContext context, String title, IconData icon, String originalRoleName) {
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(8.w(context)),
         decoration: BoxDecoration(
           color: AppColors.primaryContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.w(context)),
         ),
-        child: Icon(icon, color: AppColors.primary),
+        child: Icon(icon, color: AppColors.primary, size: 20.w(context)),
       ),
       title: Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onBackground)),
-      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3)),
+      trailing: Icon(PhosphorIcons.caretRight(), color: AppColors.onBackground.withValues(alpha: 0.3), size: 16.w(context)),
       contentPadding: EdgeInsets.zero,
       onTap: () {
         Navigator.pop(context);
         _pickExcelFile(originalRoleName);
-      },
-    );
-  }
-
-
-
-  Widget _buildSearchBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(PhosphorIcons.magnifyingGlass(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Cari nama, NISN, atau NIP...',
-                  hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(PhosphorIcons.slidersHorizontal(), color: AppColors.primary, size: 20),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterDropdown(BuildContext context) {
-    if (_isLoadingRoles || _roles.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      child: DropdownButtonFormField<String>(
-        value: _selectedFilter,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          filled: true,
-          fillColor: AppColors.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
-          ),
-        ),
-        dropdownColor: AppColors.surface,
-        icon: Icon(PhosphorIcons.caretDown(), color: AppColors.onSurface.withValues(alpha: 0.6)),
-        items: _roles.map<DropdownMenuItem<String>>((dynamic role) {
-          String roleName = role['name'] ?? 'Unknown';
-          return DropdownMenuItem<String>(
-            value: roleName,
-            child: Text(_formatRoleName(roleName), style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
-          );
-        }).toList(),
-        onChanged: (newValue) {
-          if (newValue != null) {
-            setState(() {
-              _selectedFilter = newValue;
-            });
-            _fetchUsers();
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildUserList(BuildContext context, String filter) {
-    if (_isLoadingUsers) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_users.isEmpty) {
-      return AniseEmptyState(
-        title: 'Belum Ada Data ${_formatRoleName(_selectedFilter ?? 'User')}',
-        subtitle: 'Daftar pengguna dengan role ini belum ditambahkan ke sistem sekolah.',
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 80),
-      itemCount: _users.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final user = _users[index];
-        final fullName = user['full_name'] ?? 'Unknown Name';
-        final username = user['username'] ?? '-';
-        final isSiswa = filter.toLowerCase().contains('siswa');
-        
-        return Slidable(
-          key: ValueKey(user['id'] ?? index),
-          endActionPane: ActionPane(
-            motion: const DrawerMotion(),
-            children: [
-              SlidableAction(
-                onPressed: (context) async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
-                    ),
-                  );
-                  if (result == true) {
-                    _fetchUsers();
-                  }
-                },
-                backgroundColor: AppColors.warning,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.fill),
-                label: 'Edit',
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
-              ),
-              SlidableAction(
-                onPressed: (context) {},
-                backgroundColor: AppColors.menuPastelBlue,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.snowflake(PhosphorIconsStyle.fill),
-                label: 'Freeze',
-              ),
-              SlidableAction(
-                onPressed: (context) {},
-                backgroundColor: AppColors.error,
-                foregroundColor: Colors.white,
-                icon: PhosphorIcons.trash(PhosphorIconsStyle.fill),
-                label: 'Hapus',
-                borderRadius: const BorderRadius.only(topRight: Radius.circular(16), bottomRight: Radius.circular(16)),
-              ),
-            ],
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.black.withValues(alpha: 0.02),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primaryContainer,
-                  child: Icon(
-                    isSiswa ? PhosphorIcons.student() : PhosphorIcons.user(),
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fullName,
-                        style: AppTextStyles.titleSmall(context, color: AppColors.onSurface),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isSiswa ? 'Username/NISN: $username' : 'Username/NUPTK: $username',
-                        style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(PhosphorIcons.dotsThreeVertical(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-                  color: AppColors.surface,
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onSelected: (value) async {
-                    if (value == 'edit') {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TuMasterUserEditScreen(user: user, role: user['role_name'] ?? _selectedFilter ?? ''),
-                        ),
-                      );
-                      if (result == true) {
-                        _fetchUsers();
-                      }
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.pencilSimple(), size: 18, color: AppColors.onSurface),
-                          const SizedBox(width: 8),
-                          Text('Edit', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'freeze',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.snowflake(), size: 18, color: AppColors.menuPastelBlue),
-                          const SizedBox(width: 8),
-                          Text('Freeze', style: AppTextStyles.bodyMedium(context, color: AppColors.menuPastelBlue)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(PhosphorIcons.trash(), size: 18, color: AppColors.error),
-                          const SizedBox(width: 8),
-                          Text('Hapus', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
       },
     );
   }

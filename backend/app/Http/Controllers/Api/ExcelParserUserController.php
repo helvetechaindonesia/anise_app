@@ -25,8 +25,23 @@ class ExcelParserUserController extends Controller
         set_time_limit(0);
 
         try {
-            $request->validate(['file' => 'required|file']);
-            
+            if (!$request->hasFile('file')) {
+                return $this->error('Berkas wajib diunggah!', 422);
+            }
+
+            $file = $request->file('file');
+            $ext = strtolower($file->getClientOriginalExtension());
+            $mime = strtolower($file->getClientMimeType());
+
+            // Tolak jika PDF atau non-excel
+            if ($ext === 'pdf' || str_contains($mime, 'pdf')) {
+                return $this->error('Berkas PDF ditolak! Fitur ini hanya menerima berkas spreadsheet Excel (.xlsx / .xls).', 422);
+            }
+
+            if (!in_array($ext, ['xlsx', 'xls'])) {
+                return $this->error('Format berkas ditolak! Harap unggah file spreadsheet Excel dengan format .xlsx atau .xls.', 422);
+            }
+
             $roleMap = [
                 'siswa' => 'SISWA',
                 'guru' => 'GURU',
@@ -40,19 +55,25 @@ class ExcelParserUserController extends Controller
             }
 
             $roleType = $roleMap[$type];
-            $role = Role::where('name', str_replace('_', ' ', $roleType))->first();
-            if (!$role) {
-                $role = Role::where('name', $roleType)->first(); // fallback
-            }
-            $roleId = $role ? $role->id : null;
+            $role = Role::where('name', $roleType)->first() 
+                ?? Role::where('name', str_replace('_', ' ', $roleType))->first();
 
-            $collection = (new FastExcel)->import($request->file('file')->path());
+            if (!$role) {
+                $role = Role::create(['name' => $roleType]);
+            }
+            $roleId = $role->id;
+
+            $collection = (new FastExcel)->import($file->path());
+            if ($collection->isEmpty()) {
+                return $this->error('Berkas Excel kosong atau tidak memuat data yang valid!', 422);
+            }
 
             $academicYear = AcademicYear::where('is_active', true)->first();
+            $currentUserId = $request->user()?->id;
 
-            DB::transaction(function () use ($collection, $roleType, $roleId, $academicYear) {
-                $syncedUserIds = [];
+            $syncedUserIds = [];
 
+            DB::transaction(function () use ($collection, $roleType, $roleId, $academicYear, $currentUserId, &$syncedUserIds) {
                 $isFirst = true;
                 foreach ($collection as $row) {
                     if ($isFirst) {
@@ -78,19 +99,17 @@ class ExcelParserUserController extends Controller
                         $genderRaw = $values[5] ?? 'L';
                     }
 
-                    $gender = (strtoupper(trim($genderRaw)) == 'PEREMPUAN' || strtoupper(trim($genderRaw)) == 'P') ? 'P' : 'L';
+                    $gender = (strtoupper(trim((string)$genderRaw)) == 'PEREMPUAN' || strtoupper(trim((string)$genderRaw)) == 'P') ? 'P' : 'L';
 
                     // One-Door System: Cari user jika ada, atau buat instansi baru jika belum ada
                     $user = User::firstOrNew(['username' => $kredensial]);
                     
                     if (!$user->exists) {
-                        // BCRYPT SANGAT BERAT! Untuk ratusan data baru, kita turunkan 'rounds' menjadi 4
-                        // agar proses enkripsi 500+ siswa selesai dalam 1 detik alih-alih 2 menit.
-                        $user->password_hash = Hash::make($kredensial, ['rounds' => 4]);
+                        $user->password_hash = Hash::make((string)$kredensial, ['rounds' => 4]);
                     }
                     
-                    $user->full_name = $fullName;
-                    $user->email = $email;
+                    $user->full_name = trim((string)$fullName);
+                    $user->email = trim((string)$email);
                     $user->role_id = $roleId;
                     $user->gender = $gender;
                     $user->is_active = true;
@@ -102,8 +121,8 @@ class ExcelParserUserController extends Controller
                         SiswaProfile::updateOrCreate(
                             ['user_id' => $user->id],
                             [
-                                'nis' => $nis,
-                                'nisn' => $nisn,
+                                'nis' => $nis ? trim((string)$nis) : null,
+                                'nisn' => $nisn ? trim((string)$nisn) : null,
                                 'academic_year_id' => $academicYear ? $academicYear->id : null,
                             ]
                         );
@@ -111,14 +130,23 @@ class ExcelParserUserController extends Controller
                         GuruProfile::updateOrCreate(
                             ['user_id' => $user->id],
                             [
-                                'nip_nuptk' => $nuptk,
+                                'nip_nuptk' => $nuptk ? trim((string)$nuptk) : null,
                             ]
                         );
                     }
                 }
 
-                User::where('role_id', $roleId)->whereNotIn('id', $syncedUserIds)->delete();
+                // Perlindungan: Jangan hapus akun user yang sedang login saat ini atau akun admin/tu_dev
+                $deleteQuery = User::where('role_id', $roleId)->whereNotIn('id', $syncedUserIds);
+                if ($currentUserId) {
+                    $deleteQuery->where('id', '!=', $currentUserId);
+                }
+                $deleteQuery->whereNotIn('username', ['tu_dev', 'admin', 'administrator'])->delete();
             });
+
+            if (count($syncedUserIds) === 0) {
+                return $this->error('Berkas ditolak! Tidak ditemukan data pengguna yang cocok untuk role ini.', 422);
+            }
 
             return $this->success(null, 'Data ' . strtoupper($type) . ' berhasil disinkronisasi!');
         } catch (\Throwable $e) {

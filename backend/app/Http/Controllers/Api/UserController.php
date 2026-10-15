@@ -30,7 +30,13 @@ class UserController extends Controller
             'full_name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username',
             'email' => 'required|string|max:255',
-            'role_id' => 'required|exists:roles,id'
+            'role_id' => 'required|exists:roles,id',
+            'phone' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:500',
+            'password' => 'nullable|string|min:4',
+            'nip_nuptk' => 'nullable|string|max:50',
+            'nisn' => 'nullable|string|max:50',
+            'nis' => 'nullable|string|max:50',
         ]);
 
         $password = $request->filled('password') ? $request->password : $request->username;
@@ -39,11 +45,26 @@ class UserController extends Controller
             'full_name' => $request->full_name,
             'username' => $request->username,
             'email' => $request->email,
+            'phone' => $request->phone,
+            'address' => $request->address,
             'password_hash' => \Illuminate\Support\Facades\Hash::make($password),
             'role_id' => $request->role_id,
             'is_active' => true,
         ]);
-        return $this->success($user, 'User berhasil ditambahkan');
+
+        if ($request->filled('nip_nuptk')) {
+            $user->guruProfile()->create(['nip_nuptk' => $request->nip_nuptk]);
+        }
+
+        if ($request->filled('nisn') || $request->filled('nis')) {
+            $user->siswaProfile()->create([
+                'nisn' => $request->nisn,
+                'nis' => $request->nis,
+            ]);
+        }
+
+        $user->load(['role', 'siswaProfile', 'guruProfile']);
+        return $this->success($user, 'User berhasil ditambahkan', 201);
     }
 
     public function updateUser(Request $request, $id)
@@ -53,24 +74,69 @@ class UserController extends Controller
             'full_name' => 'required|string|max:255',
             'username' => 'required|string|max:255|unique:users,username,'.$user->id,
             'email' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:500',
+            'password' => 'nullable|string|min:4',
+            'nip_nuptk' => 'nullable|string|max:50',
+            'nisn' => 'nullable|string|max:50',
+            'nis' => 'nullable|string|max:50',
         ]);
-        $data = $request->only('full_name', 'username', 'email');
+
+        $data = $request->only('full_name', 'username', 'email', 'phone', 'address');
         if ($request->filled('password')) {
             $data['password_hash'] = \Illuminate\Support\Facades\Hash::make($request->password);
         }
         $user->update($data);
+
+        // Update profile terkait jika ada
+        if ($request->filled('nip_nuptk')) {
+            $user->guruProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                ['nip_nuptk' => $request->nip_nuptk]
+            );
+        }
+
+        if ($request->filled('nisn') || $request->filled('nis')) {
+            $siswaData = [];
+            if ($request->filled('nisn')) $siswaData['nisn'] = $request->nisn;
+            if ($request->filled('nis')) $siswaData['nis'] = $request->nis;
+            $user->siswaProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                $siswaData
+            );
+        }
+
+        $user->load(['role', 'siswaProfile', 'guruProfile']);
         return $this->success($user, 'User berhasil diperbarui');
     }
 
-    public function deleteUser($id)
+    public function deleteUser(Request $request, $id)
     {
-        User::findOrFail($id)->delete();
+        $user = User::findOrFail($id);
+
+        // Jangan izinkan menghapus akun sendiri
+        if ($request->user() && $request->user()->id === $user->id) {
+            return $this->error('Anda tidak dapat menghapus akun Anda sendiri!', 400);
+        }
+
+        $user->delete();
         return $this->success(null, 'User berhasil dihapus');
     }
 
-    public function freezeUser($id)
+    public function freezeUser(Request $request, $id)
     {
-        return $this->success(null, 'User berhasil dibekukan (Freeze)');
+        $user = User::findOrFail($id);
+
+        // Jangan izinkan membekukan akun sendiri
+        if ($request->user() && $request->user()->id === $user->id) {
+            return $this->error('Anda tidak dapat membekukan akun Anda sendiri!', 400);
+        }
+
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        $statusText = $user->is_active ? 'diaktifkan kembali' : 'berhasil dibekukan';
+        return $this->success($user, "Akun {$user->full_name} {$statusText}");
     }
 
     public function searchSiswa(Request $request)
