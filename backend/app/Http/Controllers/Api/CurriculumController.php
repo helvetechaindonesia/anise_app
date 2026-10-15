@@ -362,7 +362,7 @@ class CurriculumController extends Controller
             'type' => strtoupper($request->input('type', 'KEGIATAN')),
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
-            'target_grade' => strtoupper($request->input('target_grade', 'SEMUA')),
+            'target_grade' => $this->normalizeTargetGrade($request->input('target_grade')),
             'is_holiday' => $request->boolean('is_holiday', false),
             'academic_year_id' => $academicYearId,
         ]);
@@ -390,13 +390,48 @@ class CurriculumController extends Controller
             $data['type'] = strtoupper($data['type']);
         }
         if (isset($data['target_grade'])) {
-            $data['target_grade'] = strtoupper($data['target_grade']);
+            $data['target_grade'] = $this->normalizeTargetGrade($data['target_grade']);
         }
 
         $calendar->update($data);
         $calendar->load('academicYear');
 
         return $this->success($calendar, 'Agenda kalender akademik berhasil diperbarui');
+    }
+
+    private function normalizeTargetGrade(?string $input): string
+    {
+        if (empty($input)) return 'SEMUA';
+        $str = strtoupper(trim($input));
+        if (in_array($str, ['#', '*', 'ALL', 'SEMUA'])) {
+            return 'SEMUA';
+        }
+
+        $parts = array_map('trim', explode('+', $str));
+        $gradeMap = [
+            'X' => 'X',
+            '10' => 'X',
+            'XI' => 'XI',
+            '11' => 'XI',
+            'XII' => 'XII',
+            '12' => 'XII',
+        ];
+
+        $valid = [];
+        foreach ($parts as $p) {
+            if (isset($gradeMap[$p]) && !in_array($gradeMap[$p], $valid)) {
+                $valid[] = $gradeMap[$p];
+            }
+        }
+
+        if (count($valid) === 3 || empty($valid)) {
+            return 'SEMUA';
+        }
+
+        $order = ['X' => 1, 'XI' => 2, 'XII' => 3];
+        usort($valid, fn($a, $b) => $order[$a] <=> $order[$b]);
+
+        return implode(' + ', $valid);
     }
 
     public function deleteAcademicCalendar($id)

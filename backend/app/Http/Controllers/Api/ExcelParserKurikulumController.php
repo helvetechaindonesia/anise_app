@@ -403,18 +403,46 @@ class ExcelParserKurikulumController extends Controller
                 continue;
             }
 
-            // Validasi Ketat: Tingkat
+            // Validasi Ketat: Tingkat (Single / Multi dengan penghubung '+')
             if (in_array($tingkatRaw, ['#', '*', 'ALL', 'SEMUA', ''])) {
                 $tingkat = 'SEMUA';
-            } elseif (in_array($tingkatRaw, ['X', '10'])) {
-                $tingkat = 'X';
-            } elseif (in_array($tingkatRaw, ['XI', '11'])) {
-                $tingkat = 'XI';
-            } elseif (in_array($tingkatRaw, ['XII', '12'])) {
-                $tingkat = 'XII';
             } else {
-                $errors[] = "Baris $rowNum: Tingkat '$tingkatRaw' tidak valid. Gunakan # (semua), X, XI, atau XII.";
-                continue;
+                $parts = array_map('trim', explode('+', $tingkatRaw));
+                $normalizedParts = [];
+                $gradeMap = [
+                    'X' => 'X',
+                    '10' => 'X',
+                    'XI' => 'XI',
+                    '11' => 'XI',
+                    'XII' => 'XII',
+                    '12' => 'XII',
+                ];
+
+                $hasInvalidGrade = false;
+                foreach ($parts as $part) {
+                    $pUpper = strtoupper($part);
+                    if (!isset($gradeMap[$pUpper])) {
+                        $errors[] = "Baris $rowNum: Tingkat '$part' pada '$tingkatRaw' tidak valid. Gunakan X, XI, XII, tanda '+' (contoh: X + XI), atau '#' untuk semua.";
+                        $hasInvalidGrade = true;
+                        break;
+                    }
+                    $norm = $gradeMap[$pUpper];
+                    if (!in_array($norm, $normalizedParts)) {
+                        $normalizedParts[] = $norm;
+                    }
+                }
+
+                if ($hasInvalidGrade) {
+                    continue;
+                }
+
+                if (count($normalizedParts) === 3 || empty($normalizedParts)) {
+                    $tingkat = 'SEMUA';
+                } else {
+                    $order = ['X' => 1, 'XI' => 2, 'XII' => 3];
+                    usort($normalizedParts, fn($a, $b) => $order[$a] <=> $order[$b]);
+                    $tingkat = implode(' + ', $normalizedParts);
+                }
             }
 
             $isHoliday = ($type === 'LIBUR');

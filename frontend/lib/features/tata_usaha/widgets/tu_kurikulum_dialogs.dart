@@ -378,7 +378,14 @@ class TuKurikulumDialogs {
     final startDateCtrl = TextEditingController(text: item?['start_date'] ?? '');
     final endDateCtrl = TextEditingController(text: item?['end_date'] ?? '');
     String selectedType = item?['type'] ?? 'KEGIATAN';
-    String selectedGrade = item?['target_grade'] ?? 'SEMUA';
+    
+    // Inisialisasi Checkbox Tingkat (X, XI, XII)
+    final initialGrade = (item?['target_grade'] ?? 'SEMUA').toString().toUpperCase().trim();
+    final gradeTokens = initialGrade.split('+').map((s) => s.trim()).toList();
+    bool gradeX = initialGrade == 'SEMUA' || initialGrade == '#' || gradeTokens.contains('X') || gradeTokens.contains('10');
+    bool gradeXI = initialGrade == 'SEMUA' || initialGrade == '#' || gradeTokens.contains('XI') || gradeTokens.contains('11');
+    bool gradeXII = initialGrade == 'SEMUA' || initialGrade == '#' || gradeTokens.contains('XII') || gradeTokens.contains('12');
+
     bool isHoliday = item?['is_holiday'] == true;
     bool isSubmitting = false;
 
@@ -446,21 +453,26 @@ class TuKurikulumDialogs {
                     },
                   ),
                   SizedBox(height: 14.h(context)),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedGrade,
-                    decoration: InputDecoration(
-                      labelText: 'Target Tingkat Kelas',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
+                  Text(
+                    'Sasaran Tingkat Kelas',
+                    style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
+                  ),
+                  SizedBox(height: 6.h(context)),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(14.w(context)),
+                      border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'SEMUA', child: Text('Semua Tingkat (#)')),
-                      DropdownMenuItem(value: 'X', child: Text('Khusus Tingkat X')),
-                      DropdownMenuItem(value: 'XI', child: Text('Khusus Tingkat XI')),
-                      DropdownMenuItem(value: 'XII', child: Text('Khusus Tingkat XII')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => selectedGrade = val);
-                    },
+                    padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildGradeCheckbox(context, 'Tingkat X', gradeX, (val) => setModalState(() => gradeX = val ?? false)),
+                        _buildGradeCheckbox(context, 'Tingkat XI', gradeXI, (val) => setModalState(() => gradeXI = val ?? false)),
+                        _buildGradeCheckbox(context, 'Tingkat XII', gradeXII, (val) => setModalState(() => gradeXII = val ?? false)),
+                      ],
+                    ),
                   ),
                   SizedBox(height: 14.h(context)),
                   TextField(
@@ -542,12 +554,24 @@ class TuKurikulumDialogs {
                             setModalState(() => isSubmitting = true);
                             try {
                               final dio = ref.read(dioProvider);
+                              final List<String> activeGrades = [];
+                              if (gradeX) activeGrades.add('X');
+                              if (gradeXI) activeGrades.add('XI');
+                              if (gradeXII) activeGrades.add('XII');
+
+                              String targetGrade;
+                              if (activeGrades.isEmpty || activeGrades.length == 3) {
+                                targetGrade = 'SEMUA';
+                              } else {
+                                targetGrade = activeGrades.join(' + ');
+                              }
+
                               final payload = {
                                 'name': name,
                                 'type': selectedType,
                                 'start_date': start,
                                 'end_date': end,
-                                'target_grade': selectedGrade,
+                                'target_grade': targetGrade,
                                 'is_holiday': isHoliday,
                               };
 
@@ -597,11 +621,9 @@ class TuKurikulumDialogs {
     required VoidCallback onSuccess,
   }) {
     final isEdit = item != null;
-    final nameCtrl = TextEditingController(text: item?['name'] ?? '');
-    final startDateCtrl = TextEditingController(text: item?['start_date'] ?? '');
-    final endDateCtrl = TextEditingController(text: item?['end_date'] ?? '');
-    final descCtrl = TextEditingController(text: item?['description'] ?? '');
-    String selectedType = item?['type'] ?? 'NASIONAL';
+    final ketCtrl = TextEditingController(text: item?['name'] ?? item?['description'] ?? '');
+    final waktuCtrl = TextEditingController(text: item?['start_date'] ?? '');
+    String selectedType = item?['type'] ?? 'SEKOLAH';
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -643,10 +665,34 @@ class TuKurikulumDialogs {
                   ),
                   SizedBox(height: 16.h(context)),
                   TextField(
-                    controller: nameCtrl,
+                    controller: waktuCtrl,
+                    readOnly: true,
                     decoration: InputDecoration(
-                      labelText: 'Nama Hari Libur',
-                      hintText: 'Contoh: Hari Raya Idul Fitri',
+                      labelText: 'Waktu (DD/MM/YYYY)',
+                      hintText: 'Pilih tanggal hari libur',
+                      suffixIcon: Icon(PhosphorIcons.calendar()),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
+                    ),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.tryParse(waktuCtrl.text) ?? DateTime.now(),
+                        firstDate: DateTime(2025),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) {
+                        setModalState(() {
+                          waktuCtrl.text = picked.toIso8601String().split('T').first;
+                        });
+                      }
+                    },
+                  ),
+                  SizedBox(height: 14.h(context)),
+                  TextField(
+                    controller: ketCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Keterangan',
+                      hintText: 'Contoh: Hari Raya Natal / Libur Akhir Semester',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
                     ),
                   ),
@@ -658,73 +704,14 @@ class TuKurikulumDialogs {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
                     ),
                     items: const [
+                      DropdownMenuItem(value: 'SEKOLAH', child: Text('Libur Sekolah (Semester / Jeda)')),
                       DropdownMenuItem(value: 'NASIONAL', child: Text('Libur Nasional')),
-                      DropdownMenuItem(value: 'SEKOLAH', child: Text('Libur Sekolah Khusus')),
                       DropdownMenuItem(value: 'CUTI_BERSAMA', child: Text('Cuti Bersama')),
                       DropdownMenuItem(value: 'KHUSUS', child: Text('Libur Khusus / Insidental')),
                     ],
                     onChanged: (val) {
                       if (val != null) setModalState(() => selectedType = val);
                     },
-                  ),
-                  SizedBox(height: 14.h(context)),
-                  TextField(
-                    controller: startDateCtrl,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      labelText: 'Tanggal Mulai Libur',
-                      suffixIcon: Icon(PhosphorIcons.calendar()),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
-                    ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2025),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setModalState(() {
-                          startDateCtrl.text = picked.toIso8601String().split('T').first;
-                          if (endDateCtrl.text.isEmpty) {
-                            endDateCtrl.text = startDateCtrl.text;
-                          }
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(height: 14.h(context)),
-                  TextField(
-                    controller: endDateCtrl,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      labelText: 'Tanggal Selesai Libur',
-                      suffixIcon: Icon(PhosphorIcons.calendar()),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
-                    ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.tryParse(startDateCtrl.text) ?? DateTime.now(),
-                        firstDate: DateTime(2025),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setModalState(() {
-                          endDateCtrl.text = picked.toIso8601String().split('T').first;
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(height: 14.h(context)),
-                  TextField(
-                    controller: descCtrl,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Keterangan Tambahan (Opsional)',
-                      hintText: 'Misal: Berdasarkan SKB 3 Menteri',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
-                    ),
                   ),
                   SizedBox(height: 20.h(context)),
                   AniseButton(
@@ -733,14 +720,13 @@ class TuKurikulumDialogs {
                     onPressed: isSubmitting
                         ? null
                         : () async {
-                            final name = nameCtrl.text.trim();
-                            final start = startDateCtrl.text.trim();
-                            final end = endDateCtrl.text.trim();
-                            if (name.isEmpty || start.isEmpty || end.isEmpty) {
+                            final waktu = waktuCtrl.text.trim();
+                            final keterangan = ketCtrl.text.trim();
+                            if (waktu.isEmpty || keterangan.isEmpty) {
                               AniseFeedbackDialog.showError(
                                 context,
                                 title: 'Input Tidak Lengkap',
-                                message: 'Nama hari libur, tanggal mulai, dan tanggal selesai wajib diisi.',
+                                message: 'Waktu (tanggal) dan Keterangan hari libur wajib diisi.',
                               );
                               return;
                             }
@@ -749,11 +735,11 @@ class TuKurikulumDialogs {
                             try {
                               final dio = ref.read(dioProvider);
                               final payload = {
-                                'name': name,
-                                'start_date': start,
-                                'end_date': end,
+                                'name': keterangan,
+                                'start_date': waktu,
+                                'end_date': waktu,
                                 'type': selectedType,
-                                'description': descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+                                'description': keterangan,
                               };
 
                               if (isEdit) {
@@ -767,7 +753,7 @@ class TuKurikulumDialogs {
                                 AniseFeedbackDialog.showSuccess(
                                   context,
                                   title: isEdit ? 'Hari Libur Diperbarui' : 'Hari Libur Ditambahkan',
-                                  message: 'Hari libur "$name" berhasil disimpan ke kalender sekolah.',
+                                  message: 'Hari libur "$keterangan" berhasil disimpan.',
                                   onConfirm: onSuccess,
                                 );
                               }
@@ -793,7 +779,38 @@ class TuKurikulumDialogs {
   }
 
   // =========================================================================
-  // 5. KONFIRMASI HAPUS DATA
+  // 5. HELPER WIDGET CHECKBOX TINGKAT
+  // =========================================================================
+  static Widget _buildGradeCheckbox(
+    BuildContext context,
+    String label,
+    bool value,
+    ValueChanged<bool?> onChanged,
+  ) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8.w(context)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4.w(context), vertical: 4.h(context)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(
+              value: value,
+              activeColor: AppColors.primary,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+              onChanged: onChanged,
+            ),
+            Text(label, style: AppTextStyles.titleSmall(context, color: AppColors.onSurface)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
+  // 6. KONFIRMASI HAPUS DATA
   // =========================================================================
   static void confirmDelete(
     BuildContext context,

@@ -211,4 +211,49 @@ class AcademicCalendarTest extends TestCase
             'type' => 'SEKOLAH',
         ]);
     }
+
+    public function test_can_create_academic_calendar_with_multi_grade_plus(): void
+    {
+        $payload = [
+            'name' => 'Simulasi Bersama ANBK',
+            'type' => 'ASESMEN',
+            'start_date' => '2026-10-15',
+            'end_date' => '2026-10-17',
+            'target_grade' => 'X + XI',
+            'is_holiday' => false,
+            'academic_year_id' => $this->academicYear->id,
+        ];
+
+        $response = $this->postJson('/api/curriculum/academic-calendars', $payload);
+
+        $response->assertStatus(201)
+                 ->assertJsonPath('status', 'success')
+                 ->assertJsonPath('data.target_grade', 'X + XI');
+
+        $this->assertDatabaseHas('academic_calendars', [
+            'name' => 'Simulasi Bersama ANBK',
+            'target_grade' => 'X + XI',
+        ]);
+    }
+
+    public function test_can_create_holiday_with_single_waktu(): void
+    {
+        $payload = [
+            'name' => 'Hari Libur Isra Miraj',
+            'start_date' => '2026-02-15',
+            'type' => 'NASIONAL',
+        ];
+
+        $response = $this->postJson('/api/curriculum/holidays', $payload);
+
+        $response->assertStatus(201)
+                 ->assertJsonPath('status', 'success')
+                 ->assertJsonPath('data.end_date', '2026-02-15');
+
+        $this->assertDatabaseHas('holidays', [
+            'name' => 'Hari Libur Isra Miraj',
+            'start_date' => '2026-02-15',
+            'end_date' => '2026-02-15',
+        ]);
+    }
 }
