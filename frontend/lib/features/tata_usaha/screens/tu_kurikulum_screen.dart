@@ -103,6 +103,58 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
     }
   }
 
+  List<dynamic> _groupHolidays(List<dynamic> rawHolidays) {
+    if (rawHolidays.isEmpty) return [];
+
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+    for (final raw in rawHolidays) {
+      if (raw is! Map<String, dynamic>) continue;
+      final name = (raw['name'] ?? raw['description'] ?? 'Hari Libur').toString().trim();
+      final key = name.toLowerCase();
+      grouped.putIfAbsent(key, () => []).add(raw);
+    }
+
+    final List<Map<String, dynamic>> result = [];
+
+    grouped.forEach((key, list) {
+      if (list.isEmpty) return;
+
+      list.sort((a, b) {
+        final dateA = (a['start_date'] ?? '').toString();
+        final dateB = (b['start_date'] ?? '').toString();
+        return dateA.compareTo(dateB);
+      });
+
+      final first = list.first;
+      final last = list.last;
+
+      final minStart = first['start_date']?.toString() ?? '';
+      final maxEnd = (last['end_date'] ?? last['start_date'])?.toString() ?? minStart;
+      final allIds = list.map((e) => e['id']?.toString() ?? '').where((id) => id.isNotEmpty).toList();
+
+      result.add({
+        'id': first['id'],
+        'ids': allIds,
+        'name': first['name'] ?? first['description'] ?? 'Hari Libur',
+        'start_date': minStart,
+        'end_date': maxEnd,
+        'description': first['description'],
+        'type': first['type'] ?? 'LIBUR',
+        'total_entries': list.length,
+        'raw_items': list,
+      });
+    });
+
+    result.sort((a, b) {
+      final dateA = (a['start_date'] ?? '').toString();
+      final dateB = (b['start_date'] ?? '').toString();
+      return dateA.compareTo(dateB);
+    });
+
+    return result;
+  }
+
   Future<void> _fetchData() async {
     setState(() {
       _isLoading = true;
@@ -114,8 +166,11 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       final response = await dio.get(endpoint);
 
       if (mounted) {
+        final rawData = response.data['data'] as List<dynamic>? ?? [];
         setState(() {
-          _items = response.data['data'] as List<dynamic>? ?? [];
+          _items = _selectedCategory == 'hari_libur'
+              ? _groupHolidays(rawData)
+              : rawData;
           _isLoading = false;
         });
       }
@@ -163,9 +218,10 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
         return name.contains(q) || start.contains(q);
       } else if (_selectedCategory == 'hari_libur') {
         final name = (item['name'] ?? '').toString().toLowerCase();
-        final type = (item['type'] ?? '').toString().toLowerCase();
+        final start = (item['start_date'] ?? '').toString().toLowerCase();
+        final end = (item['end_date'] ?? '').toString().toLowerCase();
         final desc = (item['description'] ?? '').toString().toLowerCase();
-        return name.contains(q) || type.contains(q) || desc.contains(q);
+        return name.contains(q) || start.contains(q) || end.contains(q) || desc.contains(q);
       }
       return false;
     }).toList();
@@ -404,13 +460,23 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       title = item['name'] ?? '-';
       final start = item['start_date'] ?? '';
       final end = item['end_date'] ?? '';
-      subtitle = (start == end || end.isEmpty) ? start : '$start s/d $end';
-      detail = item['description'] ?? 'Hari Libur Operasional';
+      final totalEntries = item['total_entries'] as int? ?? 1;
+
+      if (start == end || end.isEmpty) {
+        subtitle = 'Tanggal: $start';
+      } else {
+        subtitle = 'Mulai: $start  •  Selesai: $end';
+      }
+
+      detail = totalEntries > 1
+          ? 'Total $totalEntries Hari Libur Terangkum • Operasional OFF'
+          : (item['description'] ?? 'Hari Libur Operasional');
       icon = PhosphorIcons.sun(PhosphorIconsStyle.fill);
       onEdit = () {
         TuKurikulumDialogs.showHariLiburForm(context, ref, item: item, onSuccess: _fetchData);
       };
       onDelete = () {
+        final ids = (item['ids'] as List<dynamic>?)?.map((e) => e.toString()).toList();
         TuKurikulumDialogs.confirmDelete(
           context,
           ref,
@@ -419,6 +485,7 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
           item['id'].toString(),
           title,
           _fetchData,
+          itemIds: ids,
         );
       };
     }

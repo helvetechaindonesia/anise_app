@@ -725,7 +725,15 @@ class TuKurikulumDialogs {
                               };
 
                               if (isEdit) {
-                                await dio.put('/curriculum/holidays/${item['id']}', data: payload);
+                                final ids = (item['ids'] as List<dynamic>?)?.map((e) => e.toString()).toList();
+                                if (ids != null && ids.length > 1) {
+                                  await Future.wait(ids.map((id) => dio.put('/curriculum/holidays/$id', data: {
+                                    'name': keterangan,
+                                    'description': keterangan,
+                                  })));
+                                } else {
+                                  await dio.put('/curriculum/holidays/${item['id']}', data: payload);
+                                }
                               } else {
                                 await dio.post('/curriculum/holidays', data: payload);
                               }
@@ -801,12 +809,14 @@ class TuKurikulumDialogs {
     String endpoint,
     String itemId,
     String itemName,
-    VoidCallback onSuccess,
-  ) async {
+    VoidCallback onSuccess, {
+    List<String>? itemIds,
+  }) async {
+    final count = itemIds != null && itemIds.length > 1 ? ' (${itemIds.length} data libur terangkum)' : '';
     final confirm = await AniseFeedbackDialog.showConfirm(
       context,
       title: 'Hapus $categoryLabel?',
-      message: 'Apakah Anda yakin ingin menghapus "$itemName"? Data yang dihapus tidak dapat dipulihkan kembali.',
+      message: 'Apakah Anda yakin ingin menghapus "$itemName"$count? Data yang dihapus tidak dapat dipulihkan kembali.',
       confirmText: 'Ya, Hapus Data',
       cancelText: 'Batal',
       isDestructive: true,
@@ -816,7 +826,11 @@ class TuKurikulumDialogs {
 
     try {
       final dio = ref.read(dioProvider);
-      await dio.delete('$endpoint/$itemId');
+      if (itemIds != null && itemIds.length > 1) {
+        await Future.wait(itemIds.map((id) => dio.delete('$endpoint/$id')));
+      } else {
+        await dio.delete('$endpoint/$itemId');
+      }
 
       if (context.mounted) {
         AniseFeedbackDialog.showSuccess(
