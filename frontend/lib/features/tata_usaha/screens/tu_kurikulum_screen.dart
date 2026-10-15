@@ -274,7 +274,10 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       } else if (_selectedCategory == 'kalender_akademik') {
         final name = (item['name'] ?? '').toString().toLowerCase();
         final start = (item['start_date'] ?? '').toString().toLowerCase();
-        return name.contains(q) || start.contains(q);
+        final end = (item['end_date'] ?? '').toString().toLowerCase();
+        final type = (item['type'] ?? '').toString().toLowerCase();
+        final grade = (item['target_grade'] ?? '').toString().toLowerCase();
+        return name.contains(q) || start.contains(q) || end.contains(q) || type.contains(q) || grade.contains(q);
       } else if (_selectedCategory == 'hari_libur') {
         final name = (item['name'] ?? '').toString().toLowerCase();
         final start = (item['start_date'] ?? '').toString().toLowerCase();
@@ -497,6 +500,13 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       };
     } else if (_selectedCategory == 'kalender_akademik') {
       title = item['name'] ?? '-';
+      final start = item['start_date'] ?? '';
+      final end = item['end_date'] ?? '';
+      if (start == end || end.isEmpty) {
+        subtitle = 'Tanggal: $start';
+      } else {
+        subtitle = 'Mulai: $start  •  Selesai: $end';
+      }
       final type = item['type'] ?? 'KEGIATAN';
       final grade = item['target_grade'] ?? 'SEMUA';
       final isHoli = item['is_holiday'] == true;

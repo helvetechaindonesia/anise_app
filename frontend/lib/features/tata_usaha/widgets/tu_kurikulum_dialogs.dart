@@ -59,7 +59,7 @@ class TuKurikulumDialogs {
                 ),
                 SizedBox(height: 16.h(context)),
                 _buildUploadOption(context, ref, 'Master Wali Kelas', 'wali_kelas', PhosphorIcons.chalkboardTeacher(), onSuccess),
-                _buildUploadOption(context, ref, 'Master Guru Wali (BK)', 'guru_wali', PhosphorIcons.usersThree(), onSuccess),
+                _buildUploadOption(context, ref, 'Master Penempatan Kelas & Guru Wali', 'guru_wali', PhosphorIcons.usersThree(), onSuccess),
                 _buildUploadOption(context, ref, 'Master Penugasan Struktural', 'penugasan', PhosphorIcons.briefcase(), onSuccess),
                 _buildUploadOption(context, ref, 'Master Mata Pelajaran (Mapel)', 'mapel', PhosphorIcons.books(), onSuccess),
                 _buildUploadOption(context, ref, 'Master Jadwal KBM', 'jurnal_mengajar', PhosphorIcons.calendar(), onSuccess),
