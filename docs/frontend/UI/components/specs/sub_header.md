@@ -27,6 +27,10 @@
 3. **Sisi Kanan (Trailing Actions - Opsional):**
    - Mendukung ikon aksi tambahan (misal: tombol filter, tombol opsi tiga titik, tombol download berkas).
 
+> [!IMPORTANT]
+> **Kebijakan Baku Ikon Notifikasi (Notification Bell Rule):**  
+> Ikon lonceng notifikasi **DILARANG** dipasang pada `actions` di SubHeader maupun `AppBar` halaman turunan (seperti *Manajemen User*, *Manajemen Sekolah*, dsb.). Ikon lonceng notifikasi **hanya eksklusif** ditempatkan pada Header Dashboard Utama (`MainHeader`). Hal ini menjaga header sub-layar tetap bersih, terfokus pada tugas, dan mencegah duplikasi navigasi notifikasi.
+
 ---
 
 ## ⚙️ 3. Parameter Properti (Props)

@@ -108,3 +108,57 @@ ItemListTile(
   },
 )
 ```
+
+### Contoh 3: Penerapan pada Manajemen Pengguna (Tata Usaha)
+```dart
+ItemListTile(
+  category: 'Hak Akses: Guru Pengajar',
+  title: 'Drs. Hendro Wibowo, M.Pd.',
+  metadataIcon: PhosphorIcons.envelope(),
+  metadataText: 'Email: hendro@sekolah.sch.id',
+  secondaryMetadataIcon: PhosphorIcons.identificationCard(),
+  secondaryMetadataText: 'Kredensial: 197805122005011002',
+  statusIcon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+  statusText: 'Status: Aktif',
+  statusColor: AppColors.success,
+  showDivider: !isLast,
+  onTap: () => _openUserEditScreen(user),
+  trailing: PopupMenuButton<String>(
+    icon: Icon(
+      PhosphorIcons.list(PhosphorIconsStyle.bold), // Hamburger Menu Icon
+      color: AppColors.onSurface.withValues(alpha: 0.6),
+      size: 22.w(context),
+    ),
+    onSelected: (action) => _handleUserAction(action, user),
+    itemBuilder: (context) => [
+      PopupMenuItem(value: 'edit', child: Text('Edit')),
+      PopupMenuItem(value: 'freeze', child: Text('Bekukan (Freeze)')),
+      PopupMenuItem(value: 'delete', child: Text('Hapus')),
+    ],
+  ),
+)
+```
+
+### Contoh 4: Penerapan pada Manajemen Sekolah (Kelas / Jabatan / Role)
+```dart
+ItemListTile(
+  category: 'Rombel Tingkat XII',
+  title: 'XII IPA 1',
+  metadataIcon: PhosphorIcons.identificationBadge(),
+  metadataText: 'Kode: 12-IPA-1',
+  showDivider: !isLast,
+  onTap: () => _openEditDialog(kelas),
+  trailing: PopupMenuButton<String>(
+    icon: Icon(
+      PhosphorIcons.list(PhosphorIconsStyle.bold), // Hamburger Menu Icon
+      color: AppColors.onSurface.withValues(alpha: 0.6),
+      size: 22.w(context),
+    ),
+    onSelected: (action) => _handleSchoolAction(action, kelas),
+    itemBuilder: (context) => [
+      PopupMenuItem(value: 'edit', child: Text('Edit')),
+      PopupMenuItem(value: 'delete', child: Text('Hapus')),
+    ],
+  ),
+)
+```
