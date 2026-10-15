@@ -172,11 +172,7 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
   }
 
   void _handleManualAdd() {
-    if (_selectedCategory == 'kalender_akademik') {
-      TuKurikulumDialogs.showKalenderAkademikForm(context, ref, onSuccess: _fetchData);
-    } else if (_selectedCategory == 'hari_libur') {
-      TuKurikulumDialogs.showHariLiburForm(context, ref, onSuccess: _fetchData);
-    }
+    TuKurikulumDialogs.showManualAddChoiceSheet(context, ref, _fetchData);
   }
 
   @override
@@ -290,22 +286,12 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
           ),
         ),
       ),
-      floatingActionButton: (_selectedCategory == 'kalender_akademik' || _selectedCategory == 'hari_libur')
-          ? CustomExpandableFab(
-              onUploadPressed: () {
-                TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
-              },
-              onAddPressed: _handleManualAdd,
-            )
-          : FloatingActionButton.extended(
-              onPressed: () {
-                TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
-              },
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
-              icon: Icon(PhosphorIcons.fileXls(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-              label: Text('Upload Excel', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
-            ),
+      floatingActionButton: CustomExpandableFab(
+        onUploadPressed: () {
+          TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
+        },
+        onAddPressed: _handleManualAdd,
+      ),
     );
   }
 

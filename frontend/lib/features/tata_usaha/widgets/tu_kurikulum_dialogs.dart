@@ -197,7 +197,172 @@ class TuKurikulumDialogs {
     }
   }
 
+  // =========================================================================
+  // 2. MODAL PILIHAN TAMBAH DATA MANUAL
+  // =========================================================================
+  static void showManualAddChoiceSheet(
+    BuildContext context,
+    WidgetRef ref,
+    VoidCallback onSuccess,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => Container(
+        padding: EdgeInsets.only(
+          top: 20.h(context),
+          left: 24.w(context),
+          right: 24.w(context),
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44.w(context),
+                    height: 5.h(context),
+                    decoration: BoxDecoration(
+                      color: AppColors.outline.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 18.h(context)),
+                Text(
+                  'Tambah Data Manual',
+                  style: AppTextStyles.headlineSmall(context, color: AppColors.onBackground),
+                ),
+                SizedBox(height: 6.h(context)),
+                Text(
+                  'Pilih jenis data yang ingin diinput secara manual. Data master lainnya diinput secara massal via file Excel.',
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+                ),
+                SizedBox(height: 16.h(context)),
+                _buildChoiceTile(
+                  context,
+                  title: 'Kalender Akademik',
+                  subtitle: 'Tambah agenda kegiatan sekolah, jadwal PTS, PAS, atau hari aktif',
+                  icon: PhosphorIcons.calendarCheck(PhosphorIconsStyle.fill),
+                  iconBgColor: AppColors.menuPastelPurple,
+                  iconColor: AppColors.primary,
+                  onTap: () {
+                    Navigator.pop(context);
+                    showKalenderAkademikForm(context, ref, onSuccess: onSuccess);
+                  },
+                ),
+                SizedBox(height: 10.h(context)),
+                _buildChoiceTile(
+                  context,
+                  title: 'Hari Libur Nasional & Sekolah',
+                  subtitle: 'Tambah hari libur nasional, libur khusus, atau cuti bersama',
+                  icon: PhosphorIcons.sun(PhosphorIconsStyle.fill),
+                  iconBgColor: AppColors.error.withValues(alpha: 0.12),
+                  iconColor: AppColors.error,
+                  onTap: () {
+                    Navigator.pop(context);
+                    showHariLiburForm(context, ref, onSuccess: onSuccess);
+                  },
+                ),
+                SizedBox(height: 16.h(context)),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryContainer.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14.w(context)),
+                    border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.info(PhosphorIconsStyle.fill), color: AppColors.primary, size: 20.w(context)),
+                      SizedBox(width: 10.w(context)),
+                      Expanded(
+                        child: Text(
+                          'Catatan: Data Wali Kelas, Siswa Asuh, Penugasan, Mapel, dan Jadwal KBM diinput secara massal melalui tombol "Upload Excel".',
+                          style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 12.h(context)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
+  static Widget _buildChoiceTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconBgColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16.w(context)),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16.w(context)),
+          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(12.w(context)),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(14.w(context)),
+              ),
+              child: Icon(icon, color: iconColor, size: 22.w(context)),
+            ),
+            SizedBox(width: 14.w(context)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.titleSmall(context, color: AppColors.onBackground).copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 4.h(context)),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
+                  ),
+                ],
+              ),
+            ),
+            Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.3), size: 18.w(context)),
+          ],
+        ),
+      ),
+    );
+  }
 
   // =========================================================================
   // 3. MODAL FORM: KALENDER AKADEMIK
