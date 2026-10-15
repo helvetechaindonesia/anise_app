@@ -20,9 +20,33 @@ class ExcelParserUserController extends Controller
     use ApiResponser;
 
     /**
+     * Membaca nama-nama sheet dari berkas Excel .xlsx langsung dari archive zip.
+     */
+    private function getExcelSheetNames(?string $filePath): array
+    {
+        if (!$filePath || !class_exists('\ZipArchive')) {
+            return [];
+        }
+        $sheetNames = [];
+        try {
+            $zip = new \ZipArchive();
+            if ($zip->open($filePath) === true) {
+                $xml = $zip->getFromName('xl/workbook.xml');
+                if ($xml && preg_match_all('/<sheet[^>]*name="([^"]+)"/i', $xml, $matches)) {
+                    $sheetNames = $matches[1];
+                }
+                $zip->close();
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika bukan format zip standar
+        }
+        return $sheetNames;
+    }
+
+    /**
      * Memvalidasi apakah isi berkas Excel cocok dengan tipe role pengguna yang dipilih.
      */
-    private function validateUserFileContent($collection, string $roleType): ?string
+    private function validateUserFileContent($collection, string $roleType, ?string $filePath = null): ?string
     {
         // Kumpulkan teks dari 3 baris pertama untuk identifikasi template
         $textBlob = '';
@@ -33,7 +57,10 @@ class ExcelParserUserController extends Controller
             $rowCount++;
             if ($rowCount >= 3) break;
         }
-        $textLower = strtolower($textBlob);
+
+        // Sertakan nama sheet Excel jika tersedia
+        $sheetNames = $this->getExcelSheetNames($filePath);
+        $textLower = strtolower($textBlob . ' ' . implode(' ', $sheetNames));
 
         // 1. Cek jika berkas ternyata milik modul manajemen sekolah
         if (str_contains($textLower, 'areatugas') || str_contains($textLower, 'area tugas') || (str_contains($textLower, 'jabatan') && !str_contains($textLower, 'kredensial') && !str_contains($textLower, 'nuptk'))) {
@@ -49,7 +76,7 @@ class ExcelParserUserController extends Controller
         // 2. Cek kecocokan antar jenis user (Siswa vs Guru/GTK)
         if ($roleType === 'SISWA') {
             $hasSiswaIndicator = str_contains($textLower, 'nisn') || str_contains($textLower, 'nis') || str_contains($textLower, 'data siswa');
-            $hasGtkIndicator = str_contains($textLower, 'nuptk') || str_contains($textLower, 'guru pengajar') || str_contains($textLower, 'kepala sekolah') || str_contains($textLower, 'tata usaha');
+            $hasGtkIndicator = str_contains($textLower, 'nuptk') || str_contains($textLower, 'guru pengajar') || str_contains($textLower, 'guru bk') || str_contains($textLower, 'kepala sekolah') || str_contains($textLower, 'tata usaha');
 
             if ($hasGtkIndicator && !$hasSiswaIndicator) {
                 return 'Berkas ditolak! Anda memilih impor Siswa, tetapi berkas yang diunggah terdeteksi sebagai data Guru / GTK.';
@@ -64,15 +91,52 @@ class ExcelParserUserController extends Controller
                 return 'Berkas ditolak! Anda memilih impor data ' . str_replace('_', ' ', $roleType) . ', tetapi berkas yang diunggah terdeteksi sebagai data Siswa (memuat NIS/NISN).';
             }
 
-            // Deteksi spesifik jika judul template tertulis peran lain
-            if ($roleType === 'GURU' && str_contains($textLower, 'data staff tata usaha')) {
-                return 'Berkas ditolak! Anda memilih impor Guru, tetapi berkas terdeteksi sebagai data Staf Tata Usaha.';
-            }
-            if ($roleType === 'TATA_USAHA' && str_contains($textLower, 'data guru pengajar')) {
-                return 'Berkas ditolak! Anda memilih impor Staf Tata Usaha, tetapi berkas terdeteksi sebagai data Guru Pengajar.';
-            }
-            if ($roleType === 'KEPALA_SEKOLAH' && !str_contains($textLower, 'kepala sekolah') && (str_contains($textLower, 'data guru pengajar') || str_contains($textLower, 'data staff'))) {
-                return 'Berkas ditolak! Anda memilih impor Kepala Sekolah, tetapi berkas terdeteksi sebagai data Guru/Staf.';
+            // Indikator khusus masing-masing tipe GTK
+            $isBkFile = str_contains($textLower, 'guru bk') 
+                || str_contains($textLower, 'guru_bk') 
+                || str_contains($textLower, 'bimbingan konseling') 
+                || str_contains($textLower, 'bimbingan dan konseling')
+                || preg_match('/\b(bk|guru\s*bk)\b/i', $textLower);
+
+            $isGuruPengajarFile = str_contains($textLower, 'guru pengajar') 
+                || str_contains($textLower, 'guru_pengajar') 
+                || str_contains($textLower, 'guru mata pelajaran')
+                || str_contains($textLower, 'guru mapel');
+
+            if ($roleType === 'GURU') {
+                if ($isBkFile) {
+                    return 'Berkas ditolak! Anda memilih impor Guru Pengajar, tetapi berkas terdeteksi sebagai data Guru BK (Bimbingan Konseling).';
+                }
+                if (str_contains($textLower, 'staff tata usaha') || str_contains($textLower, 'staf tata usaha')) {
+                    return 'Berkas ditolak! Anda memilih impor Guru Pengajar, tetapi berkas terdeteksi sebagai data Staf Tata Usaha.';
+                }
+                if (str_contains($textLower, 'kepala sekolah')) {
+                    return 'Berkas ditolak! Anda memilih impor Guru Pengajar, tetapi berkas terdeteksi sebagai data Kepala Sekolah.';
+                }
+            } elseif ($roleType === 'GURU_BK') {
+                if ($isGuruPengajarFile && !$isBkFile) {
+                    return 'Berkas ditolak! Anda memilih impor Guru BK, tetapi berkas terdeteksi sebagai data Guru Pengajar (tidak memuat tanda Guru BK).';
+                }
+                if (str_contains($textLower, 'staff tata usaha') || str_contains($textLower, 'staf tata usaha')) {
+                    return 'Berkas ditolak! Anda memilih impor Guru BK, tetapi berkas terdeteksi sebagai data Staf Tata Usaha.';
+                }
+                if (str_contains($textLower, 'kepala sekolah')) {
+                    return 'Berkas ditolak! Anda memilih impor Guru BK, tetapi berkas terdeteksi sebagai data Kepala Sekolah.';
+                }
+                if (!$isBkFile) {
+                    return 'Berkas ditolak! Berkas ini tidak terdeteksi sebagai data Guru BK (kata kunci "Guru BK" atau "Bimbingan Konseling" tidak ditemukan pada judul baris 1 atau sheet).';
+                }
+            } elseif ($roleType === 'TATA_USAHA') {
+                if ($isGuruPengajarFile || $isBkFile) {
+                    return 'Berkas ditolak! Anda memilih impor Staf Tata Usaha, tetapi berkas terdeteksi sebagai data Guru.';
+                }
+                if (str_contains($textLower, 'kepala sekolah') && !str_contains($textLower, 'tata usaha')) {
+                    return 'Berkas ditolak! Anda memilih impor Staf Tata Usaha, tetapi berkas terdeteksi sebagai data Kepala Sekolah.';
+                }
+            } elseif ($roleType === 'KEPALA_SEKOLAH') {
+                if (!str_contains($textLower, 'kepala sekolah') && !str_contains($textLower, 'kepsek')) {
+                    return 'Berkas ditolak! Anda memilih impor Kepala Sekolah, tetapi berkas terdeteksi sebagai data Guru/Staf.';
+                }
             }
 
             // Cek minimal indikator data GTK / Pegawai
@@ -134,7 +198,7 @@ class ExcelParserUserController extends Controller
             }
 
             // Validasi kecocokan isi template berkas dengan role yang dipilih
-            $contentError = $this->validateUserFileContent($collection, $roleType);
+            $contentError = $this->validateUserFileContent($collection, $roleType, $file->path());
             if ($contentError !== null) {
                 return $this->error($contentError, 422);
             }
