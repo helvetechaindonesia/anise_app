@@ -12,6 +12,7 @@ import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../notifications/screens/notification_screen.dart';
 import 'tu_master_user_edit_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
@@ -114,11 +115,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
 
       if (mounted) {
         final message = res.data['message'] ?? 'Status akun berhasil diperbarui!';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-            backgroundColor: AppColors.success,
-          ),
+        AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Status Akun',
+          message: message,
         );
         _fetchUsers();
       }
@@ -131,83 +131,56 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
             errorMessage = resData['message'].toString();
           }
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Mengubah Status',
+          message: errorMessage,
         );
       }
     }
   }
 
   /// Konfirmasi Hapus Akun
-  void _confirmDeleteUser(Map<String, dynamic> user) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
-        backgroundColor: AppColors.surface,
-        title: Row(
-          children: [
-            Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), color: AppColors.error, size: 24.w(context)),
-            SizedBox(width: 8.w(context)),
-            Text('Hapus Pengguna?', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
-          ],
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus akun "${user['full_name']}"? Akun yang dihapus tidak akan dapat mengakses sistem kembali.',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                final dio = ref.read(dioProvider);
-                await dio.delete('/master/users/${user['id']}');
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Akun "${user['full_name']}" berhasil dihapus!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  _fetchUsers();
-                }
-              } catch (e) {
-                if (mounted) {
-                  String errorMessage = 'Gagal menghapus akun: $e';
-                  if (e is DioException && e.response?.data != null) {
-                    final resData = e.response!.data;
-                    if (resData is Map && resData['message'] != null) {
-                      errorMessage = resData['message'].toString();
-                    }
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+  Future<void> _confirmDeleteUser(Map<String, dynamic> user) async {
+    final confirmed = await AniseFeedbackDialog.showConfirm(
+      context,
+      title: 'Hapus Pengguna?',
+      message: 'Apakah Anda yakin ingin menghapus akun "${user['full_name']}"? Akun yang dihapus tidak akan dapat mengakses sistem kembali.',
+      confirmText: 'Hapus',
+      cancelText: 'Batal',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      try {
+        final dio = ref.read(dioProvider);
+        await dio.delete('/master/users/${user['id']}');
+
+        if (mounted) {
+          AniseFeedbackDialog.showSuccess(
+            context,
+            title: 'Akun Dihapus',
+            message: 'Akun "${user['full_name']}" berhasil dihapus!',
+          );
+          _fetchUsers();
+        }
+      } catch (e) {
+        if (mounted) {
+          String errorMessage = 'Gagal menghapus akun: $e';
+          if (e is DioException && e.response?.data != null) {
+            final resData = e.response!.data;
+            if (resData is Map && resData['message'] != null) {
+              errorMessage = resData['message'].toString();
+            }
+          }
+          AniseFeedbackDialog.showError(
+            context,
+            title: 'Gagal Menghapus Akun',
+            message: errorMessage,
+          );
+        }
+      }
+    }
   }
 
   /// Upload Berkas Excel
@@ -277,11 +250,10 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           Navigator.pop(context); // Tutup loading overlay
           setState(() => _isUploading = false);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response.data['message'] ?? 'Upload berhasil!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-              backgroundColor: AppColors.success,
-            ),
+          AniseFeedbackDialog.showSuccess(
+            context,
+            title: 'Upload Berhasil',
+            message: response.data['message'] ?? 'Upload berhasil!',
           );
           _fetchUsers();
         }
@@ -306,107 +278,13 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
     }
   }
 
-  /// Popup Dialog Penolakan Berkas Modern
+  /// Popup Dialog Penolakan Berkas Modern (Menggunakan Standar AniseFeedbackDialog)
   void _showRejectionDialog(String errorMessage) {
     if (!mounted) return;
-    final hasNotifWord = errorMessage.toLowerCase().contains('notifikasi');
-
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.w(context)),
-          ),
-          backgroundColor: AppColors.surface,
-          elevation: 8,
-          child: Padding(
-            padding: EdgeInsets.all(24.w(context)),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56.w(context),
-                  height: 56.w(context),
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(
-                      PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
-                      color: AppColors.error,
-                      size: 32.w(context),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16.h(context)),
-                Text(
-                  'Berkas Ditolak',
-                  style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 12.h(context)),
-                Text(
-                  errorMessage,
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.85)),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 24.h(context)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.w(context)),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 12.h(context)),
-                        ),
-                        child: Text(
-                          'Tutup',
-                          style: AppTextStyles.labelLarge(context, color: AppColors.onSurface),
-                        ),
-                      ),
-                    ),
-                    if (hasNotifWord) ...[
-                      SizedBox(width: 12.w(context)),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const NotificationScreen()),
-                            );
-                          },
-                          icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), size: 18.w(context)),
-                          label: Text(
-                            'Buka Notif',
-                            style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.w(context)),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 12.h(context)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    AniseFeedbackDialog.showWarning(
+      context,
+      title: 'Berkas Ditolak',
+      message: errorMessage,
     );
   }
 

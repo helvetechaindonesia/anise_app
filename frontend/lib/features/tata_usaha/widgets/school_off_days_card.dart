@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_button.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 
 class SchoolOffDaysCard extends ConsumerStatefulWidget {
   final VoidCallback? onSaved;
@@ -76,27 +77,19 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Pengaturan hari nonaktif mingguan berhasil disimpan!',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-            ),
-            backgroundColor: AppColors.success,
-          ),
+        AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Pengaturan Disimpan',
+          message: 'Pengaturan hari nonaktif mingguan berhasil disimpan!',
         );
         widget.onSaved?.call();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Gagal menyimpan: $e',
-              style: AppTextStyles.bodyMedium(context, color: Colors.white),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Menyimpan',
+          message: 'Gagal menyimpan pengaturan: $e',
         );
       }
     } finally {
@@ -128,15 +121,10 @@ class _SchoolOffDaysCardState extends ConsumerState<SchoolOffDaysCard> {
         if (_selectedOffDays.length > 1) {
           _selectedOffDays.remove(dayKey);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Minimal harus ada 1 hari nonaktif dalam seminggu.',
-                style: AppTextStyles.bodySmall(context, color: Colors.white),
-              ),
-              backgroundColor: AppColors.warning,
-              duration: const Duration(seconds: 2),
-            ),
+          AniseFeedbackDialog.showWarning(
+            context,
+            title: 'Peringatan',
+            message: 'Minimal harus ada 1 hari nonaktif dalam seminggu.',
           );
         }
       } else {

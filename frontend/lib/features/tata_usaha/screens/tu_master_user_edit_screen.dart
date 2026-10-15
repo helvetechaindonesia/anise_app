@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_button.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../../core/network/dio_client.dart';
 
 class TuMasterUserEditScreen extends ConsumerStatefulWidget {
@@ -86,11 +87,10 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
     final email = _emailController.text.trim();
 
     if (fullName.isEmpty || username.isEmpty || email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nama lengkap, username, dan email wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-          backgroundColor: AppColors.error,
-        ),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Data Belum Lengkap',
+        message: 'Nama lengkap, username, dan email wajib diisi!',
       );
       return;
     }
@@ -148,16 +148,14 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.user == null ? 'Pengguna baru berhasil ditambahkan!' : 'Data pengguna berhasil diperbarui!',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-            ),
-            backgroundColor: AppColors.success,
-          ),
+        await AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Berhasil Disimpan',
+          message: widget.user == null ? 'Pengguna baru berhasil ditambahkan!' : 'Data pengguna berhasil diperbarui!',
         );
-        Navigator.pop(context, true);
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -168,11 +166,10 @@ class _TuMasterUserEditScreenState extends ConsumerState<TuMasterUserEditScreen>
             errorMessage = resData['message'].toString();
           }
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Menyimpan',
+          message: errorMessage,
         );
       }
     } finally {

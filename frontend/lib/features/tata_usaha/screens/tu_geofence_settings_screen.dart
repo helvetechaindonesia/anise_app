@@ -8,6 +8,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -83,57 +84,37 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
     final String locId = loc['id'].toString();
     final String locName = loc['name'] ?? 'Titik Lokasi';
 
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(context))),
-        title: Text('Hapus Titik Lokasi?', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus "$locName"? Presensi tidak akan dapat dilakukan pada titik koordinat ini lagi.',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Batal', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
-            ),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              try {
-                final dio = ref.read(dioProvider);
-                await dio.delete('/master/school-locations/$locId');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Titik lokasi "$locName" berhasil dihapus', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                }
-                _fetchLocations();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Gagal menghapus lokasi: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text('Hapus', style: AppTextStyles.labelMedium(context, color: Colors.white)),
-          ),
-        ],
-      ),
+    final confirmed = await AniseFeedbackDialog.showConfirm(
+      context,
+      title: 'Hapus Titik Lokasi?',
+      message: 'Apakah Anda yakin ingin menghapus "$locName"? Presensi tidak akan dapat dilakukan pada titik koordinat ini lagi.',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      try {
+        final dio = ref.read(dioProvider);
+        await dio.delete('/master/school-locations/$locId');
+        if (mounted) {
+          AniseFeedbackDialog.showSuccess(
+            context,
+            title: 'Lokasi Dihapus',
+            message: 'Titik lokasi "$locName" berhasil dihapus!',
+          );
+        }
+        _fetchLocations();
+      } catch (e) {
+        if (mounted) {
+          AniseFeedbackDialog.showError(
+            context,
+            title: 'Gagal Menghapus',
+            message: 'Gagal menghapus lokasi: $e',
+          );
+        }
+      }
+    }
   }
 
   void _showLocationFormDialog({Map<String, dynamic>? location}) {
@@ -307,21 +288,19 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                             final lngText = lngController.text.trim();
 
                             if (name.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Nama titik lokasi wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.warning,
-                                ),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Data Belum Lengkap',
+                                message: 'Nama titik lokasi wajib diisi!',
                               );
                               return;
                             }
 
                             if (latText.isEmpty || lngText.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Latitude dan Longitude harus diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.warning,
-                                ),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Data Belum Lengkap',
+                                message: 'Latitude dan Longitude harus diisi!',
                               );
                               return;
                             }
@@ -329,11 +308,10 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                             final double? lat = double.tryParse(latText);
                             final double? lng = double.tryParse(lngText);
                             if (lat == null || lng == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Format koordinat tidak valid!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.error,
-                                ),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Format Tidak Valid',
+                                message: 'Format koordinat tidak valid!',
                               );
                               return;
                             }
@@ -362,24 +340,19 @@ class _TUGeofenceSettingsScreenState extends ConsumerState<TUGeofenceSettingsScr
                               }
 
                               if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isEdit ? 'Titik lokasi berhasil diperbarui!' : 'Titik lokasi baru berhasil ditambahkan!',
-                                    style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-                                  ),
-                                  backgroundColor: AppColors.success,
-                                ),
+                              AniseFeedbackDialog.showSuccess(
+                                context,
+                                title: isEdit ? 'Lokasi Diperbarui' : 'Lokasi Ditambahkan',
+                                message: isEdit ? 'Titik lokasi berhasil diperbarui!' : 'Titik lokasi baru berhasil ditambahkan!',
                               );
                               _fetchLocations();
                             } catch (e) {
                               setModalState(() => isSaving = false);
                               if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Gagal menyimpan: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.error,
-                                ),
+                              AniseFeedbackDialog.showError(
+                                context,
+                                title: 'Gagal Menyimpan',
+                                message: 'Gagal menyimpan: $e',
                               );
                             }
                           },

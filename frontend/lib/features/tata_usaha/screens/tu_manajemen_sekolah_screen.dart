@@ -15,6 +15,7 @@ import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/responsive.dart';
+import '../../notifications/screens/notification_screen.dart';
 
 class TuManajemenSekolahScreen extends ConsumerStatefulWidget {
   const TuManajemenSekolahScreen({super.key});
@@ -106,6 +107,18 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           'Manajemen Sekolah',
           style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), color: AppColors.onBackground),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+          ),
+          SizedBox(width: 8.w(context)),
+        ],
       ),
       body: DecorativeBackground(
         child: SafeArea(

@@ -10,6 +10,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_button.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 
 class TuManajemenSekolahDialogs {
   // =========================================================================
@@ -143,11 +144,10 @@ class TuManajemenSekolahDialogs {
                       : () async {
                           final rawName = nameController.text.trim();
                           if (rawName.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Nama Rombel wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                backgroundColor: AppColors.error,
-                              ),
+                            AniseFeedbackDialog.showWarning(
+                              context,
+                              title: 'Data Belum Lengkap',
+                              message: 'Nama Rombel wajib diisi!',
                             );
                             return;
                           }
@@ -162,22 +162,27 @@ class TuManajemenSekolahDialogs {
 
                             if (context.mounted) {
                               Navigator.pop(sheetContext);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Kelas $previewName berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                  backgroundColor: AppColors.success,
-                                ),
+                              AniseFeedbackDialog.showSuccess(
+                                context,
+                                title: 'Kelas Ditambahkan',
+                                message: 'Kelas $previewName berhasil ditambahkan!',
                               );
                               onSuccess();
                             }
                           } catch (e) {
                             setModalState(() => isSubmitting = false);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Gagal menyimpan kelas: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.error,
-                                ),
+                              String errorMessage = 'Gagal menyimpan kelas: $e';
+                              if (e is DioException && e.response?.data != null) {
+                                final resData = e.response!.data;
+                                if (resData is Map && resData['message'] != null) {
+                                  errorMessage = resData['message'].toString();
+                                }
+                              }
+                              AniseFeedbackDialog.showError(
+                                context,
+                                title: 'Gagal Menyimpan',
+                                message: errorMessage,
                               );
                             }
                           }
@@ -275,11 +280,10 @@ class TuManajemenSekolahDialogs {
                       : () async {
                           final rawName = nameController.text.trim();
                           if (rawName.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Nama jabatan wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                backgroundColor: AppColors.error,
-                              ),
+                            AniseFeedbackDialog.showWarning(
+                              context,
+                              title: 'Data Belum Lengkap',
+                              message: 'Nama jabatan wajib diisi!',
                             );
                             return;
                           }
@@ -294,22 +298,27 @@ class TuManajemenSekolahDialogs {
 
                             if (context.mounted) {
                               Navigator.pop(sheetContext);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Jabatan $rawName berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                  backgroundColor: AppColors.success,
-                                ),
+                              AniseFeedbackDialog.showSuccess(
+                                context,
+                                title: 'Jabatan Ditambahkan',
+                                message: 'Jabatan $rawName berhasil ditambahkan!',
                               );
                               onSuccess();
                             }
                           } catch (e) {
                             setModalState(() => isSubmitting = false);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Gagal menyimpan jabatan: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.error,
-                                ),
+                              String errorMessage = 'Gagal menyimpan jabatan: $e';
+                              if (e is DioException && e.response?.data != null) {
+                                final resData = e.response!.data;
+                                if (resData is Map && resData['message'] != null) {
+                                  errorMessage = resData['message'].toString();
+                                }
+                              }
+                              AniseFeedbackDialog.showError(
+                                context,
+                                title: 'Gagal Menyimpan',
+                                message: errorMessage,
                               );
                             }
                           }
@@ -578,11 +587,10 @@ class TuManajemenSekolahDialogs {
                         : () async {
                             final rawName = nameController.text.trim();
                             if (rawName.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Nama hari libur wajib diisi!', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                  backgroundColor: AppColors.error,
-                                ),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Data Belum Lengkap',
+                                message: 'Nama hari libur wajib diisi!',
                               );
                               return;
                             }
@@ -600,22 +608,27 @@ class TuManajemenSekolahDialogs {
 
                               if (context.mounted) {
                                 Navigator.pop(sheetContext);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Hari libur "$rawName" berhasil ditambahkan!', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                                    backgroundColor: AppColors.success,
-                                  ),
+                                AniseFeedbackDialog.showSuccess(
+                                  context,
+                                  title: 'Hari Libur Ditambahkan',
+                                  message: 'Hari libur "$rawName" berhasil ditambahkan!',
                                 );
                                 onSuccess();
                               }
                             } catch (e) {
                               setModalState(() => isSubmitting = false);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Gagal menyimpan hari libur: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                                    backgroundColor: AppColors.error,
-                                  ),
+                                String errorMessage = 'Gagal menyimpan hari libur: $e';
+                                if (e is DioException && e.response?.data != null) {
+                                  final resData = e.response!.data;
+                                  if (resData is Map && resData['message'] != null) {
+                                    errorMessage = resData['message'].toString();
+                                  }
+                                }
+                                AniseFeedbackDialog.showError(
+                                  context,
+                                  title: 'Gagal Menyimpan',
+                                  message: errorMessage,
                                 );
                               }
                             }
@@ -853,16 +866,27 @@ class TuManajemenSekolahDialogs {
                       
                       if (context.mounted) {
                         Navigator.pop(dialogContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Data $type berhasil diperbarui', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)), backgroundColor: AppColors.success),
+                        AniseFeedbackDialog.showSuccess(
+                          context,
+                          title: 'Berhasil Diperbarui',
+                          message: 'Data $type berhasil diperbarui!',
                         );
                         onSuccess();
                       }
                     } catch (e) {
                       setEditState(() => isSaving = false);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Gagal memperbarui: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)), backgroundColor: AppColors.error),
+                        String errorMessage = 'Gagal memperbarui: $e';
+                        if (e is DioException && e.response?.data != null) {
+                          final resData = e.response!.data;
+                          if (resData is Map && resData['message'] != null) {
+                            errorMessage = resData['message'].toString();
+                          }
+                        }
+                        AniseFeedbackDialog.showError(
+                          context,
+                          title: 'Gagal Memperbarui',
+                          message: errorMessage,
                         );
                       }
                     }
@@ -886,73 +910,55 @@ class TuManajemenSekolahDialogs {
   // =========================================================================
   // 5. CONFIRM DELETE DIALOG
   // =========================================================================
-  static void confirmDelete(BuildContext context, WidgetRef ref, String type, Map<String, dynamic> item, VoidCallback onSuccess) {
+  static void confirmDelete(BuildContext context, WidgetRef ref, String type, Map<String, dynamic> item, VoidCallback onSuccess) async {
     final itemName = item['name'] ?? 'Data';
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
-        title: Row(
-          children: [
-            Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.error, size: 24.w(context)),
-            SizedBox(width: 10.w(context)),
-            Text('Hapus $type?', style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
-          ],
-        ),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus $type "$itemName"? Tindakan ini tidak dapat dibatalkan.',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.8)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: Text('Batal', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              try {
-                final dio = ref.read(dioProvider);
-                String endpoint = '';
-                if (type == 'Kelas') {
-                  endpoint = '/master/kelas/${item['id']}';
-                } else if (type == 'Jabatan') {
-                  endpoint = '/master/jabatans/${item['id']}';
-                }
-
-                if (endpoint.isNotEmpty) {
-                  await dio.delete(endpoint);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('$type "$itemName" berhasil dihapus', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                    onSuccess();
-                  }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Gagal menghapus $type: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
-            ),
-            child: Text('Ya, Hapus', style: AppTextStyles.labelMedium(context, color: Colors.white)),
-          ),
-        ],
-      ),
+    final confirmed = await AniseFeedbackDialog.showConfirm(
+      context,
+      title: 'Hapus $type?',
+      message: 'Apakah Anda yakin ingin menghapus $type "$itemName"? Tindakan ini tidak dapat dibatalkan.',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      isDestructive: true,
     );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final dio = ref.read(dioProvider);
+        String endpoint = '';
+        if (type == 'Kelas') {
+          endpoint = '/master/kelas/${item['id']}';
+        } else if (type == 'Jabatan') {
+          endpoint = '/master/jabatans/${item['id']}';
+        }
+
+        if (endpoint.isNotEmpty) {
+          await dio.delete(endpoint);
+          if (context.mounted) {
+            AniseFeedbackDialog.showSuccess(
+              context,
+              title: 'Data Dihapus',
+              message: '$type "$itemName" berhasil dihapus!',
+            );
+            onSuccess();
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          String errorMessage = 'Gagal menghapus $type: $e';
+          if (e is DioException && e.response?.data != null) {
+            final resData = e.response!.data;
+            if (resData is Map && resData['message'] != null) {
+              errorMessage = resData['message'].toString();
+            }
+          }
+          AniseFeedbackDialog.showError(
+            context,
+            title: 'Gagal Menghapus',
+            message: errorMessage,
+          );
+        }
+      }
+    }
   }
 
   // =========================================================================
@@ -1129,35 +1135,30 @@ class TuManajemenSekolahDialogs {
         final ext = fileName.split('.').last.toLowerCase();
         if (ext != 'xlsx' && ext != 'xls') {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  ext == 'pdf'
-                      ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
-                      : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
-                  style: AppTextStyles.bodyMedium(context, color: Colors.white),
-                ),
-                backgroundColor: AppColors.error,
-                duration: const Duration(seconds: 4),
-              ),
+            AniseFeedbackDialog.showWarning(
+              context,
+              title: 'Berkas Ditolak',
+              message: ext == 'pdf'
+                  ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
+                  : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
             );
           }
           return;
         }
 
+        // Tampilkan modal loading spinner
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                  const SizedBox(width: 16),
-                  Expanded(child: Text('Mengunggah berkas $fileName...', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary))),
-                ],
-              ),
-              backgroundColor: AppColors.primary,
-              duration: const Duration(days: 1),
-            ),
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext ctx) {
+              return PopScope(
+                canPop: false,
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            },
           );
         }
 
@@ -1178,14 +1179,13 @@ class TuManajemenSekolahDialogs {
         final response = await dio.post(endpoint, data: formData);
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          Navigator.pop(context); // Tutup loading spinner
           if (response.statusCode == 200 || response.statusCode == 201) {
             String message = response.data['message'] ?? 'Data berhasil disimpan!';
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message, style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-                backgroundColor: AppColors.success,
-              ),
+            AniseFeedbackDialog.showSuccess(
+              context,
+              title: 'Upload Berhasil',
+              message: message,
             );
             onUploaded();
           }
@@ -1193,7 +1193,8 @@ class TuManajemenSekolahDialogs {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        // Tutup dialog loader jika masih aktif
+        Navigator.of(context, rootNavigator: true).pop();
 
         String errorMessage = 'Gagal unggah: $e';
         if (e is DioException && e.response?.data != null) {
@@ -1203,12 +1204,10 @@ class TuManajemenSekolahDialogs {
           }
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-          ),
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Berkas Ditolak',
+          message: errorMessage,
         );
       }
     }
