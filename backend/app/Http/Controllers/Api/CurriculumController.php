@@ -342,8 +342,10 @@ class CurriculumController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'type' => 'nullable|string|in:ASESMEN,KEGIATAN,SEREMONIAL,ADMINISTRASI',
             'start_date' => 'required|date_format:Y-m-d',
             'end_date' => 'required|date_format:Y-m-d|after_or_equal:start_date',
+            'target_grade' => 'nullable|string',
             'is_holiday' => 'nullable|boolean',
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
@@ -357,8 +359,10 @@ class CurriculumController extends Controller
 
         $calendar = AcademicCalendar::create([
             'name' => $request->name,
+            'type' => strtoupper($request->input('type', 'KEGIATAN')),
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
+            'target_grade' => strtoupper($request->input('target_grade', 'SEMUA')),
             'is_holiday' => $request->boolean('is_holiday', false),
             'academic_year_id' => $academicYearId,
         ]);
@@ -373,13 +377,23 @@ class CurriculumController extends Controller
         $calendar = AcademicCalendar::findOrFail($id);
         $request->validate([
             'name' => 'sometimes|required|string|max:255',
+            'type' => 'nullable|string|in:ASESMEN,KEGIATAN,SEREMONIAL,ADMINISTRASI',
             'start_date' => 'sometimes|required|date_format:Y-m-d',
             'end_date' => 'sometimes|required|date_format:Y-m-d|after_or_equal:start_date',
+            'target_grade' => 'nullable|string',
             'is_holiday' => 'nullable|boolean',
             'academic_year_id' => 'nullable|exists:academic_years,id',
         ]);
 
-        $calendar->update($request->only(['name', 'start_date', 'end_date', 'is_holiday', 'academic_year_id']));
+        $data = $request->only(['name', 'type', 'start_date', 'end_date', 'target_grade', 'is_holiday', 'academic_year_id']);
+        if (isset($data['type'])) {
+            $data['type'] = strtoupper($data['type']);
+        }
+        if (isset($data['target_grade'])) {
+            $data['target_grade'] = strtoupper($data['target_grade']);
+        }
+
+        $calendar->update($data);
         $calendar->load('academicYear');
 
         return $this->success($calendar, 'Agenda kalender akademik berhasil diperbarui');

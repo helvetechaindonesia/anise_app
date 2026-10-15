@@ -9,20 +9,28 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Tambah kolom deskripsi di journal_tasks
-        Schema::table('journal_tasks', function (Blueprint $table) {
-            $table->text('description')->nullable()->after('title');
-        });
+        if (!Schema::hasColumn('journal_tasks', 'description')) {
+            Schema::table('journal_tasks', function (Blueprint $table) {
+                $table->text('description')->nullable()->after('title');
+            });
+        }
 
         // 2. Ubah penamaan kolom di journal_task_attachments (ubah file_url jadi attachment_url)
-        Schema::table('journal_task_attachments', function (Blueprint $table) {
-            $table->renameColumn('file_name', 'attachment_name');
-            $table->renameColumn('file_url', 'attachment_url');
-        });
+        if (Schema::hasColumn('journal_task_attachments', 'file_name')) {
+            Schema::table('journal_task_attachments', function (Blueprint $table) {
+                $table->renameColumn('file_name', 'attachment_name');
+                $table->renameColumn('file_url', 'attachment_url');
+            });
+        }
 
         // 3. Tambah kolom jawaban di student_task_submissions
         Schema::table('student_task_submissions', function (Blueprint $table) {
-            $table->text('answer_text')->nullable()->after('status');
-            $table->text('attachment_url')->nullable()->after('answer_text');
+            if (!Schema::hasColumn('student_task_submissions', 'answer_text')) {
+                $table->text('answer_text')->nullable()->after('status');
+            }
+            if (!Schema::hasColumn('student_task_submissions', 'attachment_url')) {
+                $table->text('attachment_url')->nullable()->after('answer_text');
+            }
         });
 
         // 4. Hapus assessments karena akan dipindah ke Modul Agenda Penilaian

@@ -381,9 +381,10 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       };
     } else if (_selectedCategory == 'kalender_akademik') {
       title = item['name'] ?? '-';
-      subtitle = '${item['start_date']} s/d ${item['end_date']}';
+      final type = item['type'] ?? 'KEGIATAN';
+      final grade = item['target_grade'] ?? 'SEMUA';
       final isHoli = item['is_holiday'] == true;
-      detail = isHoli ? '🔴 Libur Kegiatan / Pembelajaran' : '🔵 Agenda Ujian / Kegiatan Aktif';
+      detail = 'Jenis: $type • Tingkat: $grade${isHoli ? ' • 🔴 Libur Presensi' : ''}';
       icon = PhosphorIcons.calendarCheck(PhosphorIconsStyle.fill);
       onEdit = () {
         TuKurikulumDialogs.showKalenderAkademikForm(context, ref, item: item, onSuccess: _fetchData);

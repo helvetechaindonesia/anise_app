@@ -334,85 +334,200 @@ class ExcelParserKurikulumController extends Controller
     private function parseKalenderAkademik($collection, $academicYear)
     {
         $errors = [];
+        $headerFound = false;
         $rowNum = 1;
-        // Kolom: Nama Agenda (0), Tanggal Mulai (1), Tanggal Selesai (2), Libur Kegiatan (3) (Ya/Tidak)
-        $isFirst = true;
+
         foreach ($collection as $row) {
             $rowNum++;
-            if ($isFirst) {
-                $isFirst = false;
-                continue;
-            }
-
             $values = array_values((array)$row);
-            $nama = $values[0] ?? null;
-            $start = $this->formatDate($values[1] ?? null);
-            $end = $this->formatDate($values[2] ?? null) ?? $start;
-            $isHolidayVal = strtolower(trim((string)($values[3] ?? 'tidak')));
-            $isHoliday = in_array($isHolidayVal, ['ya', 'true', '1', 'yes']);
 
-            if (empty($nama) || empty($start)) {
-                $errors[] = "Baris $rowNum: Nama agenda atau tanggal mulai kosong.";
+            $val0 = $values[0] ?? '';
+            $firstCol = strtolower(trim(($val0 instanceof \DateTimeInterface) ? $val0->format('Y-m-d') : (string)$val0));
+            $val1 = $values[1] ?? '';
+            $secondCol = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
+
+            // 1. Deteksi Baris Header Kolom
+            if (!$headerFound) {
+                if ($firstCol === 'nama' && str_contains($secondCol, 'jenis')) {
+                    $headerFound = true;
+                }
                 continue;
             }
+
+            $nama = trim(($val0 instanceof \DateTimeInterface) ? $val0->format('Y-m-d') : (string)$val0);
+            $jenisRaw = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
+            $mulaiRaw = $values[2] ?? null;
+            $selesaiRaw = $values[3] ?? null;
+            $val4 = $values[4] ?? '';
+            $tingkatRaw = strtoupper(trim(($val4 instanceof \DateTimeInterface) ? $val4->format('Y-m-d') : (string)$val4));
+
+            // Skip jika baris benar-benar kosong
+            if (empty($nama) && empty($jenisRaw) && empty($mulaiRaw)) {
+                continue;
+            }
+
+            // Validasi Ketat: Nama Agenda
+            if (empty($nama) || strlen($nama) < 3) {
+                $errors[] = "Baris $rowNum: Nama agenda wajib diisi (minimal 3 karakter).";
+                continue;
+            }
+
+            // Validasi Ketat: Jenis Agenda
+            $validTypes = [
+                'asesmen' => 'ASESMEN',
+                'kegiatan' => 'KEGIATAN',
+                'seremonial' => 'SEREMONIAL',
+                'administrasi' => 'ADMINISTRASI',
+                'libur' => 'LIBUR',
+            ];
+            if (!isset($validTypes[$jenisRaw])) {
+                $errors[] = "Baris $rowNum: Jenis '$jenisRaw' tidak valid. Pilihan: asesmen, kegiatan, seremonial, administrasi.";
+                continue;
+            }
+            $type = $validTypes[$jenisRaw];
+
+            // Validasi Ketat: Tanggal Mulai & Selesai
+            $start = $this->formatDate($mulaiRaw);
+            $end = $this->formatDate($selesaiRaw) ?? $start;
+
+            if (!$start || !$this->isValidDate($start)) {
+                $errors[] = "Baris $rowNum: Format tanggal mulai tidak valid. Gunakan format DD/MM/YYYY.";
+                continue;
+            }
+            if (!$end || !$this->isValidDate($end)) {
+                $errors[] = "Baris $rowNum: Format tanggal selesai tidak valid. Gunakan format DD/MM/YYYY.";
+                continue;
+            }
+            if ($end < $start) {
+                $errors[] = "Baris $rowNum: Tanggal selesai ($end) tidak boleh mendahului tanggal mulai ($start).";
+                continue;
+            }
+
+            // Validasi Ketat: Tingkat
+            if (in_array($tingkatRaw, ['#', '*', 'ALL', 'SEMUA', ''])) {
+                $tingkat = 'SEMUA';
+            } elseif (in_array($tingkatRaw, ['X', '10'])) {
+                $tingkat = 'X';
+            } elseif (in_array($tingkatRaw, ['XI', '11'])) {
+                $tingkat = 'XI';
+            } elseif (in_array($tingkatRaw, ['XII', '12'])) {
+                $tingkat = 'XII';
+            } else {
+                $errors[] = "Baris $rowNum: Tingkat '$tingkatRaw' tidak valid. Gunakan # (semua), X, XI, atau XII.";
+                continue;
+            }
+
+            $isHoliday = ($type === 'LIBUR');
 
             AcademicCalendar::updateOrCreate(
                 [
                     'name' => $nama,
+                    'start_date' => $start,
                     'academic_year_id' => $academicYear ? $academicYear->id : null,
                 ],
                 [
-                    'start_date' => $start,
+                    'type' => $type,
                     'end_date' => $end,
+                    'target_grade' => $tingkat,
                     'is_holiday' => $isHoliday,
                 ]
             );
         }
+
+        if (!$headerFound) {
+            $errors[] = "Format template tidak sesuai! Header kolom harus memuat: Nama, Jenis, Mulai (DD/MM/YYYY), Selesai (DD/MM/YYYY), dan Tingkat.";
+        }
+
         return $errors;
     }
 
     private function parseHariLibur($collection, $academicYear)
     {
         $errors = [];
+        $headerFound = false;
         $rowNum = 1;
-        // Kolom: Nama Hari Libur (0), Tanggal Mulai (1), Tanggal Selesai (2), Tipe (3), Keterangan (4)
-        $isFirst = true;
+
         foreach ($collection as $row) {
             $rowNum++;
-            if ($isFirst) {
-                $isFirst = false;
-                continue;
-            }
-
             $values = array_values((array)$row);
-            $nama = $values[0] ?? null;
-            $start = $this->formatDate($values[1] ?? null);
-            $end = $this->formatDate($values[2] ?? null) ?? $start;
-            $type = strtoupper(trim((string)($values[3] ?? 'NASIONAL')));
-            if (!in_array($type, ['NASIONAL', 'SEKOLAH', 'CUTI_BERSAMA', 'KHUSUS'])) {
-                $type = 'NASIONAL';
-            }
-            $description = $values[4] ?? null;
 
-            if (empty($nama) || empty($start)) {
-                $errors[] = "Baris $rowNum: Nama hari libur atau tanggal mulai kosong.";
+            $val0 = $values[0] ?? '';
+            $firstCol = strtolower(trim(($val0 instanceof \DateTimeInterface) ? $val0->format('Y-m-d') : (string)$val0));
+            $val1 = $values[1] ?? '';
+            $secondCol = strtolower(trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1));
+
+            // 1. Deteksi Baris Header Kolom
+            if (!$headerFound) {
+                if (str_contains($firstCol, 'waktu') || str_contains($firstCol, 'tanggal') || str_contains($secondCol, 'keterangan')) {
+                    $headerFound = true;
+                }
                 continue;
+            }
+
+            $waktuRaw = $values[0] ?? null;
+            $keterangan = trim(($val1 instanceof \DateTimeInterface) ? $val1->format('Y-m-d') : (string)$val1);
+
+            // Skip jika baris benar-benar kosong
+            if (empty($waktuRaw) && empty($keterangan)) {
+                continue;
+            }
+
+            // Validasi Ketat: Keterangan
+            if (empty($keterangan) || strlen($keterangan) < 3) {
+                $errors[] = "Baris $rowNum: Keterangan hari libur wajib diisi (minimal 3 karakter).";
+                continue;
+            }
+
+            // Validasi Ketat: Tanggal Waktu
+            $date = $this->formatDate($waktuRaw);
+            if (!$date || !$this->isValidDate($date)) {
+                $errors[] = "Baris $rowNum: Format tanggal waktu hari libur tidak valid. Gunakan format DD/MM/YYYY.";
+                continue;
+            }
+
+            // Klasifikasi Tipe Hari Libur Otomatis
+            $lower = strtolower($keterangan);
+            $type = 'SEKOLAH';
+            if (str_contains($lower, 'cuti bersama')) {
+                $type = 'CUTI_BERSAMA';
+            } elseif (
+                str_contains($lower, 'natal') ||
+                str_contains($lower, 'idul fitri') ||
+                str_contains($lower, 'idul adha') ||
+                str_contains($lower, 'tahun baru') ||
+                str_contains($lower, 'kemerdekaan') ||
+                str_contains($lower, 'nyepi') ||
+                str_contains($lower, 'waisak') ||
+                str_contains($lower, 'imlek') ||
+                str_contains($lower, 'isra') ||
+                str_contains($lower, 'maulid') ||
+                str_contains($lower, 'paskah') ||
+                str_contains($lower, 'kenaikan') ||
+                str_contains($lower, 'pancasila') ||
+                str_contains($lower, 'buruh')
+            ) {
+                $type = 'NASIONAL';
             }
 
             SchoolHoliday::updateOrCreate(
                 [
-                    'name' => $nama,
-                    'start_date' => $start,
+                    'name' => $keterangan,
+                    'start_date' => $date,
                 ],
                 [
-                    'end_date' => $end,
+                    'end_date' => $date,
                     'type' => $type,
-                    'description' => $description,
+                    'description' => $keterangan,
                     'academic_year_id' => $academicYear ? $academicYear->id : null,
                     'is_active' => true,
                 ]
             );
         }
+
+        if (!$headerFound) {
+            $errors[] = "Format template tidak sesuai! Header kolom harus memuat: Waktu (DD/MM/YYYY) dan Keterangan.";
+        }
+
         return $errors;
     }
 
@@ -422,12 +537,32 @@ class ExcelParserKurikulumController extends Controller
         if ($val instanceof \DateTimeInterface) {
             return $val->format('Y-m-d');
         }
+        if (is_numeric($val) && (float)$val > 10000) {
+            return gmdate('Y-m-d', (int)(((float)$val - 25569) * 86400));
+        }
         $str = trim((string)$val);
+        if (preg_match('/^\d{1,2}\/\d{1,2}\/\d{4}$/', $str)) {
+            $dt = \DateTime::createFromFormat('d/m/Y', $str);
+            if ($dt !== false) return $dt->format('Y-m-d');
+        }
+        if (preg_match('/^\d{1,2}-\d{1,2}-\d{4}$/', $str)) {
+            $dt = \DateTime::createFromFormat('d-m-Y', $str);
+            if ($dt !== false) return $dt->format('Y-m-d');
+        }
         $timestamp = strtotime($str);
         if ($timestamp !== false) {
             return date('Y-m-d', $timestamp);
         }
         return $str;
+    }
+
+    private function isValidDate($dateStr)
+    {
+        if (!is_string($dateStr) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
+            return false;
+        }
+        [$y, $m, $d] = explode('-', $dateStr);
+        return checkdate((int)$m, (int)$d, (int)$y);
     }
 
     private function formatTime($val)

@@ -377,6 +377,8 @@ class TuKurikulumDialogs {
     final nameCtrl = TextEditingController(text: item?['name'] ?? '');
     final startDateCtrl = TextEditingController(text: item?['start_date'] ?? '');
     final endDateCtrl = TextEditingController(text: item?['end_date'] ?? '');
+    String selectedType = item?['type'] ?? 'KEGIATAN';
+    String selectedGrade = item?['target_grade'] ?? 'SEMUA';
     bool isHoliday = item?['is_holiday'] == true;
     bool isSubmitting = false;
 
@@ -425,6 +427,40 @@ class TuKurikulumDialogs {
                       hintText: 'Contoh: Penilaian Akhir Semester (PAS)',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
                     ),
+                  ),
+                  SizedBox(height: 14.h(context)),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    decoration: InputDecoration(
+                      labelText: 'Jenis Agenda',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'ASESMEN', child: Text('Asesmen / Ujian')),
+                      DropdownMenuItem(value: 'KEGIATAN', child: Text('Kegiatan Sekolah')),
+                      DropdownMenuItem(value: 'SEREMONIAL', child: Text('Seremonial / Upacara')),
+                      DropdownMenuItem(value: 'ADMINISTRASI', child: Text('Administrasi / Rapor')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => selectedType = val);
+                    },
+                  ),
+                  SizedBox(height: 14.h(context)),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedGrade,
+                    decoration: InputDecoration(
+                      labelText: 'Target Tingkat Kelas',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'SEMUA', child: Text('Semua Tingkat (#)')),
+                      DropdownMenuItem(value: 'X', child: Text('Khusus Tingkat X')),
+                      DropdownMenuItem(value: 'XI', child: Text('Khusus Tingkat XI')),
+                      DropdownMenuItem(value: 'XII', child: Text('Khusus Tingkat XII')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => selectedGrade = val);
+                    },
                   ),
                   SizedBox(height: 14.h(context)),
                   TextField(
@@ -508,8 +544,10 @@ class TuKurikulumDialogs {
                               final dio = ref.read(dioProvider);
                               final payload = {
                                 'name': name,
+                                'type': selectedType,
                                 'start_date': start,
                                 'end_date': end,
+                                'target_grade': selectedGrade,
                                 'is_holiday': isHoliday,
                               };
 

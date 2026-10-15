@@ -15,8 +15,10 @@ class AcademicCalendar extends Model
     protected $fillable = [
         'academic_year_id',
         'name',
+        'type',
         'start_date',
         'end_date',
+        'target_grade',
         'is_holiday',
     ];
 
