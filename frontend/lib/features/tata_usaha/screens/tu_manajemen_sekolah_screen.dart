@@ -286,6 +286,7 @@ class _TuManajemenSekolahScreenState extends ConsumerState<TuManajemenSekolahScr
           if (newValue != null && newValue != _selectedCategory) {
             setState(() {
               _selectedCategory = newValue;
+              _searchController.clear();
             });
           }
         },

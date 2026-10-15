@@ -1126,6 +1126,25 @@ class TuManajemenSekolahDialogs {
         String fileName = picked.name;
         String filePath = picked.path!;
 
+        final ext = fileName.split('.').last.toLowerCase();
+        if (ext != 'xlsx' && ext != 'xls') {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ext == 'pdf'
+                      ? 'Berkas PDF ditolak! Fitur ini membutuhkan file spreadsheet Excel (.xlsx / .xls).'
+                      : 'Berkas ditolak! Format berkas .$ext tidak didukung, harap pilih berkas Excel (.xlsx / .xls).',
+                  style: AppTextStyles.bodyMedium(context, color: Colors.white),
+                ),
+                backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
+        }
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1143,9 +1162,13 @@ class TuManajemenSekolahDialogs {
         }
 
         String endpoint = '';
-        if (title == 'Master Kelas') endpoint = '/parse/master-kelas';
-        else if (title == 'Master Role') endpoint = '/parse/master-role';
-        else if (title == 'Master Jabatan') endpoint = '/parse/master-jabatan';
+        if (title == 'Master Kelas') {
+          endpoint = '/parse/master-kelas';
+        } else if (title == 'Master Role') {
+          endpoint = '/parse/master-role';
+        } else if (title == 'Master Jabatan') {
+          endpoint = '/parse/master-jabatan';
+        }
 
         FormData formData = FormData.fromMap({
           'file': await MultipartFile.fromFile(filePath, filename: fileName),
@@ -1171,10 +1194,20 @@ class TuManajemenSekolahDialogs {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        String errorMessage = 'Gagal unggah: $e';
+        if (e is DioException && e.response?.data != null) {
+          final resData = e.response!.data;
+          if (resData is Map && resData['message'] != null) {
+            errorMessage = resData['message'].toString();
+          }
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal unggah: $e', style: AppTextStyles.bodyMedium(context, color: Colors.white)),
+            content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
