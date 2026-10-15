@@ -54,7 +54,13 @@ class ExcelParserUserController extends Controller
         $rowCount = 0;
         foreach ($collection as $row) {
             $rowArr = (array)$row;
-            $textBlob .= ' ' . implode(' ', array_keys($rowArr)) . ' ' . implode(' ', array_values($rowArr));
+            $stringValues = array_map(function($v) {
+                if ($v instanceof \DateTimeInterface) {
+                    return $v->format('Y-m-d');
+                }
+                return is_scalar($v) ? (string)$v : '';
+            }, array_values($rowArr));
+            $textBlob .= ' ' . implode(' ', array_keys($rowArr)) . ' ' . implode(' ', $stringValues);
             $rowCount++;
             if ($rowCount >= 3) break;
         }
@@ -286,8 +292,33 @@ class ExcelParserUserController extends Controller
     {
         set_time_limit(0);
 
+        $roleMap = [
+            'siswa' => 'SISWA',
+            'guru' => 'GURU',
+            'guru-bk' => 'GURU_BK',
+            'staff-tu' => 'TATA_USAHA',
+            'kepsek' => 'KEPALA_SEKOLAH',
+        ];
+
+        $moduleNames = [
+            'siswa' => 'Siswa',
+            'guru' => 'Guru Pengajar',
+            'guru-bk' => 'Guru BK',
+            'staff-tu' => 'Staf Tata Usaha',
+            'kepsek' => 'Kepala Sekolah',
+        ];
+
+        $moduleName = $moduleNames[$type] ?? strtoupper($type);
+        $userId = $request->user()?->id ?? User::where('username', 'tu_dev')->first()?->id ?? User::first()?->id;
+
         try {
             if (!$request->hasFile('file')) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas belum dipilih atau gagal diunggah.',
+                    'Tidak ada berkas yang dilampirkan pada permintaan unggah.'
+                );
                 return $this->error('Berkas wajib diunggah!', 422);
             }
 
@@ -297,22 +328,32 @@ class ExcelParserUserController extends Controller
 
             // Tolak jika PDF atau non-excel
             if ($ext === 'pdf' || str_contains($mime, 'pdf')) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas berformat PDF tidak didukung.',
+                    'Sistem hanya menerima berkas spreadsheet Excel (.xlsx / .xls). Silakan ekspor spreadsheet Anda ke format .xlsx atau .xls.'
+                );
                 return $this->error('Berkas PDF ditolak! Fitur ini hanya menerima berkas spreadsheet Excel (.xlsx / .xls).', 422);
             }
 
             if (!in_array($ext, ['xlsx', 'xls'])) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    "Format berkas (.{$ext}) tidak didukung.",
+                    'Harap unggah berkas spreadsheet Excel dengan format .xlsx atau .xls.'
+                );
                 return $this->error('Format berkas ditolak! Harap unggah file spreadsheet Excel dengan format .xlsx atau .xls.', 422);
             }
 
-            $roleMap = [
-                'siswa' => 'SISWA',
-                'guru' => 'GURU',
-                'guru-bk' => 'GURU_BK',
-                'staff-tu' => 'TATA_USAHA',
-                'kepsek' => 'KEPALA_SEKOLAH',
-            ];
-
             if (!isset($roleMap[$type])) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    'Pengguna',
+                    'Tipe pengguna tidak valid.',
+                    "Tipe pengguna '{$type}' tidak dikenali oleh sistem."
+                );
                 return $this->error('Tipe user tidak valid', 400);
             }
 
@@ -327,12 +368,24 @@ class ExcelParserUserController extends Controller
 
             $collection = (new FastExcel)->import($file->path());
             if ($collection->isEmpty()) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas Excel kosong atau tidak memuat data yang valid.',
+                    'Berkas spreadsheet yang Anda unggah tidak memiliki baris data apapun.'
+                );
                 return $this->error('Berkas Excel kosong atau tidak memuat data yang valid!', 422);
             }
 
             // Validasi kecocokan isi template berkas dengan role yang dipilih
             $contentError = $this->validateUserFileContent($collection, $roleType, $file->path());
             if ($contentError !== null) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Template berkas tidak sesuai dengan jenis data pengguna yang dipilih.',
+                    $contentError
+                );
                 return $this->error($contentError, 422);
             }
 
@@ -341,9 +394,6 @@ class ExcelParserUserController extends Controller
             $columnErrors = $validation['errors'] ?? [];
 
             if (!empty($columnErrors)) {
-                $currentUser = $request->user();
-                $userId = $currentUser?->id ?? User::where('username', 'tu_dev')->first()?->id ?? User::first()?->id;
-
                 $totalErr = count($columnErrors);
                 $errorSlice = array_slice($columnErrors, 0, 5);
                 $detailList = implode("\n", $errorSlice);
@@ -351,11 +401,13 @@ class ExcelParserUserController extends Controller
                     $detailList .= "\n... dan " . ($totalErr - 5) . " baris lainnya.";
                 }
 
-                if ($userId) {
-                    $notifTitle = '⚠️ Impor Data ' . str_replace('_', ' ', $roleType) . ' Ditolak';
-                    $notifMessage = "Berkas impor data " . str_replace('_', ' ', $roleType) . " ditolak karena terdapat kolom wajib yang belum terisi pada {$totalErr} baris data:\n\n• " . implode("\n• ", array_slice($columnErrors, 0, 15)) . "\n\nSilakan perbaiki baris data di atas pada berkas Excel Anda lalu unggah kembali.";
-                    NotificationService::sendInAppNotification($userId, $notifTitle, $notifMessage);
-                }
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    "Terdapat kolom wajib yang belum terisi pada {$totalErr} baris data.",
+                    $columnErrors,
+                    'Lengkapi seluruh kolom wajib (Nama, NISN/NUPTK, Email, Kredensial, Agama) pada berkas Excel Anda lalu unggah kembali.'
+                );
 
                 return response()->json([
                     'status' => 'error',
@@ -455,12 +507,24 @@ class ExcelParserUserController extends Controller
             });
 
             if (count($syncedUserIds) === 0) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Tidak ditemukan baris data pengguna yang valid untuk disinkronisasi.',
+                    'Semua baris dalam berkas tidak memenuhi syarat minimal (Nama, Kredensial, Email).'
+                );
                 return $this->error('Berkas ditolak! Tidak ditemukan data pengguna yang cocok untuk role ini.', 422);
             }
 
             return $this->success(null, 'Data ' . strtoupper($type) . ' berhasil disinkronisasi!');
         } catch (\Throwable $e) {
             \Log::error('Excel Parse Error: ' . $e->getMessage() . ' at line ' . $e->getLine());
+            NotificationService::recordUploadFailure(
+                $userId,
+                $moduleName,
+                'Terjadi kesalahan sistem saat memproses berkas.',
+                'Error teknis: ' . $e->getMessage()
+            );
             return response()->json([
                 'status' => 'error',
                 'message' => 'Exception: ' . $e->getMessage(),

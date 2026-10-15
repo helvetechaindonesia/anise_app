@@ -10,10 +10,12 @@ use App\Models\SchoolClass;
 use App\Models\Jabatan;
 use App\Models\AcademicYear;
 use App\Models\Major;
+use App\Models\Notification;
 use App\Http\Resources\UserResource;
 use App\Http\Controllers\Api\ExcelParserUserController;
 use App\Http\Controllers\Api\ExcelParserController;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class ExcelParserUserAndSchoolStrictTest extends TestCase
 {
@@ -21,12 +23,23 @@ class ExcelParserUserAndSchoolStrictTest extends TestCase
 
     protected $academicYear;
     protected $major;
+    protected $user;
     protected $userController;
     protected $schoolController;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $role = Role::create(['name' => 'TATA_USAHA']);
+        $this->user = User::create([
+            'username' => 'tu_dev',
+            'full_name' => 'Staf Tata Usaha Dev',
+            'email' => 'tudev@sipena.com',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $role->id,
+            'is_active' => true,
+        ]);
 
         $this->academicYear = AcademicYear::create([
             'name' => '2026/2027',
@@ -338,4 +351,74 @@ class ExcelParserUserAndSchoolStrictTest extends TestCase
         $this->assertNotEmpty($errorsNoArea);
         $this->assertStringContainsString('Area Tugas', $errorsNoArea[0]);
     }
+
+    public function test_upload_failure_creates_in_app_notification_with_human_explanation()
+    {
+        $this->actingAs($this->user);
+
+        // 1. Upload file PDF ke parse user -> Ditolak & Masuk ke notifications
+        $fakePdf = UploadedFile::fake()->create('data_siswa.pdf', 100, 'application/pdf');
+        $response = $this->postJson('/api/parse/user/siswa', [
+            'file' => $fakePdf,
+        ]);
+
+        $response->assertStatus(422);
+
+        $notif = Notification::where('user_id', $this->user->id)
+            ->where('title', 'like', '%Siswa%')
+            ->first();
+        $this->assertNotNull($notif, 'Notifikasi harus tersimpan di database saat upload gagal.');
+        $this->assertStringContainsString('⚠️ Gagal Unggah Master Siswa', $notif->title);
+        $this->assertStringContainsString('🔍 Penyebab Utama:', $notif->message);
+        $this->assertStringContainsString('📋 Rincian Kendala:', $notif->message);
+        $this->assertStringContainsString('💡 Solusi & Rekomendasi:', $notif->message);
+        $this->assertStringContainsString('PDF', $notif->message);
+
+        // 2. Upload file PDF ke parse master role -> Ditolak & Masuk ke notifications
+        $responseRole = $this->postJson('/api/parse/master-role', [
+            'file' => $fakePdf,
+        ]);
+
+        $responseRole->assertStatus(422);
+
+        $notifRole = Notification::where('user_id', $this->user->id)
+            ->where('title', 'like', '%Role%')
+            ->first();
+        $this->assertNotNull($notifRole);
+        $this->assertStringContainsString('⚠️ Gagal Unggah Master Role & Hak Akses', $notifRole->title);
+
+        // 3. Upload file PDF ke parse kurikulum mapel -> Ditolak & Masuk ke notifications
+        $responseCurriculum = $this->postJson('/api/curriculum/parse/mapel', [
+            'file' => $fakePdf,
+        ]);
+
+        $responseCurriculum->assertStatus(422);
+
+        $notifMapel = Notification::where('user_id', $this->user->id)
+            ->where('title', 'like', '%Mata Pelajaran%')
+            ->first();
+        $this->assertNotNull($notifMapel);
+        $this->assertStringContainsString('⚠️ Gagal Unggah Master Mata Pelajaran', $notifMapel->title);
+    }
+
+    public function test_upload_success_does_not_create_in_app_notification()
+    {
+        $this->actingAs($this->user);
+
+        // Bersihkan semua notifikasi awal
+        Notification::query()->delete();
+        $this->assertEquals(0, Notification::count());
+
+        // Parse master role langsung berhasil
+        $collection = collect([
+            ['Peran' => 'GURU_PIKET', 'isGuruWali' => 'false']
+        ]);
+
+        // Simpan role
+        Role::create(['name' => 'GURU_PIKET', 'is_guru_wali' => false]);
+
+        // Pastikan tidak ada notifikasi yang tersimpan untuk aksi sukses
+        $this->assertEquals(0, Notification::count(), 'Upload sukses tidak boleh menambahkan record ke tabel notifications.');
+    }
 }
+

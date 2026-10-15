@@ -18,21 +18,175 @@ use App\Models\AcademicYear;
 use App\Models\User;
 use App\Models\AcademicCalendar;
 use App\Models\SchoolHoliday;
+use App\Services\NotificationService;
 
 class ExcelParserKurikulumController extends Controller
 {
     use ApiResponser;
 
+    /**
+     * Memvalidasi apakah template berkas cocok dengan tipe modul kurikulum yang dipilih.
+     */
+    private function validateCurriculumFileContent($collection, string $type): ?string
+    {
+        $textBlob = '';
+        $rowCount = 0;
+        foreach ($collection as $row) {
+            $rowArr = (array)$row;
+            $stringValues = array_map(function($v) {
+                if ($v instanceof \DateTimeInterface) {
+                    return $v->format('Y-m-d');
+                }
+                return is_scalar($v) ? (string)$v : '';
+            }, array_values($rowArr));
+            $textBlob .= ' ' . implode(' ', array_keys($rowArr)) . ' ' . implode(' ', $stringValues);
+            $rowCount++;
+            if ($rowCount >= 3) break;
+        }
+
+        $textLower = strtolower($textBlob);
+
+        // 1. Deteksi template modul lain (User, Role, Jabatan, Kelas)
+        if (str_contains($textLower, 'areatugas') && $type !== 'penugasan') {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai data Master Jabatan Sekolah, bukan Master Kurikulum.';
+        }
+        if ((str_contains($textLower, 'isguruwali') || str_contains($textLower, 'peran')) && !str_contains($textLower, 'mata pelajaran') && !str_contains($textLower, 'jurnal') && !str_contains($textLower, 'kbm')) {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai data Master Role, bukan Master Kurikulum.';
+        }
+        if (str_contains($textLower, 'kredensial') && str_contains($textLower, 'nama lengkap') && !in_array($type, ['guru_wali', 'penugasan'])) {
+            return 'Berkas ditolak! Berkas ini terdeteksi sebagai data Master Pengguna/User, bukan Master Kurikulum.';
+        }
+
+        // 2. Deteksi silang antar modul kurikulum
+        if ($type === 'mapel') {
+            if (str_contains($textLower, 'hari') && (str_contains($textLower, 'jam mulai') || str_contains($textLower, 'jam ke'))) {
+                return 'Berkas ditolak! Anda memilih impor Master Mata Pelajaran, tetapi berkas terdeteksi sebagai Master Jurnal Mengajar / Jadwal KBM.';
+            }
+            if (str_contains($textLower, 'tugas tambahan')) {
+                return 'Berkas ditolak! Anda memilih impor Master Mata Pelajaran, tetapi berkas terdeteksi sebagai Master Penugasan Tendik.';
+            }
+        } elseif ($type === 'jurnal_mengajar') {
+            if (str_contains($textLower, 'tugas tambahan')) {
+                return 'Berkas ditolak! Anda memilih impor Master Jurnal Mengajar, tetapi berkas terdeteksi sebagai Master Penugasan Tendik.';
+            }
+            if (!str_contains($textLower, 'hari') && !str_contains($textLower, 'jam') && str_contains($textLower, 'mata pelajaran')) {
+                return 'Berkas ditolak! Anda memilih impor Master Jurnal Mengajar, tetapi berkas terdeteksi sebagai Master Mapel (kolom Hari/Jam tidak ditemukan).';
+            }
+        } elseif ($type === 'penugasan') {
+            if (str_contains($textLower, 'mata pelajaran') || str_contains($textLower, 'kode mapel')) {
+                return 'Berkas ditolak! Anda memilih impor Master Penugasan Tendik, tetapi berkas terdeteksi sebagai Master Mapel.';
+            }
+            if (str_contains($textLower, 'hari') && str_contains($textLower, 'jam')) {
+                return 'Berkas ditolak! Anda memilih impor Master Penugasan Tendik, tetapi berkas terdeteksi sebagai Master Jurnal Mengajar.';
+            }
+        } elseif ($type === 'wali_kelas') {
+            if (str_contains($textLower, 'mata pelajaran') || str_contains($textLower, 'kode mapel')) {
+                return 'Berkas ditolak! Anda memilih impor Master Wali Kelas, tetapi berkas terdeteksi sebagai Master Mapel.';
+            }
+        } elseif ($type === 'guru_wali') {
+            if (str_contains($textLower, 'mata pelajaran') || str_contains($textLower, 'kode mapel')) {
+                return 'Berkas ditolak! Anda memilih impor Master Guru Wali, tetapi berkas terdeteksi sebagai Master Mapel.';
+            }
+        } elseif ($type === 'kalender_akademik') {
+            if (str_contains($textLower, 'keterangan') && !str_contains($textLower, 'kegiatan') && !str_contains($textLower, 'akademik')) {
+                return 'Berkas ditolak! Anda memilih impor Master Kalender Akademik, tetapi berkas terdeteksi sebagai Master Hari Libur (memuat kolom Keterangan).';
+            }
+        } elseif ($type === 'hari_libur') {
+            if (str_contains($textLower, 'kegiatan') && !str_contains($textLower, 'keterangan') && !str_contains($textLower, 'libur')) {
+                return 'Berkas ditolak! Anda memilih impor Master Hari Libur, tetapi berkas terdeteksi sebagai Master Kalender Akademik (memuat kolom Kegiatan).';
+            }
+        }
+
+        return null;
+    }
+
     public function parseKurikulum(Request $request, $type)
     {
         set_time_limit(0);
 
-        try {
-            $request->validate(['file' => 'required|file']);
-            
-            $collection = (new FastExcel)->import($request->file('file')->path());
-            $academicYear = AcademicYear::where('is_active', true)->first();
+        $typeNames = [
+            'mapel' => 'Mata Pelajaran',
+            'jurnal_mengajar' => 'Jurnal Mengajar / Jadwal KBM',
+            'penugasan' => 'Penugasan Tendik',
+            'wali_kelas' => 'Wali Kelas',
+            'guru_wali' => 'Guru Wali',
+            'kalender_akademik' => 'Kalender Akademik',
+            'hari_libur' => 'Hari Libur',
+        ];
 
+        $moduleName = $typeNames[$type] ?? strtoupper(str_replace('_', ' ', $type));
+        $userId = $request->user()?->id ?? User::where('username', 'tu_dev')->first()?->id ?? User::first()?->id;
+
+        try {
+            if (!$request->hasFile('file')) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas belum dipilih atau gagal diunggah.',
+                    'Tidak ada berkas yang dilampirkan pada permintaan unggah.'
+                );
+                return $this->error('Berkas wajib diunggah!', 422);
+            }
+
+            $file = $request->file('file');
+            $ext = strtolower($file->getClientOriginalExtension());
+            $mime = strtolower($file->getClientMimeType());
+
+            // Tolak jika PDF atau non-excel
+            if ($ext === 'pdf' || str_contains($mime, 'pdf')) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas berformat PDF tidak didukung.',
+                    'Sistem hanya menerima berkas spreadsheet Excel (.xlsx / .xls). Silakan ekspor spreadsheet Anda ke format .xlsx atau .xls.'
+                );
+                return $this->error('Berkas PDF ditolak! Fitur ini hanya menerima berkas spreadsheet Excel (.xlsx / .xls).', 422);
+            }
+
+            if (!in_array($ext, ['xlsx', 'xls'])) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    "Format berkas (.{$ext}) tidak didukung.",
+                    'Harap unggah berkas spreadsheet Excel dengan format .xlsx atau .xls.'
+                );
+                return $this->error('Format berkas ditolak! Harap unggah file spreadsheet Excel dengan format .xlsx atau .xls.', 422);
+            }
+
+            if (!isset($typeNames[$type])) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    'Kurikulum',
+                    'Tipe modul kurikulum tidak valid.',
+                    "Tipe kurikulum '{$type}' tidak dikenali oleh sistem."
+                );
+                return $this->error("Tipe kurikulum tidak valid: $type", 400);
+            }
+
+            $collection = (new FastExcel)->import($file->path());
+            if ($collection->isEmpty()) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Berkas Excel kosong atau tidak memuat data yang valid.',
+                    'Berkas spreadsheet yang Anda unggah tidak memiliki baris data apapun.'
+                );
+                return $this->error('Berkas Excel kosong atau tidak memuat baris data!', 422);
+            }
+
+            // Validasi kecocokan isi template berkas
+            $contentError = $this->validateCurriculumFileContent($collection, $type);
+            if ($contentError !== null) {
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    'Template berkas tidak sesuai dengan modul kurikulum yang dipilih.',
+                    $contentError
+                );
+                return $this->error($contentError, 422);
+            }
+
+            $academicYear = AcademicYear::where('is_active', true)->first();
             $errors = [];
 
             DB::transaction(function () use ($collection, $type, $academicYear, &$errors) {
@@ -50,8 +204,6 @@ class ExcelParserKurikulumController extends Controller
                     $errors = $this->parseKalenderAkademik($collection, $academicYear);
                 } elseif ($type === 'hari_libur') {
                     $errors = $this->parseHariLibur($collection, $academicYear);
-                } else {
-                    throw new \Exception("Tipe kurikulum tidak valid: $type");
                 }
                 
                 if (!empty($errors)) {
@@ -64,18 +216,34 @@ class ExcelParserKurikulumController extends Controller
             $msg = $e->getMessage();
             $decoded = json_decode($msg, true);
             if (is_array($decoded)) {
+                $totalErr = count($decoded);
                 $errorMsg = "Validasi gagal:\n" . implode("\n", array_slice($decoded, 0, 5));
-                if (count($decoded) > 5) {
-                    $errorMsg .= "\n...dan " . (count($decoded) - 5) . " error lainnya.";
+                if ($totalErr > 5) {
+                    $errorMsg .= "\n...dan " . ($totalErr - 5) . " error lainnya.";
                 }
+
+                NotificationService::recordUploadFailure(
+                    $userId,
+                    $moduleName,
+                    "Terdapat {$totalErr} baris data yang belum memenuhi syarat validasi atau tidak cocok dengan data master terkait.",
+                    $decoded
+                );
+
                 return response()->json([
                     'status' => 'error',
                     'message' => $errorMsg,
                     'errors' => $decoded
-                ], 400);
+                ], 422);
             }
 
             \Log::error('Excel Parse Error Kurikulum: ' . $msg . ' at line ' . $e->getLine());
+            NotificationService::recordUploadFailure(
+                $userId,
+                $moduleName,
+                'Terjadi kesalahan sistem saat memproses berkas kurikulum.',
+                'Error teknis: ' . $msg
+            );
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Exception: ' . $msg,

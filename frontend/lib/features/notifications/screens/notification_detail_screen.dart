@@ -94,7 +94,7 @@ class NotificationDetailScreen extends StatelessWidget {
               child: Text(
                 notification['body'] ?? '',
                 style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
-                textAlign: TextAlign.justify,
+                textAlign: TextAlign.start,
               ),
             ),
             SizedBox(height: 48.h(context)),
