@@ -172,20 +172,10 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
   }
 
   void _handleManualAdd() {
-    switch (_selectedCategory) {
-      case 'mapel':
-        TuKurikulumDialogs.showMapelForm(context, ref, onSuccess: _fetchData);
-        break;
-      case 'kalender_akademik':
-        TuKurikulumDialogs.showKalenderAkademikForm(context, ref, onSuccess: _fetchData);
-        break;
-      case 'hari_libur':
-        TuKurikulumDialogs.showHariLiburForm(context, ref, onSuccess: _fetchData);
-        break;
-      default:
-        // Untuk data yang biasanya terdistribusi dari file induk
-        TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
-        break;
+    if (_selectedCategory == 'kalender_akademik') {
+      TuKurikulumDialogs.showKalenderAkademikForm(context, ref, onSuccess: _fetchData);
+    } else if (_selectedCategory == 'hari_libur') {
+      TuKurikulumDialogs.showHariLiburForm(context, ref, onSuccess: _fetchData);
     }
   }
 
@@ -300,12 +290,22 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
           ),
         ),
       ),
-      floatingActionButton: CustomExpandableFab(
-        onUploadPressed: () {
-          TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
-        },
-        onAddPressed: _handleManualAdd,
-      ),
+      floatingActionButton: (_selectedCategory == 'kalender_akademik' || _selectedCategory == 'hari_libur')
+          ? CustomExpandableFab(
+              onUploadPressed: () {
+                TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
+              },
+              onAddPressed: _handleManualAdd,
+            )
+          : FloatingActionButton.extended(
+              onPressed: () {
+                TuKurikulumDialogs.showUploadSheet(context, ref, _fetchData);
+              },
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+              icon: Icon(PhosphorIcons.fileXls(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
+              label: Text('Upload Excel', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+            ),
     );
   }
 
@@ -361,9 +361,6 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       subtitle = 'Kode: ${item['code'] ?? '-'}';
       detail = 'KKM Kelulusan: ${item['passing_grade'] ?? '75'}';
       icon = PhosphorIcons.books(PhosphorIconsStyle.fill);
-      onEdit = () {
-        TuKurikulumDialogs.showMapelForm(context, ref, item: item, onSuccess: _fetchData);
-      };
       onDelete = () {
         TuKurikulumDialogs.confirmDelete(
           context,
