@@ -356,6 +356,7 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
     String subtitle = '';
     String? detail;
     IconData icon = PhosphorIcons.file();
+    IconData? secondaryIcon;
 
     VoidCallback? onEdit;
     VoidCallback? onDelete;
@@ -464,14 +465,15 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
 
       if (start == end || end.isEmpty) {
         subtitle = 'Tanggal: $start';
+        icon = PhosphorIcons.calendar(PhosphorIconsStyle.fill);
+        detail = item['description'] ?? 'Hari Libur Operasional';
+        secondaryIcon = PhosphorIcons.sun(PhosphorIconsStyle.fill);
       } else {
-        subtitle = 'Mulai: $start  •  Selesai: $end';
+        subtitle = 'Mulai: $start';
+        icon = PhosphorIcons.calendarPlus(PhosphorIconsStyle.fill);
+        detail = 'Selesai: $end${totalEntries > 1 ? ' ($totalEntries hari libur)' : ''}';
+        secondaryIcon = PhosphorIcons.calendarCheck(PhosphorIconsStyle.fill);
       }
-
-      detail = totalEntries > 1
-          ? 'Total $totalEntries Hari Libur Terangkum • Operasional OFF'
-          : (item['description'] ?? 'Hari Libur Operasional');
-      icon = PhosphorIcons.sun(PhosphorIconsStyle.fill);
       onEdit = () {
         TuKurikulumDialogs.showHariLiburForm(context, ref, item: item, onSuccess: _fetchData);
       };
@@ -497,6 +499,7 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       title: title,
       metadataIcon: icon,
       metadataText: subtitle,
+      secondaryMetadataIcon: secondaryIcon,
       secondaryMetadataText: detail,
       showDivider: !isLast,
       trailing: hasAction
