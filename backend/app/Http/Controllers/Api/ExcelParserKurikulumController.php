@@ -513,30 +513,6 @@ class ExcelParserKurikulumController extends Controller
                 continue;
             }
 
-            // Klasifikasi Tipe Hari Libur Otomatis
-            $lower = strtolower($keterangan);
-            $type = 'SEKOLAH';
-            if (str_contains($lower, 'cuti bersama')) {
-                $type = 'CUTI_BERSAMA';
-            } elseif (
-                str_contains($lower, 'natal') ||
-                str_contains($lower, 'idul fitri') ||
-                str_contains($lower, 'idul adha') ||
-                str_contains($lower, 'tahun baru') ||
-                str_contains($lower, 'kemerdekaan') ||
-                str_contains($lower, 'nyepi') ||
-                str_contains($lower, 'waisak') ||
-                str_contains($lower, 'imlek') ||
-                str_contains($lower, 'isra') ||
-                str_contains($lower, 'maulid') ||
-                str_contains($lower, 'paskah') ||
-                str_contains($lower, 'kenaikan') ||
-                str_contains($lower, 'pancasila') ||
-                str_contains($lower, 'buruh')
-            ) {
-                $type = 'NASIONAL';
-            }
-
             SchoolHoliday::updateOrCreate(
                 [
                     'name' => $keterangan,
@@ -544,7 +520,7 @@ class ExcelParserKurikulumController extends Controller
                 ],
                 [
                     'end_date' => $date,
-                    'type' => $type,
+                    'type' => 'LIBUR',
                     'description' => $keterangan,
                     'academic_year_id' => $academicYear ? $academicYear->id : null,
                     'is_active' => true,

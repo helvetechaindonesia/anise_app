@@ -38,6 +38,10 @@ class HolidayService
             $data['academic_year_id'] = $activeYear?->id;
         }
 
+        if (empty($data['type'])) {
+            $data['type'] = 'LIBUR';
+        }
+
         return $this->holidayRepo->create($data);
     }
 

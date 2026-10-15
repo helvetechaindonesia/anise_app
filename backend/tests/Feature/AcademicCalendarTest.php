@@ -203,12 +203,12 @@ class AcademicCalendarTest extends TestCase
 
         $this->assertDatabaseHas('holidays', [
             'name' => 'Hari Raya Natal',
-            'type' => 'NASIONAL',
+            'type' => 'LIBUR',
         ]);
 
         $this->assertDatabaseHas('holidays', [
             'name' => 'Libur Akhir Semester Ganjil',
-            'type' => 'SEKOLAH',
+            'type' => 'LIBUR',
         ]);
     }
 

@@ -402,10 +402,10 @@ class _TuKurikulumScreenState extends ConsumerState<TuKurikulumScreen> {
       };
     } else if (_selectedCategory == 'hari_libur') {
       title = item['name'] ?? '-';
-      subtitle = '${item['start_date']} s/d ${item['end_date']}';
-      final type = item['type'] ?? 'NASIONAL';
-      final desc = item['description'] != null ? ' • ${item['description']}' : '';
-      detail = 'Tipe: $type$desc';
+      final start = item['start_date'] ?? '';
+      final end = item['end_date'] ?? '';
+      subtitle = (start == end || end.isEmpty) ? start : '$start s/d $end';
+      detail = item['description'] ?? 'Hari Libur Operasional';
       icon = PhosphorIcons.sun(PhosphorIconsStyle.fill);
       onEdit = () {
         TuKurikulumDialogs.showHariLiburForm(context, ref, item: item, onSuccess: _fetchData);

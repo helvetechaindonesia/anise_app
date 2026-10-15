@@ -623,7 +623,6 @@ class TuKurikulumDialogs {
     final isEdit = item != null;
     final ketCtrl = TextEditingController(text: item?['name'] ?? item?['description'] ?? '');
     final waktuCtrl = TextEditingController(text: item?['start_date'] ?? '');
-    String selectedType = item?['type'] ?? 'SEKOLAH';
     bool isSubmitting = false;
 
     showModalBottomSheet(
@@ -696,23 +695,6 @@ class TuKurikulumDialogs {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
                     ),
                   ),
-                  SizedBox(height: 14.h(context)),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: InputDecoration(
-                      labelText: 'Kategori Hari Libur',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14.w(context))),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'SEKOLAH', child: Text('Libur Sekolah (Semester / Jeda)')),
-                      DropdownMenuItem(value: 'NASIONAL', child: Text('Libur Nasional')),
-                      DropdownMenuItem(value: 'CUTI_BERSAMA', child: Text('Cuti Bersama')),
-                      DropdownMenuItem(value: 'KHUSUS', child: Text('Libur Khusus / Insidental')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setModalState(() => selectedType = val);
-                    },
-                  ),
                   SizedBox(height: 20.h(context)),
                   AniseButton(
                     text: isEdit ? 'Simpan Hari Libur' : 'Tambah Hari Libur',
@@ -738,7 +720,7 @@ class TuKurikulumDialogs {
                                 'name': keterangan,
                                 'start_date': waktu,
                                 'end_date': waktu,
-                                'type': selectedType,
+                                'type': 'LIBUR',
                                 'description': keterangan,
                               };
 
