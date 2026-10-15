@@ -68,18 +68,13 @@ class NotificationService
     public static function sendInAppNotification(string $userId, string $title, string $message): bool
     {
         try {
-            if (Schema::hasTable('notifications')) {
-                DB::table('notifications')->insert([
-                    'id' => Str::uuid()->toString(),
-                    'user_id' => $userId,
-                    'title' => $title,
-                    'message' => $message,
-                    'is_read' => false,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                return true;
-            }
+            Notification::create([
+                'user_id' => $userId,
+                'title' => $title,
+                'message' => $message,
+                'is_read' => false,
+            ]);
+            return true;
         } catch (\Throwable $e) {
             Log::error("Gagal menyimpan notifikasi in-app: " . $e->getMessage());
         }

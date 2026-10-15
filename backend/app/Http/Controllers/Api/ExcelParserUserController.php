@@ -322,7 +322,9 @@ class ExcelParserUserController extends Controller
 
             if (!empty($columnErrors)) {
                 $currentUser = $request->user();
-                if ($currentUser) {
+                $userId = $currentUser?->id ?? User::where('username', 'tu_dev')->first()?->id ?? User::first()?->id;
+
+                if ($userId) {
                     $notifTitle = '⚠️ Impor Data ' . str_replace('_', ' ', $roleType) . ' Ditolak';
                     $totalErr = count($columnErrors);
                     $errorSlice = array_slice($columnErrors, 0, 15);
@@ -333,7 +335,7 @@ class ExcelParserUserController extends Controller
 
                     $notifMessage = "Berkas impor data " . str_replace('_', ' ', $roleType) . " ditolak karena terdapat kolom wajib (Nama Lengkap, Kredensial, atau Email) yang belum terisi pada {$totalErr} baris data:\n\n• " . $detailList . "\n\nSilakan perbaiki baris data di atas pada berkas Excel Anda lalu unggah kembali.";
 
-                    NotificationService::sendInAppNotification($currentUser->id, $notifTitle, $notifMessage);
+                    NotificationService::sendInAppNotification($userId, $notifTitle, $notifMessage);
                 }
 
                 $countErr = count($columnErrors);

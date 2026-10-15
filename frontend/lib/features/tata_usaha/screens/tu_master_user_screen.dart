@@ -12,6 +12,7 @@ import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../../core/network/dio_client.dart';
+import '../../notifications/screens/notification_screen.dart';
 import 'tu_master_user_edit_screen.dart';
 import '../widgets/custom_expandable_fab.dart';
 
@@ -307,11 +308,24 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
       }
 
       if (mounted) {
+        final hasNotifWord = errorMessage.toLowerCase().contains('notifikasi');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
+            duration: Duration(seconds: hasNotifWord ? 8 : 5),
+            action: hasNotifWord
+                ? SnackBarAction(
+                    label: 'Buka Notif',
+                    textColor: Colors.amberAccent,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                      );
+                    },
+                  )
+                : null,
           ),
         );
       }
@@ -334,6 +348,18 @@ class _TuMasterUserScreenState extends ConsumerState<TuMasterUserScreen> {
           'Manajemen User',
           style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), color: AppColors.onBackground),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+          ),
+          SizedBox(width: 8.w(context)),
+        ],
       ),
       body: DecorativeBackground(
         child: SafeArea(
