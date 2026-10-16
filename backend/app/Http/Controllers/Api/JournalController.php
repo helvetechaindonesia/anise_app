@@ -31,8 +31,13 @@ class JournalController extends Controller
             $user = Auth::user();
             
             $schedules = Schedule::where('teacher_id', $user->id)
+                ->whereNotNull('subject_id')
+                ->whereNull('activity_name')
                 ->with(['subject', 'class'])
-                ->get();
+                ->get()
+                ->filter(function ($sched) {
+                    return $sched->subject && $sched->subject->code !== 'KEG' && empty($sched->activity_name);
+                });
                 
             $subjects = $schedules->pluck('subject')->filter()->unique('id')->values();
             
@@ -41,7 +46,7 @@ class JournalController extends Controller
             $endDate = Carbon::today()->addDays(30); // 1 bulan ke depan
 
             foreach ($schedules as $sched) {
-                if (!$sched->class) continue;
+                if (!$sched->class || !$sched->subject || $sched->subject->code === 'KEG' || !empty($sched->activity_name)) continue;
 
                 $className = $sched->class->name;
                 $grade = $sched->class->grade_level ?? '';
@@ -151,7 +156,14 @@ class JournalController extends Controller
         $realScheduleId = $parts[0];
         $teachingDate = $parts[1];
 
-        $schedule = Schedule::findOrFail($realScheduleId);
+        $schedule = Schedule::with('subject')->findOrFail($realScheduleId);
+
+        if (!empty($schedule->activity_name) || empty($schedule->subject_id) || ($schedule->subject && $schedule->subject->code === 'KEG')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Kegiatan luar mapel (KEG) tidak memerlukan penerbitan jurnal mengajar.'
+            ], 422);
+        }
 
         $hasTask = $request->boolean('has_task');
 
@@ -584,8 +596,13 @@ class JournalController extends Controller
                 ];
             }
 
-            // B. Petakan Jadwal Mengajar Reguler mingguan guru
+            // B. Petakan Jadwal Mengajar Reguler mingguan guru (Jurnal Cangkang)
             foreach ($schedules as $sched) {
+                // Abaikan kegiatan non-mapel (KEG) karena tidak memerlukan penerbitan jurnal
+                if (!empty($sched->activity_name) || empty($sched->subject_id) || ($sched->subject && $sched->subject->code === 'KEG')) {
+                    continue;
+                }
+
                 $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
                 $className = $sched->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
 
@@ -593,6 +610,8 @@ class JournalController extends Controller
                     'id' => 'sched_' . $sched->id,
                     'schedule_id' => $sched->id,
                     'subject_id' => $sched->subject_id,
+                    'subject_code' => $sched->subject?->code ?? '',
+                    'activity_name' => $sched->activity_name ?? null,
                     'class_id' => $sched->class_id,
                     'class_name' => $className,
                     'type' => 'schedule',

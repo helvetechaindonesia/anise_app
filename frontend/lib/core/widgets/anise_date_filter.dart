@@ -421,7 +421,7 @@ class AniseDatePillBar extends StatelessWidget {
                             style: AppTextStyles.titleMedium(
                               context,
                               color: isSelected
-                                  ? (isToday ? AppColors.onPrimaryContainer : AppColors.primary)
+                                  ? AppColors.onPrimaryContainer
                                   : (isToday ? AppColors.secondary : AppColors.onSurface),
                             ).copyWith(
                               fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600,
@@ -516,7 +516,7 @@ class AniseDatePillBar extends StatelessWidget {
                         style: AppTextStyles.titleMedium(
                           context,
                           color: isSelected
-                              ? (isToday ? AppColors.onPrimaryContainer : AppColors.primary)
+                              ? AppColors.onPrimaryContainer
                               : (isToday ? AppColors.secondary : AppColors.onSurface),
                         ).copyWith(
                           fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600,

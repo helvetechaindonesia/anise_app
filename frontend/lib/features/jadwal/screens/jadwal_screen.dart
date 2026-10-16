@@ -237,21 +237,18 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
 
         // Jika hari saat ini libur / nonaktif / pra-rilis, otomatis pilih hari aktif pertama
         if (!_isCustomDateSelected && activeDates.isNotEmpty) {
-          final now = DateTime.now();
-          final today = DateTime(now.year, now.month, now.day);
-          final releaseDateStr = offDaysData['app_release_date']?.toString();
-          final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
-
-          if (today.isBefore(releaseDate)) {
-            _selectedDate = activeDates.first;
-          } else {
-            final isSelectedInActive = activeDates.any((d) =>
-                d.year == _selectedDate.year &&
-                d.month == _selectedDate.month &&
-                d.day == _selectedDate.day);
-            if (!isSelectedInActive) {
-              _selectedDate = activeDates.first;
-            }
+          final isSelectedInActive = activeDates.any((d) =>
+              d.year == _selectedDate.year &&
+              d.month == _selectedDate.month &&
+              d.day == _selectedDate.day);
+          if (!isSelectedInActive) {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final todayInActive = activeDates.firstWhere(
+              (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+              orElse: () => activeDates.first,
+            );
+            _selectedDate = todayInActive;
           }
         }
 

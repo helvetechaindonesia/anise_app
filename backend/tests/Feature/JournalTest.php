@@ -417,4 +417,150 @@ class JournalTest extends TestCase
         $journal->refresh();
         $this->assertTrue((bool)$journal->has_task);
     }
+
+    public function test_keg_activities_are_excluded_from_shell_journals_and_terbit_options(): void
+    {
+        $guru = User::create([
+            'full_name' => 'Guru KEG Test',
+            'username' => 'guru_keg_test',
+            'email' => 'keg@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $kelas = SchoolClass::create([
+            'name' => 'X MIPA 4',
+            'code' => '10-MIPA-4',
+            'grade_level' => 10,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $mapelReguler = Subject::create([
+            'name' => 'Kimia Dasar',
+            'code' => 'KIM-10',
+        ]);
+
+        $mapelKeg = Subject::create([
+            'name' => 'Upacara Bendera',
+            'code' => 'KEG',
+        ]);
+
+        // 1. Jadwal reguler
+        $schedReguler = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapelReguler->id,
+            'teacher_id' => $guru->id,
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => 'Monday',
+            'start_time' => '08:00:00',
+            'end_time' => '09:30:00',
+        ]);
+
+        // 2. Jadwal KEG (Upacara / Apel)
+        $schedKeg = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapelKeg->id,
+            'teacher_id' => $guru->id,
+            'activity_name' => 'Upacara Bendera',
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => 'Monday',
+            'start_time' => '07:00:00',
+            'end_time' => '08:00:00',
+        ]);
+
+        Sanctum::actingAs($guru, ['*']);
+
+        // Verifikasi terbit-options: KEG tidak boleh masuk
+        $responseOptions = $this->getJson('/api/journals/terbit-options');
+        $responseOptions->assertStatus(200);
+        $optionsData = $responseOptions->json('data.schedules');
+        $scheduleIdsInOptions = collect($optionsData)->pluck('schedule_id')->all();
+        $this->assertContains($schedReguler->id, $scheduleIdsInOptions);
+        $this->assertNotContains($schedKeg->id, $scheduleIdsInOptions);
+
+        // Verifikasi getGuruJournals (Cangkang Jurnal): KEG tidak boleh muncul sebagai cangkang
+        $responseGuru = $this->getJson('/api/journals/guru');
+        $responseGuru->assertStatus(200);
+        $guruData = $responseGuru->json('data');
+        $shellScheduleIds = collect($guruData)->where('type', 'schedule')->pluck('schedule_id')->all();
+        $this->assertContains($schedReguler->id, $shellScheduleIds);
+        $this->assertNotContains($schedKeg->id, $shellScheduleIds);
+    }
+
+    public function test_kbm_check_reminders_command_triggers_wa_and_in_app_notification_excluding_keg(): void
+    {
+        \Illuminate\Support\Facades\Http::fake();
+
+        $guru = User::create([
+            'full_name' => 'Guru Peringatan H24',
+            'username' => 'guru_h24_test',
+            'email' => 'h24@sekolah.sch.id',
+            'phone' => '081234567890',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $kelas = SchoolClass::create([
+            'name' => 'XII MIPA 1',
+            'code' => '12-MIPA-1',
+            'grade_level' => 12,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $mapel = Subject::create([
+            'name' => 'Fisika Kuantum',
+            'code' => 'FIS-12',
+        ]);
+
+        $mapelKeg = Subject::create([
+            'name' => 'Senam Pagi',
+            'code' => 'KEG',
+        ]);
+
+        $tomorrow = \Carbon\Carbon::now()->addDay();
+        $daysMap = [
+            1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis',
+            5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu',
+        ];
+        $tomorrowDayName = $daysMap[$tomorrow->dayOfWeekIso];
+
+        // Jadwal mapel reguler besok (belum ada jurnal)
+        $schedule = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapel->id,
+            'teacher_id' => $guru->id,
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => $tomorrowDayName,
+            'start_time' => '08:00:00',
+            'end_time' => '09:30:00',
+        ]);
+
+        // Jadwal KEG besok (tidak boleh memicu notifikasi)
+        $scheduleKeg = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapelKeg->id,
+            'teacher_id' => $guru->id,
+            'activity_name' => 'Senam Pagi',
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => $tomorrowDayName,
+            'start_time' => '07:00:00',
+            'end_time' => '07:45:00',
+        ]);
+
+        // Jalankan perintah console kbm:check-reminders
+        $this->artisan('kbm:check-reminders', ['--force' => true])
+            ->assertSuccessful();
+
+        // Verifikasi notifikasi in-app tersimpan di database
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $guru->id,
+            'title' => '⚠️ Peringatan Terbitkan Jurnal (H-24 Jam)',
+        ]);
+
+        // Verifikasi hanya 1 notifikasi (untuk Fisika Kuantum, bukan untuk Senam Pagi/KEG)
+        $notifCount = \App\Models\Notification::where('user_id', $guru->id)->count();
+        $this->assertEquals(1, $notifCount);
+    }
 }

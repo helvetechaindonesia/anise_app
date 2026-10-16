@@ -26,7 +26,7 @@ class JournalService
 
         $uniqueClasses = [];
         foreach ($schedules as $sched) {
-            if (!$sched->class || !$sched->subject) {
+            if (!$sched->class || !$sched->subject || $sched->subject->code === 'KEG' || !empty($sched->activity_name)) {
                 continue;
             }
 
@@ -65,7 +65,7 @@ class JournalService
 
         $teachers = collect();
         foreach ($schedules as $sched) {
-            if (!$sched->teacher || !$sched->subject) {
+            if (!$sched->teacher || !$sched->subject || $sched->subject->code === 'KEG' || !empty($sched->activity_name)) {
                 continue;
             }
 

@@ -125,21 +125,18 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
 
                       // Jika hari saat ini adalah hari libur / nonaktif / pra-rilis, otomatis pilih hari KBM aktif pertama
                       if (!_isCustomDateSelected && activeDates.isNotEmpty) {
-                        final now = DateTime.now();
-                        final today = DateTime(now.year, now.month, now.day);
-                        final releaseDateStr = offDaysData['app_release_date']?.toString();
-                        final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
-
-                        if (today.isBefore(releaseDate)) {
-                          _selectedDate = activeDates.first;
-                        } else {
-                          final isSelectedInActive = activeDates.any((d) =>
-                              d.year == _selectedDate.year &&
-                              d.month == _selectedDate.month &&
-                              d.day == _selectedDate.day);
-                          if (!isSelectedInActive) {
-                            _selectedDate = activeDates.first;
-                          }
+                        final isSelectedInActive = activeDates.any((d) =>
+                            d.year == _selectedDate.year &&
+                            d.month == _selectedDate.month &&
+                            d.day == _selectedDate.day);
+                        if (!isSelectedInActive) {
+                          final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+                          final todayInActive = activeDates.firstWhere(
+                            (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+                            orElse: () => activeDates.first,
+                          );
+                          _selectedDate = todayInActive;
                         }
                       }
 
@@ -266,6 +263,13 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
         final regularSchedules = journals.where((j) {
           final isScheduleOnly = j['type'] == 'schedule' || j['teaching_date'] == null;
           if (!isScheduleOnly) return false;
+
+          // Abaikan kegiatan luar mapel (KEG) karena tidak memerlukan penerbitan jurnal
+          final subjectCode = (j['subject_code'] ?? '').toString().toUpperCase();
+          final subjectName = (j['subject'] ?? '').toString().toUpperCase();
+          if (subjectCode == 'KEG' || subjectName.contains('KEGIATAN') || j['activity_name'] != null) {
+            return false;
+          }
 
           if (widget.className != null && j['class_name'] != null && j['class_name'] != widget.className) {
             return false;
