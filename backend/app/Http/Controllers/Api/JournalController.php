@@ -214,6 +214,34 @@ class JournalController extends Controller
         ]);
     }
 
+    public function deleteJournal($journalId)
+    {
+        try {
+            $user = Auth::user();
+            $journal = Journal::findOrFail($journalId);
+
+            if ($journal->teacher_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Anda bukan guru penerbit jurnal ini.'], 403);
+            }
+
+            if ($journal->tasks) {
+                foreach ($journal->tasks as $task) {
+                    $task->attachments()->delete();
+                    $task->delete();
+                }
+            }
+
+            $journal->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jurnal berhasil dihapus.'
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal menghapus jurnal: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function mySchedules()
     {
         try {

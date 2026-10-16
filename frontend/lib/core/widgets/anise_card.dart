@@ -11,6 +11,7 @@ class AniseCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Border? border;
   final double? borderRadius;
+  final List<BoxShadow>? boxShadow;
 
   const AniseCard({
     Key? key,
@@ -21,6 +22,7 @@ class AniseCard extends StatelessWidget {
     this.onTap,
     this.border,
     this.borderRadius,
+    this.boxShadow,
   }) : super(key: key);
 
   @override
@@ -33,7 +35,7 @@ class AniseCard extends StatelessWidget {
         color: color ?? AppColors.surface,
         borderRadius: radius,
         border: border ?? Border.all(color: AppColors.outline.withValues(alpha: 0.08), width: 1),
-        boxShadow: [
+        boxShadow: boxShadow ?? [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,

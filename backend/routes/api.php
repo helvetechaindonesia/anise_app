@@ -95,6 +95,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
             Route::post('/{journalId}/check-in-cam', [JournalController::class, 'checkInCam']);
             Route::get('/{journalId}/class-students', [JournalController::class, 'getClassStudents']);
             Route::post('/{journalId}/fill', [JournalController::class, 'fillJournal']);
+            Route::delete('/{journalId}', [JournalController::class, 'deleteJournal']);
             Route::get('/by-subject/{subjectId}', [JournalController::class, 'getJournalsBySubject']);
         });
         Route::get('/{journalId}/comments', [JournalController::class, 'getComments']);

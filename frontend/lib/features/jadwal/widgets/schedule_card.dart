@@ -29,6 +29,9 @@ class ScheduleCard extends StatefulWidget {
   final int initialRating;
   final bool hasRated;
   final int? userRating;
+  final bool isPublisher;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
   final ValueChanged<int>? onRatingChanged;
   final VoidCallback? onLikeToggled;
   final VoidCallback? onSaveToggled;
@@ -54,6 +57,9 @@ class ScheduleCard extends StatefulWidget {
     required this.likes,
     this.isLiked = false,
     this.isSaved = false,
+    this.isPublisher = false,
+    this.onEdit,
+    this.onDelete,
     required this.comments,
     this.initialRating = 5,
     this.hasRated = false,
@@ -70,12 +76,10 @@ class ScheduleCard extends StatefulWidget {
   State<ScheduleCard> createState() => _ScheduleCardState();
 }
 
-class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderStateMixin {
+class _ScheduleCardState extends State<ScheduleCard> {
   bool _isLiked = false;
   bool _isSaved = false;
   late int _currentLikes;
-  late AnimationController _blinkController;
-  late Animation<double> _blinkAnimation;
 
   @override
   void initState() {
@@ -83,11 +87,6 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
     _isLiked = widget.isLiked;
     _isSaved = widget.isSaved;
     _currentLikes = widget.likes;
-    _blinkController = AnimationController(vsync: this, duration: const Duration(seconds: 1));
-    _blinkAnimation = Tween<double>(begin: 0.2, end: 1.0).animate(_blinkController);
-    if (widget.status == ScheduleStatus.live) {
-      _blinkController.repeat(reverse: true);
-    }
   }
 
   @override
@@ -106,7 +105,6 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
 
   @override
   void dispose() {
-    _blinkController.dispose();
     super.dispose();
   }
 
@@ -114,30 +112,39 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final isLive = widget.status == ScheduleStatus.live;
 
+    // Border & Shadow: Pembeda Status Jurnal (Hijau Menyala + Shining jika Aktif)
+    final borderColor = isLive ? const Color(0xFF10B981) : AppColors.outlineVariant;
+    final borderWidth = isLive ? 1.8 : 1.0;
+    final cardShadow = [
+      if (isLive)
+        BoxShadow(
+          color: const Color(0xFF10B981).withValues(alpha: 0.35),
+          blurRadius: 10,
+          spreadRadius: 1,
+        ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.03),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
+      ),
+    ];
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16.w(context)),
         border: Border.all(
-          color: isLive ? AppColors.secondary : AppColors.outlineVariant,
-          width: isLive ? 1.5 : 1,
+          color: borderColor,
+          width: borderWidth,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: isLive
-                ? AppColors.secondary.withValues(alpha: 0.12)
-                : AppColors.onBackground.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: cardShadow,
       ),
       padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 16.h(context)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER: Avatar, Username, Upload Time, & Status Badge
+          // HEADER: Avatar, Username, Upload Time, & Hamburger Menu
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -177,61 +184,22 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
                 ),
               ),
               SizedBox(width: 8.w(context)),
-              // STATUS BADGE (Top Right)
-              if (isLive)
-                FadeTransition(
-                  opacity: _blinkAnimation,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      border: Border.all(color: AppColors.error, width: 1),
-                      borderRadius: BorderRadius.circular(12.w(context)),
+              // HAMBURGER MENU (Top Right - Menggantikan Pill Badges)
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20.w(context)),
+                  onTap: () => _showScheduleOptionsMenu(context),
+                  child: Padding(
+                    padding: EdgeInsets.all(6.w(context)),
+                    child: Icon(
+                      PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
+                      size: 20.w(context),
+                      color: AppColors.onSurfaceVariant,
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6.w(context),
-                          height: 6.w(context),
-                          decoration: const BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 6.w(context)),
-                        Text(
-                          'Aktif',
-                          style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (widget.status == ScheduleStatus.upcoming)
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(12.w(context)),
-                  ),
-                  child: Text(
-                    'Belum',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.w600),
-                  ),
-                )
-              else
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(12.w(context)),
-                  ),
-                  child: Text(
-                    'Selesai',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)).copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
+              ),
             ],
           ),
           SizedBox(height: 14.h(context)),
@@ -285,133 +253,282 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
   }
 
   Widget _buildFooter(BuildContext context, bool isLive) {
-    Color iconColor = isLive ? AppColors.onPrimaryContainer : AppColors.onSurface.withValues(alpha: 0.6);
-    Color mutedTextColor = isLive ? AppColors.onPrimaryContainer.withValues(alpha: 0.8) : AppColors.onSurface.withValues(alpha: 0.6);
-    
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: constraints.maxWidth,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 1. KOMENTAR
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    _showCommentBottomSheet(context);
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        PhosphorIcons.chatTeardrop(PhosphorIconsStyle.bold),
-                        color: mutedTextColor,
-                        size: 18.w(context),
-                      ),
-                      SizedBox(width: 4.w(context)),
-                      Text(
-                        '${widget.comments}',
-                        style: AppTextStyles.bodySmall(context, color: mutedTextColor),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // 2. BAGIKAN
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    ScheduleShareModal.show(
-                      context: context,
-                      subjectName: widget.subjectName,
-                      teacherName: widget.teacherName,
-                      timeRange: widget.timeRange,
-                      description: widget.description,
-                      dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
-                    );
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
-                        color: mutedTextColor,
-                        size: 18.w(context),
-                      ),
-                      SizedBox(width: 4.w(context)),
-                      Text(
-                        'Bagikan',
-                        style: AppTextStyles.bodySmall(context, color: mutedTextColor),
-                      ),
-                    ],
-                  ),
-                ),
+    final mutedTextColor = AppColors.onSurface.withValues(alpha: 0.65);
 
-                // 3. SUKA
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(() {
-                      _isLiked = !_isLiked;
-                      if (_isLiked) {
-                        _currentLikes++;
-                      } else {
-                        _currentLikes--;
-                      }
-                    });
-                    if (widget.onLikeToggled != null) {
-                      widget.onLikeToggled!();
-                    }
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isLiked ? PhosphorIcons.heart(PhosphorIconsStyle.fill) : PhosphorIcons.heart(PhosphorIconsStyle.bold),
+    return Container(
+      padding: EdgeInsets.only(top: 8.h(context)),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppColors.outlineVariant.withValues(alpha: 0.5), width: 0.8),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          // 1. SUKA (LIKE)
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10.w(context)),
+              onTap: () {
+                setState(() {
+                  _isLiked = !_isLiked;
+                  if (_isLiked) {
+                    _currentLikes++;
+                  } else {
+                    _currentLikes--;
+                  }
+                });
+                if (widget.onLikeToggled != null) {
+                  widget.onLikeToggled!();
+                }
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isLiked ? PhosphorIcons.heart(PhosphorIconsStyle.fill) : PhosphorIcons.heart(PhosphorIconsStyle.bold),
+                      color: _isLiked ? AppColors.error : mutedTextColor,
+                      size: 20.w(context),
+                    ),
+                    SizedBox(width: 8.w(context)),
+                    Text(
+                      '$_currentLikes',
+                      style: AppTextStyles.bodyMedium(
+                        context,
                         color: _isLiked ? AppColors.error : mutedTextColor,
-                        size: 18.w(context),
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 2. KOMENTAR (COMMENT)
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10.w(context)),
+              onTap: () => _showCommentBottomSheet(context),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIcons.chatTeardrop(PhosphorIconsStyle.bold),
+                      color: mutedTextColor,
+                      size: 20.w(context),
+                    ),
+                    SizedBox(width: 8.w(context)),
+                    Text(
+                      '${widget.comments}',
+                      style: AppTextStyles.bodyMedium(context, color: mutedTextColor).copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      SizedBox(width: 4.w(context)),
-                      Text(
-                        '$_currentLikes',
-                        style: AppTextStyles.bodySmall(context, color: _isLiked ? AppColors.error : mutedTextColor),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 3. BAGIKAN (SHARE)
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10.w(context)),
+              onTap: () {
+                ScheduleShareModal.show(
+                  context: context,
+                  subjectName: widget.subjectName,
+                  teacherName: widget.teacherName,
+                  timeRange: widget.timeRange,
+                  description: widget.description,
+                  dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
+                );
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
+                      color: mutedTextColor,
+                      size: 20.w(context),
+                    ),
+                    SizedBox(width: 8.w(context)),
+                    Text(
+                      'Bagikan',
+                      style: AppTextStyles.bodyMedium(context, color: mutedTextColor).copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showScheduleOptionsMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 12.h(context)),
+                Container(
+                  width: 44.w(context),
+                  height: 4.h(context),
+                  decoration: BoxDecoration(
+                    color: AppColors.outline.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2.w(context)),
+                  ),
+                ),
+                SizedBox(height: 12.h(context)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Opsi Jurnal',
+                              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: 2.h(context)),
+                            Text(
+                              '${widget.subjectName} • ${widget.teacherName}',
+                              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          PhosphorIcons.x(PhosphorIconsStyle.bold),
+                          size: 20.w(context),
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                        onPressed: () => Navigator.pop(bottomSheetContext),
                       ),
                     ],
                   ),
                 ),
-                
-                // 4. SIMPAN (BOOKMARK)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    setState(() {
-                      _isSaved = !_isSaved;
-                    });
-                    if (widget.onSaveToggled != null) {
-                      widget.onSaveToggled!();
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isSaved ? 'Berhasil disimpan ke koleksi' : 'Dihapus dari koleksi'),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.w(context))),
-                        backgroundColor: AppColors.primary,
-                        duration: const Duration(seconds: 2),
+                const Divider(),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w(context), 8.h(context), 16.w(context), 20.h(context)),
+                  child: Column(
+                    children: [
+                      if (widget.isPublisher) ...[
+                        // 1. Edit (Untuk Penerbit)
+                        _buildMenuOptionTile(
+                          context,
+                          icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold),
+                          title: 'Edit Jurnal',
+                          subtitle: 'Perbarui rincian topik atau catatan pembelajaran',
+                          color: AppColors.primary,
+                          onTap: () {
+                            Navigator.pop(bottomSheetContext);
+                            if (widget.onEdit != null) {
+                              widget.onEdit!();
+                            }
+                          },
+                        ),
+                        SizedBox(height: 8.h(context)),
+
+                        // 2. Hapus (Untuk Penerbit)
+                        _buildMenuOptionTile(
+                          context,
+                          icon: PhosphorIcons.trash(PhosphorIconsStyle.bold),
+                          title: 'Hapus Jurnal',
+                          subtitle: 'Hapus penerbitan jurnal ini dari sistem',
+                          color: AppColors.error,
+                          onTap: () {
+                            Navigator.pop(bottomSheetContext);
+                            if (widget.onDelete != null) {
+                              widget.onDelete!();
+                            }
+                          },
+                        ),
+                        SizedBox(height: 8.h(context)),
+                      ],
+
+                      // 3. Bagikan (Untuk Semua)
+                      _buildMenuOptionTile(
+                        context,
+                        icon: PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
+                        title: 'Bagikan',
+                        subtitle: 'Kirim tautan informasi jadwal/jurnal ini',
+                        color: AppColors.onSurface,
+                        onTap: () {
+                          Navigator.pop(bottomSheetContext);
+                          ScheduleShareModal.show(
+                            context: context,
+                            subjectName: widget.subjectName,
+                            teacherName: widget.teacherName,
+                            timeRange: widget.timeRange,
+                            description: widget.description,
+                            dateText: widget.uploadTime.isNotEmpty ? widget.uploadTime : 'Hari Ini',
+                          );
+                        },
                       ),
-                    );
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 2.w(context), vertical: 2.h(context)),
-                    child: Icon(
-                      _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
-                      color: _isSaved ? AppColors.secondary : iconColor,
-                      size: 18.w(context),
-                    ),
+                      SizedBox(height: 8.h(context)),
+
+                      // 4. Simpan (Untuk Semua)
+                      _buildMenuOptionTile(
+                        context,
+                        icon: _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
+                        title: _isSaved ? 'Hapus dari Koleksi' : 'Simpan ke Koleksi',
+                        subtitle: 'Tandai sesi ini untuk diakses cepat nanti',
+                        color: _isSaved ? AppColors.secondary : AppColors.onSurface,
+                        onTap: () {
+                          Navigator.pop(bottomSheetContext);
+                          setState(() {
+                            _isSaved = !_isSaved;
+                          });
+                          if (widget.onSaveToggled != null) {
+                            widget.onSaveToggled!();
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(_isSaved ? 'Berhasil disimpan ke koleksi' : 'Dihapus dari koleksi'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.primary,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -419,6 +536,65 @@ class _ScheduleCardState extends State<ScheduleCard> with SingleTickerProviderSt
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMenuOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.w(context)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w(context),
+                height: 38.w(context),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                ),
+                child: Center(
+                  child: Icon(icon, color: color, size: 20.w(context)),
+                ),
+              ),
+              SizedBox(width: 14.w(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.bodyMedium(context, color: color == AppColors.error ? AppColors.error : AppColors.onSurface).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2.h(context)),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                size: 16.w(context),
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

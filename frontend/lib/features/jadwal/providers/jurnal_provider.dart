@@ -67,6 +67,15 @@ class JurnalNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
       return false;
     }
   }
+
+  Future<bool> deleteJournal(String journalId) async {
+    try {
+      final response = await _dio.delete('/journals/$journalId');
+      return response.data['status'] == 'success';
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 final jurnalProvider = StateNotifierProvider<JurnalNotifier, AsyncValue<Map<String, dynamic>>>((ref) {

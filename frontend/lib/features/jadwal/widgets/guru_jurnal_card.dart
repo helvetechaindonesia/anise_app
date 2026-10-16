@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_card.dart';
+import '../providers/jurnal_provider.dart';
 import '../screens/guru_terbit_jurnal_screen.dart';
 import '../screens/guru_jurnal_detail_screen.dart';
 import '../../presensi/screens/presensi_camera_screen.dart';
 import 'guru_isi_jurnal_dialog.dart';
+import 'schedule_share_modal.dart';
 
-class GuruJurnalCard extends StatelessWidget {
+class GuruJurnalCard extends ConsumerWidget {
   final Map<String, dynamic> journal;
   final DateTime selectedDate;
   final VoidCallback onRefresh;
@@ -23,7 +26,7 @@ class GuruJurnalCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final jId = journal['id']?.toString() ?? '';
     final isScheduleOnly = journal['type'] == 'schedule' || jId.startsWith('sched_');
 
@@ -85,36 +88,57 @@ class GuruJurnalCard extends StatelessWidget {
       }
     }
 
-    // Border & Background
+    // 1. Background Card: Selalu Putih / Surface Polos Standar
+    const Color cardBgColor = AppColors.surface;
+
+    // 2. Border & Shadow: Pembeda Utama Status Card
     Color cardBorderColor;
-    Color cardBgColor = AppColors.surface;
+    double cardBorderWidth = 1.0;
+    List<BoxShadow>? cardShadow;
 
     if (status == 'Terlewat') {
-      cardBorderColor = AppColors.error.withValues(alpha: 0.5);
-      cardBgColor = AppColors.error.withValues(alpha: 0.03);
+      // Border merah untuk card terlewat
+      cardBorderColor = AppColors.error;
+      cardBorderWidth = 1.5;
     } else if (status == 'Aktif') {
-      cardBorderColor = AppColors.secondary;
-      cardBgColor = AppColors.secondary.withValues(alpha: 0.02);
-    } else if (status == 'Selesai') {
-      cardBorderColor = AppColors.outline.withValues(alpha: 0.15);
+      // Border hijau menyala + efek shining / glowing
+      cardBorderColor = const Color(0xFF10B981);
+      cardBorderWidth = 1.8;
+      cardShadow = [
+        BoxShadow(
+          color: const Color(0xFF10B981).withValues(alpha: 0.35),
+          blurRadius: 10,
+          spreadRadius: 1,
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ];
+    } else if (isScheduleOnly) {
+      // Border kuning amber agak gelap untuk card belum terbit / cangkang
+      cardBorderColor = const Color(0xFFD97706);
+      cardBorderWidth = 1.3;
     } else {
-      cardBorderColor = isScheduleOnly
-          ? AppColors.warning.withValues(alpha: 0.4)
-          : AppColors.outline.withValues(alpha: 0.2);
+      // Border abu-abu / hitam muda untuk card terbit / selesai
+      cardBorderColor = AppColors.outlineVariant;
+      cardBorderWidth = 1.0;
     }
 
     return AniseCard(
       margin: EdgeInsets.only(bottom: 16.h(context)),
       padding: EdgeInsets.all(18.w(context)),
       color: cardBgColor,
+      boxShadow: cardShadow,
       border: Border.all(
         color: cardBorderColor,
-        width: status == 'Aktif' || status == 'Terlewat' ? 1.5 : 1,
+        width: cardBorderWidth,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Baris Atas: Badge Mapel, Kelas, dan Status
+          // 1. Baris Atas: Badge Mapel, Kelas, dan Hamburger Menu (Pill Badges Dihapus)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -148,7 +172,16 @@ class GuruJurnalCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildStatusBadge(context, status, isScheduleOnly),
+              _buildCardMenuButton(
+                context,
+                ref,
+                isScheduleOnly: isScheduleOnly,
+                jId: jId,
+                subjectName: subjectName,
+                className: className,
+                timeRange: timeRange,
+                selectedDateStr: selectedDateStr,
+              ),
             ],
           ),
 
@@ -503,79 +536,329 @@ class GuruJurnalCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(BuildContext context, String status, bool isScheduleOnly) {
-    if (status == 'Terlewat') {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.12),
-          border: Border.all(color: AppColors.error, width: 1),
-          borderRadius: BorderRadius.circular(12.w(context)),
+  Widget _buildCardMenuButton(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isScheduleOnly,
+    required String jId,
+    required String subjectName,
+    required String className,
+    required String timeRange,
+    required String selectedDateStr,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20.w(context)),
+        onTap: () => _showCardMenuBottomSheet(
+          context,
+          ref,
+          isScheduleOnly: isScheduleOnly,
+          jId: jId,
+          subjectName: subjectName,
+          className: className,
+          timeRange: timeRange,
+          selectedDateStr: selectedDateStr,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(PhosphorIcons.lockKey(PhosphorIconsStyle.bold), size: 12.w(context), color: AppColors.error),
-            SizedBox(width: 4.w(context)),
-            Text(
-              'Terlewat (Terkunci)',
-              style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(6.w(context)),
+          child: Icon(
+            PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
+            size: 20.w(context),
+            color: AppColors.onSurfaceVariant,
+          ),
         ),
-      );
-    }
-
-    if (status == 'Aktif') {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
-          border: Border.all(color: AppColors.error, width: 1),
-          borderRadius: BorderRadius.circular(12.w(context)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6.w(context),
-              height: 6.w(context),
-              decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-            ),
-            SizedBox(width: 4.w(context)),
-            Text(
-              'Aktif',
-              style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (status == 'Selesai') {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(12.w(context)),
-        ),
-        child: Text(
-          'Selesai',
-          style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)).copyWith(fontWeight: FontWeight.w600),
-        ),
-      );
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-      decoration: BoxDecoration(
-        color: isScheduleOnly ? AppColors.warning.withValues(alpha: 0.12) : AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12.w(context)),
       ),
-      child: Text(
-        isScheduleOnly ? 'Belum Terbit' : 'Belum Mulai',
-        style: AppTextStyles.labelSmall(context, color: isScheduleOnly ? AppColors.warning : AppColors.onSurfaceVariant)
-            .copyWith(fontWeight: FontWeight.w700),
+    );
+  }
+
+  void _showCardMenuBottomSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isScheduleOnly,
+    required String jId,
+    required String subjectName,
+    required String className,
+    required String timeRange,
+    required String selectedDateStr,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 12.h(context)),
+                Container(
+                  width: 44.w(context),
+                  height: 4.h(context),
+                  decoration: BoxDecoration(
+                    color: AppColors.outline.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2.w(context)),
+                  ),
+                ),
+                SizedBox(height: 12.h(context)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Opsi Jurnal',
+                              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: 2.h(context)),
+                            Text(
+                              '$subjectName • $className',
+                              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          PhosphorIcons.x(PhosphorIconsStyle.bold),
+                          size: 20.w(context),
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                        onPressed: () => Navigator.pop(bottomSheetContext),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w(context), 8.h(context), 16.w(context), 20.h(context)),
+                  child: Column(
+                    children: [
+                      if (!isScheduleOnly) ...[
+                        // 1. Edit (Untuk Penerbit)
+                        _buildMenuActionTile(
+                          context,
+                          icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold),
+                          title: 'Edit Jurnal',
+                          subtitle: 'Perbarui rincian atau catatan pembelajaran',
+                          color: AppColors.primary,
+                          onTap: () async {
+                            Navigator.pop(bottomSheetContext);
+                            final res = await GuruIsiJurnalDialog.show(
+                              context,
+                              journalId: jId,
+                              subjectName: subjectName,
+                              className: className,
+                              timeRange: timeRange,
+                            );
+                            if (res == true) {
+                              onRefresh();
+                            }
+                          },
+                        ),
+                        SizedBox(height: 8.h(context)),
+
+                        // 2. Hapus (Untuk Penerbit)
+                        _buildMenuActionTile(
+                          context,
+                          icon: PhosphorIcons.trash(PhosphorIconsStyle.bold),
+                          title: 'Hapus Jurnal',
+                          subtitle: 'Hapus penerbitan dan kembalikan ke jadwal kosong',
+                          color: AppColors.error,
+                          onTap: () {
+                            Navigator.pop(bottomSheetContext);
+                            _confirmDeleteJournal(context, ref, jId, subjectName, className);
+                          },
+                        ),
+                        SizedBox(height: 8.h(context)),
+                      ],
+
+                      // 3. Bagikan (Untuk Semua)
+                      _buildMenuActionTile(
+                        context,
+                        icon: PhosphorIcons.shareNetwork(PhosphorIconsStyle.bold),
+                        title: 'Bagikan',
+                        subtitle: 'Kirim tautan informasi jadwal/jurnal ini',
+                        color: AppColors.onSurface,
+                        onTap: () {
+                          Navigator.pop(bottomSheetContext);
+                          ScheduleShareModal.show(
+                            context: context,
+                            subjectName: subjectName,
+                            teacherName: journal['teacher_name'] ?? 'Guru Pengampu',
+                            timeRange: timeRange,
+                            description: journal['description'] ?? 'Sesi Pembelajaran KBM',
+                            dateText: selectedDateStr,
+                          );
+                        },
+                      ),
+                      SizedBox(height: 8.h(context)),
+
+                      // 4. Simpan (Untuk Semua)
+                      _buildMenuActionTile(
+                        context,
+                        icon: PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
+                        title: 'Simpan ke Koleksi',
+                        subtitle: 'Tandai sesi ini untuk diakses cepat nanti',
+                        color: AppColors.onSurface,
+                        onTap: () {
+                          Navigator.pop(bottomSheetContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Jurnal berhasil disimpan ke koleksi.'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: AppColors.primary,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteJournal(
+    BuildContext context,
+    WidgetRef ref,
+    String jId,
+    String subjectName,
+    String className,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+        title: Row(
+          children: [
+            Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.error, size: 24.w(context)),
+            SizedBox(width: 8.w(context)),
+            Text('Hapus Jurnal?', style: AppTextStyles.titleMedium(context, color: AppColors.onSurface)),
+          ],
+        ),
+        content: Text(
+          'Jurnal mengajar untuk $subjectName ($className) akan dihapus. Jadwal akan kembali berstatus belum terbit.',
+          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text('Batal', style: AppTextStyles.labelLarge(context, color: AppColors.onSurfaceVariant)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              final success = await ref.read(jurnalProvider.notifier).deleteJournal(jId);
+              if (context.mounted) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Jurnal berhasil dihapus.'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                  onRefresh();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Gagal menghapus jurnal.'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Hapus', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12.w(context)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
+          child: Row(
+            children: [
+              Container(
+                width: 38.w(context),
+                height: 38.w(context),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                ),
+                child: Center(
+                  child: Icon(icon, color: color, size: 20.w(context)),
+                ),
+              ),
+              SizedBox(width: 14.w(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.bodyMedium(context, color: color == AppColors.error ? AppColors.error : AppColors.onSurface).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2.h(context)),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                size: 16.w(context),
+                color: AppColors.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
