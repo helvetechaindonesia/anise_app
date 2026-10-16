@@ -5,6 +5,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../notifications/screens/notification_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/network/dio_client.dart';
@@ -29,53 +30,24 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
     _initDefaultDates();
   }
 
-  void _initDefaultDates() {
+  void _initDefaultDates([Map<String, dynamic>? offDaysData]) {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     _isCustomDateSelected = false;
-  }
 
-  /// Memfilter hari aktif KBM di pekan ini berdasarkan data hari nonaktif & hari libur dari database
-  List<DateTime> _getActiveWeekDates(Map<String, dynamic> offDaysData) {
-    final offWeekdays = (offDaysData['off_weekdays'] as List<dynamic>?)
-            ?.map((e) => e.toString().trim().toLowerCase())
-            .toList() ??
-        ['minggu'];
-
-    final holidays = (offDaysData['holidays'] as List<dynamic>?) ?? [];
-
-    final List<DateTime> activeDates = [];
-    const indoDays = ['', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
-    final now = DateTime.now();
-    final currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
-
-    for (int i = 0; i < 7; i++) {
-      final date = currentWeekStart.add(Duration(days: i));
-      final dayName = indoDays[date.weekday].toLowerCase();
-
-      // Cek hari nonaktif mingguan sekolah dari database
-      if (offWeekdays.contains(dayName)) continue;
-
-      // Cek rentang hari libur aktif di database
-      final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      bool isHoliday = false;
-      for (final h in holidays) {
-        final start = h['start_date']?.toString().substring(0, 10);
-        final end = (h['end_date'] ?? h['start_date'])?.toString().substring(0, 10);
-        if (start != null && end != null) {
-          if (dateStr.compareTo(start) >= 0 && dateStr.compareTo(end) <= 0) {
-            isHoliday = true;
-            break;
-          }
-        }
+    if (offDaysData != null) {
+      final weekMonday = computeActiveWeekMonday(offDaysData);
+      final activeDates = filterActiveWeekDates(
+        weekMonday: weekMonday,
+        offDaysData: offDaysData,
+      );
+      final today = DateTime(now.year, now.month, now.day);
+      if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+        _selectedDate = today;
+      } else if (activeDates.isNotEmpty) {
+        _selectedDate = activeDates.first;
       }
-
-      if (isHoliday) continue;
-
-      activeDates.add(date);
     }
-
-    return activeDates;
   }
 
   ScheduleStatus _determineStatus(dynamic item) {
@@ -120,6 +92,8 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final offDaysAsync = ref.watch(offDaysProvider);
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: CustomScrollView(
@@ -133,7 +107,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Spacing.custom(context, 16),
-                  _buildHeader(context),
+                  _buildHeader(context, offDaysAsync.valueOrNull),
                   Spacing.custom(context, 20),
                   _buildDateSelector(context),
                   Spacing.custom(context, 20),
@@ -210,7 +184,10 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, [Map<String, dynamic>? offDaysData]) {
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -232,6 +209,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
         AniseDatePickerButton(
           selectedDate: _selectedDate,
           isCustomDateSelected: _isCustomDateSelected,
+          firstDate: releaseDate,
           onDateSelected: (picked) {
             setState(() {
               _selectedDate = picked;
@@ -248,7 +226,23 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
 
     return offDaysAsync.when(
       data: (offDaysData) {
-        final activeDates = _getActiveWeekDates(offDaysData);
+        final weekMonday = computeActiveWeekMonday(offDaysData);
+        final activeDates = filterActiveWeekDates(
+          weekMonday: weekMonday,
+          offDaysData: offDaysData,
+        );
+
+        // Jika hari saat ini libur / nonaktif, otomatis pilih hari aktif pertama
+        if (!_isCustomDateSelected && activeDates.isNotEmpty) {
+          final isSelectedInActive = activeDates.any((d) =>
+              d.year == _selectedDate.year &&
+              d.month == _selectedDate.month &&
+              d.day == _selectedDate.day);
+          if (!isSelectedInActive) {
+            _selectedDate = activeDates.first;
+          }
+        }
+
         return AniseDateFilter(
           dates: activeDates,
           selectedDate: _selectedDate,
@@ -261,7 +255,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
           },
           onReset: () {
             setState(() {
-              _initDefaultDates();
+              _initDefaultDates(offDaysData);
             });
           },
         );
@@ -271,8 +265,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
         child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
       ),
       error: (_, __) {
-        final now = DateTime.now();
-        final currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
+        final currentWeekStart = computeActiveWeekMonday(null);
         final fallbackDates = List.generate(6, (i) => currentWeekStart.add(Duration(days: i)));
         return AniseDateFilter(
           dates: fallbackDates,

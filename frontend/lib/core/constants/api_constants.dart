@@ -15,4 +15,7 @@ class ApiConstants {
   static const String developerEmail = 'Helvetechaindonesia@gmail.com';
   static const String developerWhatsApp = '6281931315944';
   static const String developerSupportUrl = 'https://wa.me/6281931315944?text=Halo%20Tim%20Developer%20Helvetecha%2C%20saya%20butuh%20bantuan%20terkait%20aplikasi%20Anise.';
+  
+  // Tanggal Rilis Resmi Anise App (Batas paling awal riwayat/fitur tanggal di seluruh aplikasi)
+  static final DateTime appReleaseDate = DateTime(2026, 10, 26);
 }

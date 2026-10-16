@@ -639,7 +639,64 @@ class JournalController extends Controller
                 }
             }
 
-            // 2. Ambil daftar tanggal hari libur aktif dari tabel holidays
+            // 2. Ambil tanggal rilis resmi aplikasi dari school_settings (default 26 Oktober 2026)
+            $releaseDate = \Illuminate\Support\Facades\DB::table('school_settings')
+                ->where('setting_key', 'app_release_date')
+                ->value('setting_value') ?: '2026-10-26';
+
+            // 3. Tentukan hari nonaktif pertama dan kalkulasi reset mingguan (jam 01.00)
+            $dayToIso = [
+                'senin' => 1,
+                'selasa' => 2,
+                'rabu' => 3,
+                'kamis' => 4,
+                'jumat' => 5,
+                'sabtu' => 6,
+                'minggu' => 7,
+            ];
+            $isoToDay = [
+                1 => 'Senin',
+                2 => 'Selasa',
+                3 => 'Rabu',
+                4 => 'Kamis',
+                5 => 'Jumat',
+                6 => 'Sabtu',
+                7 => 'Minggu',
+            ];
+
+            $offDayIsos = [];
+            foreach ($offDays as $d) {
+                $clean = strtolower(trim($d));
+                if (isset($dayToIso[$clean])) {
+                    $offDayIsos[] = $dayToIso[$clean];
+                }
+            }
+            sort($offDayIsos);
+
+            // Hari nonaktif pertama (misal: Sabtu jika Sabtu-Minggu libur, atau Minggu jika hanya Minggu)
+            $firstOffDayIso = !empty($offDayIsos) ? $offDayIsos[0] : 7;
+            $firstOffDayName = $isoToDay[$firstOffDayIso] ?? 'Minggu';
+
+            $now = \Carbon\Carbon::now();
+            $todayIso = $now->dayOfWeekIso;
+
+            // Logika Reset Mingguan pada pukul 01.00 di hari nonaktif pertama:
+            // Jika hari ini setelah hari nonaktif pertama ATAU tepat hari nonaktif pertama dan sudah jam 01.00+:
+            // Siklus filter tanggal per item berganti/reset ke pekan berikutnya (Senin depan).
+            $hasRolledOver = false;
+            if ($todayIso > $firstOffDayIso) {
+                $hasRolledOver = true;
+            } elseif ($todayIso === $firstOffDayIso && $now->hour >= 1) {
+                $hasRolledOver = true;
+            }
+
+            if ($hasRolledOver) {
+                $activeWeekStart = $now->copy()->addWeek()->startOfWeek()->format('Y-m-d');
+            } else {
+                $activeWeekStart = $now->copy()->startOfWeek()->format('Y-m-d');
+            }
+
+            // 4. Ambil daftar tanggal hari libur aktif dari tabel holidays
             $holidays = collect();
             if (\Illuminate\Support\Facades\Schema::hasTable('holidays')) {
                 $holidays = \App\Models\SchoolHoliday::where('is_active', true)
@@ -650,7 +707,11 @@ class JournalController extends Controller
                 'status' => 'success',
                 'data' => [
                     'off_weekdays' => $offDays,
-                    'holidays' => $holidays
+                    'first_off_day' => $firstOffDayName,
+                    'reset_time' => '01:00',
+                    'current_week_start' => $activeWeekStart,
+                    'app_release_date' => $releaseDate,
+                    'holidays' => $holidays,
                 ]
             ]);
         } catch (\Throwable $e) {

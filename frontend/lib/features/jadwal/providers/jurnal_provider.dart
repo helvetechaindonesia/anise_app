@@ -113,7 +113,14 @@ final offDaysProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) a
       return Map<String, dynamic>.from(response.data['data'] as Map);
     }
   } catch (_) {}
-  return {'off_weekdays': <dynamic>['Minggu'], 'holidays': <dynamic>[]};
+  return {
+    'off_weekdays': <dynamic>['Minggu'],
+    'first_off_day': 'Minggu',
+    'reset_time': '01:00',
+    'current_week_start': null,
+    'app_release_date': '2026-10-26',
+    'holidays': <dynamic>[],
+  };
 });
 
 

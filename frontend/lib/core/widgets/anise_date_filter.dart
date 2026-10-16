@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../constants/colors.dart';
+import '../constants/api_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/responsive.dart';
 
@@ -21,6 +22,102 @@ const List<String> _bulanLengkap = [
   'November',
   'Desember'
 ];
+
+/// Menghitung hari Senin awal pekan aktif KBM berdasarkan respon API off-days
+/// dan otomatis reset pada pukul 01:00 di hari nonaktif pertama.
+DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
+  if (offDaysData != null && offDaysData['current_week_start'] != null) {
+    try {
+      final parsed = DateTime.parse(offDaysData['current_week_start'].toString());
+      return DateTime(parsed.year, parsed.month, parsed.day);
+    } catch (_) {}
+  }
+
+  final now = DateTime.now();
+  final offWeekdays = (offDaysData?['off_weekdays'] as List<dynamic>?)
+          ?.map((e) => e.toString().trim().toLowerCase())
+          .toList() ??
+      ['minggu'];
+
+  const dayToIso = {
+    'senin': 1,
+    'selasa': 2,
+    'rabu': 3,
+    'kamis': 4,
+    'jumat': 5,
+    'sabtu': 6,
+    'minggu': 7,
+  };
+
+  int firstOffIso = 7;
+  for (final d in offWeekdays) {
+    if (dayToIso.containsKey(d)) {
+      final iso = dayToIso[d]!;
+      if (iso < firstOffIso) firstOffIso = iso;
+    }
+  }
+
+  final todayIso = now.weekday; // 1 = Mon ... 7 = Sun
+  bool hasRolledOver = false;
+  if (todayIso > firstOffIso) {
+    hasRolledOver = true;
+  } else if (todayIso == firstOffIso && now.hour >= 1) {
+    hasRolledOver = true;
+  }
+
+  if (hasRolledOver) {
+    final nextWeek = now.add(Duration(days: 8 - todayIso));
+    return DateTime(nextWeek.year, nextWeek.month, nextWeek.day);
+  } else {
+    final thisWeek = now.subtract(Duration(days: todayIso - 1));
+    return DateTime(thisWeek.year, thisWeek.month, thisWeek.day);
+  }
+}
+
+/// Menghasilkan daftar tanggal aktif KBM mingguan (tanpa hari nonaktif & tanpa hari libur)
+List<DateTime> filterActiveWeekDates({
+  required DateTime weekMonday,
+  required Map<String, dynamic>? offDaysData,
+}) {
+  final offWeekdays = (offDaysData?['off_weekdays'] as List<dynamic>?)
+          ?.map((e) => e.toString().trim().toLowerCase())
+          .toList() ??
+      ['minggu'];
+
+  final holidays = (offDaysData?['holidays'] as List<dynamic>?) ?? [];
+
+  final List<DateTime> activeDates = [];
+  const indoDays = ['', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+
+  for (int i = 0; i < 7; i++) {
+    final date = weekMonday.add(Duration(days: i));
+    final dayName = indoDays[date.weekday].toLowerCase();
+
+    // 1. Lewati hari nonaktif mingguan sekolah (dari database school_settings)
+    if (offWeekdays.contains(dayName)) continue;
+
+    // 2. Lewati hari libur aktif di database (tabel holidays)
+    final dateStr =
+        "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    bool isHoliday = false;
+    for (final h in holidays) {
+      final start = h['start_date']?.toString().substring(0, 10);
+      final end = (h['end_date'] ?? h['start_date'])?.toString().substring(0, 10);
+      if (start != null && end != null) {
+        if (dateStr.compareTo(start) >= 0 && dateStr.compareTo(end) <= 0) {
+          isHoliday = true;
+          break;
+        }
+      }
+    }
+
+    if (isHoliday) continue;
+
+    activeDates.add(date);
+  }
+
+  return activeDates;
+}
 
 /// Tombol Pill Standar "Pilih Tanggal" / "Ubah Tanggal" pada header halaman
 class AniseDatePickerButton extends StatelessWidget {
@@ -47,11 +144,17 @@ class AniseDatePickerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
+        final minDate = firstDate ?? ApiConstants.appReleaseDate;
+        final maxDate = lastDate ?? DateTime(2030, 12, 31);
+        final initial = selectedDate.isBefore(minDate)
+            ? minDate
+            : (selectedDate.isAfter(maxDate) ? maxDate : selectedDate);
+
         final picked = await showDatePicker(
           context: context,
-          initialDate: selectedDate,
-          firstDate: firstDate ?? DateTime(2020),
-          lastDate: lastDate ?? DateTime(2030),
+          initialDate: initial,
+          firstDate: minDate,
+          lastDate: maxDate,
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/main_header.dart';
 import '../../../core/widgets/anise_card.dart';
@@ -41,59 +41,26 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
   void _initCurrentWeek() {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    _currentWeekStart = computeActiveWeekMonday(null);
     _isCustomDateSelected = false;
   }
 
-  void _resetToCurrentWeek() {
+  void _resetToCurrentWeek([Map<String, dynamic>? offDaysData]) {
     setState(() {
-      _initCurrentWeek();
+      _isCustomDateSelected = false;
+      _currentWeekStart = computeActiveWeekMonday(offDaysData);
+      final activeDates = filterActiveWeekDates(
+        weekMonday: _currentWeekStart,
+        offDaysData: offDaysData,
+      );
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+        _selectedDate = today;
+      } else if (activeDates.isNotEmpty) {
+        _selectedDate = activeDates.first;
+      }
     });
-  }
-
-  /// Memfilter hari aktif KBM di pekan ini berdasarkan data hari nonaktif & hari libur dari database
-  List<DateTime> _getActiveWeekDates(Map<String, dynamic> offDaysData) {
-    final offWeekdays = (offDaysData['off_weekdays'] as List<dynamic>?)
-            ?.map((e) => e.toString().trim().toLowerCase())
-            .toList() ??
-        ['minggu'];
-
-    final holidays = (offDaysData['holidays'] as List<dynamic>?) ?? [];
-
-    final List<DateTime> activeDates = [];
-    const indoDays = ['', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
-
-    for (int i = 0; i < 7; i++) {
-      final date = _currentWeekStart.add(Duration(days: i));
-      final dayName = indoDays[date.weekday].toLowerCase();
-
-      // 1. Cek apakah hari ini termasuk hari nonaktif mingguan sekolah (dari database school_settings / schedules)
-      if (offWeekdays.contains(dayName)) {
-        continue;
-      }
-
-      // 2. Cek apakah tanggal ini termasuk dalam rentang hari libur aktif di database (tabel holidays)
-      final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      bool isHoliday = false;
-      for (final h in holidays) {
-        final start = h['start_date']?.toString().substring(0, 10);
-        final end = (h['end_date'] ?? h['start_date'])?.toString().substring(0, 10);
-        if (start != null && end != null) {
-          if (dateStr.compareTo(start) >= 0 && dateStr.compareTo(end) <= 0) {
-            isHoliday = true;
-            break;
-          }
-        }
-      }
-
-      if (isHoliday) {
-        continue;
-      }
-
-      activeDates.add(date);
-    }
-
-    return activeDates;
   }
 
   @override
@@ -124,11 +91,29 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 16.h(context)),
-                  _buildHeaderTitle(context),
+                  _buildHeaderTitle(context, offDaysAsync.valueOrNull),
                   SizedBox(height: 16.h(context)),
                   offDaysAsync.when(
                     data: (offDaysData) {
-                      final activeDates = _getActiveWeekDates(offDaysData);
+                      if (!_isCustomDateSelected) {
+                        _currentWeekStart = computeActiveWeekMonday(offDaysData);
+                      }
+                      final activeDates = filterActiveWeekDates(
+                        weekMonday: _currentWeekStart,
+                        offDaysData: offDaysData,
+                      );
+
+                      // Jika hari saat ini adalah hari libur / nonaktif, otomatis pilih hari KBM aktif pertama
+                      if (!_isCustomDateSelected && activeDates.isNotEmpty) {
+                        final isSelectedInActive = activeDates.any((d) =>
+                            d.year == _selectedDate.year &&
+                            d.month == _selectedDate.month &&
+                            d.day == _selectedDate.day);
+                        if (!isSelectedInActive) {
+                          _selectedDate = activeDates.first;
+                        }
+                      }
+
                       return AniseDateFilter(
                         dates: activeDates,
                         selectedDate: _selectedDate,
@@ -139,7 +124,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                             _isCustomDateSelected = false;
                           });
                         },
-                        onReset: _resetToCurrentWeek,
+                        onReset: () => _resetToCurrentWeek(offDaysData),
                       );
                     },
                     loading: () => SizedBox(
@@ -158,7 +143,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                             _isCustomDateSelected = false;
                           });
                         },
-                        onReset: _resetToCurrentWeek,
+                        onReset: () => _resetToCurrentWeek(null),
                       );
                     },
                   ),
@@ -175,7 +160,10 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
     );
   }
 
-  Widget _buildHeaderTitle(BuildContext context) {
+  Widget _buildHeaderTitle(BuildContext context, [Map<String, dynamic>? offDaysData]) {
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -198,6 +186,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
         AniseDatePickerButton(
           selectedDate: _selectedDate,
           isCustomDateSelected: _isCustomDateSelected,
+          firstDate: releaseDate,
           onDateSelected: (picked) {
             setState(() {
               _selectedDate = DateTime(picked.year, picked.month, picked.day);
