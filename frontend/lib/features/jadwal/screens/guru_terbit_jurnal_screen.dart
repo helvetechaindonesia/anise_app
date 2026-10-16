@@ -144,7 +144,6 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
       backgroundColor: AppColors.backgroundLight,
       appBar: const AniseAppBar(
         title: 'Terbitkan Jurnal',
-        subtitle: 'Rencana Pelaksanaan Pembelajaran (Micro-RPP)',
       ),
       body: SafeArea(
         child: jurnalState.when(
@@ -464,6 +463,8 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
         DropdownButtonFormField<String>(
           value: effectiveValue,
           isExpanded: true,
+          dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(14.w(context)),
           icon: Icon(
             PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
             color: AppColors.primary,
@@ -538,6 +539,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
     final hasMatch = _selectedJadwal != null && scheduleMap.containsKey(_selectedJadwal);
     final effectiveValue = hasMatch ? _selectedJadwal : null;
+    final double dropdownItemHeight = (68.h(context)).clamp(58.0, 85.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,6 +549,9 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
         DropdownButtonFormField<String>(
           value: effectiveValue,
           isExpanded: true,
+          itemHeight: dropdownItemHeight,
+          dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(14.w(context)),
           icon: Icon(
             PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
             color: AppColors.primary,
@@ -564,7 +569,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
             prefixIconConstraints: BoxConstraints(minWidth: 46.w(context)),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 8.h(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14.w(context)),
               borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
@@ -599,11 +604,12 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
               final dateLine = lines.isNotEmpty ? lines[0] : '';
               final classLine = lines.length > 1 ? lines[1] : '';
 
-              return Padding(
-                padding: EdgeInsets.symmetric(vertical: 2.h(context)),
+              return Align(
+                alignment: Alignment.centerLeft,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       dateLine,
@@ -640,10 +646,11 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
                   return DropdownMenuItem<String>(
                     value: entry.key,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6.h(context)),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
@@ -655,7 +662,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 3.h(context)),
+                            SizedBox(height: 2.h(context)),
                             Text(
                               classLine,
                               style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
@@ -859,7 +866,9 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
             Switch(
               value: _isAdaTugas,
               activeThumbColor: AppColors.primary,
-              activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
+              activeTrackColor: AppColors.primary.withValues(alpha: 0.38),
+              inactiveThumbColor: AppColors.outline,
+              inactiveTrackColor: AppColors.outline.withValues(alpha: 0.15),
               onChanged: (val) {
                 setState(() {
                   _isAdaTugas = val;
@@ -995,10 +1004,9 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                     }
                   },
             child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2.5),
+                ? SizedBox.square(
+                    dimension: 22.w(context),
+                    child: const CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2.5),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
