@@ -127,7 +127,7 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
 
     final hasMatch = selectedJadwal != null && scheduleMap.containsKey(selectedJadwal);
     final effectiveValue = hasMatch ? selectedJadwal : null;
-    final double dropdownItemHeight = (90.h(context)).clamp(84.0, 110.0);
+    final double dropdownItemHeight = (105.h(context)).clamp(96.0, 125.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,30 +148,30 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
           ),
           decoration: InputDecoration(
             constraints: BoxConstraints(
-              minHeight: (96.h(context)).clamp(90.0, 112.0),
+              minHeight: (124.h(context)).clamp(116.0, 140.0),
             ),
             prefixIcon: Padding(
               padding: EdgeInsets.only(left: 14.w(context), right: 12.w(context)),
               child: Container(
-                width: 44.w(context),
-                height: 44.w(context),
+                width: 48.w(context),
+                height: 48.w(context),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12.w(context)),
+                  borderRadius: BorderRadius.circular(14.w(context)),
                 ),
                 child: Center(
                   child: Icon(
                     PhosphorIcons.calendar(PhosphorIconsStyle.fill),
                     color: AppColors.primary,
-                    size: 24.w(context),
+                    size: 26.w(context),
                   ),
                 ),
               ),
             ),
-            prefixIconConstraints: BoxConstraints(minWidth: 70.w(context), minHeight: 48.w(context)),
+            prefixIconConstraints: BoxConstraints(minWidth: 76.w(context), minHeight: 52.w(context)),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 22.h(context)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16.w(context)),
               borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
@@ -189,31 +189,35 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
               borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
           ),
-          hint: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                selectedMapel == null
-                    ? 'Pilih Mata Pelajaran Terlebih Dahulu'
-                    : 'Pilih Jadwal yang Tersedia',
-                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.45)).copyWith(
-                  fontWeight: FontWeight.w600,
+          hint: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  selectedMapel == null
+                      ? 'Pilih Mata Pelajaran Terlebih Dahulu'
+                      : 'Pilih Jadwal yang Tersedia',
+                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.45)).copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: 4.h(context)),
-              Text(
-                selectedMapel == null
-                    ? 'Mata pelajaran belum dipilih'
-                    : 'Pilih sesi KBM untuk mengisi jurnal',
-                style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.3)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                SizedBox(height: 4.h(context)),
+                Text(
+                  selectedMapel == null
+                      ? 'Mata pelajaran belum dipilih'
+                      : 'Pilih sesi KBM untuk mengisi jurnal',
+                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.3)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
           selectedItemBuilder: selectedMapel == null
               ? null
@@ -227,31 +231,35 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
 
                     return Align(
                       alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            dateLine,
-                            style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 4.h(context)),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              classLine,
-                              style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
-                                fontWeight: FontWeight.w600,
+                              dateLine,
+                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (classLine.isNotEmpty) ...[
+                              SizedBox(height: 4.h(context)),
+                              Text(
+                                classLine,
+                                style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     );
                   }).toList();
@@ -269,31 +277,35 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
                     value: entry.key,
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            dateLine,
-                            style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 4.h(context)),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              classLine,
-                              style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
-                                fontWeight: FontWeight.w600,
+                              dateLine,
+                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (classLine.isNotEmpty) ...[
+                              SizedBox(height: 4.h(context)),
+                              Text(
+                                classLine,
+                                style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   );
