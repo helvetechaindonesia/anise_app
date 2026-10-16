@@ -14,9 +14,17 @@ use App\Models\JournalTaskAttachment;
 use App\Services\FileStorageService;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use App\Services\JournalService;
 
 class JournalController extends Controller
 {
+    protected JournalService $journalService;
+
+    public function __construct(JournalService $journalService)
+    {
+        $this->journalService = $journalService;
+    }
+
     public function getTerbitOptions(Request $request)
     {
         try {
@@ -173,46 +181,29 @@ class JournalController extends Controller
         ]);
     }
 
-        public function mySchedules()
+    public function mySchedules()
     {
         try {
             $user = Auth::user();
-            
-            // Get unique class & subject combinations for this teacher
-            $schedules = Schedule::where('teacher_id', $user->id)
-                ->with(['class.major', 'subject'])
-                ->get();
-                
-            $uniqueClasses = [];
-            foreach ($schedules as $sched) {
-                if (!$sched->class || !$sched->subject) continue;
-                
-                $key = $sched->class_id . '_' . $sched->subject_id;
-                
-                if (!isset($uniqueClasses[$key])) {
-                    // Hitung jumlah siswa di kelas ini
-                    $studentCount = \App\Models\ClassStudent::where('class_id', $sched->class_id)->count();
-                    
-                    $uniqueClasses[$key] = [
-                        'class_id' => $sched->class_id,
-                        'subject_id' => $sched->subject_id,
-                        'class_name' => $sched->class->grade_level . ' ' . $sched->class->name,
-                        'subject_name' => $sched->subject->name,
-                        'student_count' => $studentCount
-                    ];
-                }
+            if (!$user) {
+                return response()->json(['status' => 'error', 'message' => 'Unauthenticated.'], 401);
             }
+
+            $uniqueClasses = $this->journalService->getTeacherClassesAndSchedules($user->id);
 
             return response()->json([
                 'status' => 'success',
-                'data' => array_values($uniqueClasses)
+                'data' => $uniqueClasses
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            \Log::error('Error mySchedules: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Gagal memuat jadwal dan kelas: ' . $e->getMessage()
             ], 500);
         }
+    }
+
     public function checkInCam(Request $request, $journalId)
     {
         try {
@@ -1124,47 +1115,22 @@ class JournalController extends Controller
     {
         try {
             $user = Auth::user();
-            $classStudent = \App\Models\ClassStudent::where('student_id', $user->id)
-                ->where('status', 'ACTIVE')
-                ->first();
-                
-            if (!$classStudent) {
-                return response()->json(['status' => 'success', 'data' => []]);
+            if (!$user) {
+                return response()->json(['status' => 'error', 'message' => 'Unauthenticated.'], 401);
             }
-            
-            $classId = $classStudent->class_id;
 
-            $schedules = \App\Models\Schedule::where('class_id', $classId)
-                ->with(['teacher.guruProfile', 'subject'])
-                ->get();
-                
-            $teachers = collect();
-            foreach ($schedules as $sched) {
-                if (!$sched->teacher || !$sched->subject) continue;
-
-                $teacherId = $sched->teacher_id;
-                if (!$teachers->has($teacherId)) {
-                    $name = $sched->teacher->full_name ?: $sched->teacher->username;
-                    $teachers->put($teacherId, [
-                        'id' => $teacherId,
-                        'name' => $name,
-                        'subject' => $sched->subject->name
-                    ]);
-                } else {
-                    $existing = $teachers->get($teacherId);
-                    if (!str_contains($existing['subject'], $sched->subject->name)) {
-                        $existing['subject'] .= ', ' . $sched->subject->name;
-                        $teachers->put($teacherId, $existing);
-                    }
-                }
-            }
+            $teachers = $this->journalService->getStudentTeachers($user->id);
 
             return response()->json([
                 'status' => 'success',
-                'data' => $teachers->values()->all()
+                'data' => $teachers
             ]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        } catch (\Throwable $e) {
+            \Log::error('Error getSiswaTeachers: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal memuat data pengajar: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

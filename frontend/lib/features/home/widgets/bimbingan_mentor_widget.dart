@@ -123,7 +123,25 @@ class BimbinganMentorWidget extends ConsumerWidget {
           error: (e, st) => Container(
             height: 145.h(context),
             alignment: Alignment.center,
-            child: Text('Gagal memuat pengajar', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+            padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16.w(context)),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.error, size: 20.w(context)),
+                SizedBox(width: 8.w(context)),
+                Text('Gagal memuat pengajar', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                SizedBox(width: 8.w(context)),
+                IconButton(
+                  icon: Icon(PhosphorIcons.arrowClockwise(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                  onPressed: () => ref.refresh(mentorsProvider),
+                ),
+              ],
+            ),
           ),
         ),
       ],
