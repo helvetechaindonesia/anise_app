@@ -318,8 +318,106 @@ class AniseDatePillBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final now = DateTime.now();
 
+    // Jika itemWidth tidak ditentukan dan jumlah hari <= 7 (misal 5 atau 6 hari KBM aktif),
+    // gunakan Row + Expanded agar 6 kolom pas memenuhi lebar layar tanpa scroll horizontal!
+    if (itemWidth == null && dates.length <= 7) {
+      return SizedBox(
+        height: height ?? 72.h(context),
+        child: Row(
+          children: List.generate(dates.length, (index) {
+            final date = dates[index];
+            final isSelected = date.year == selectedDate.year &&
+                date.month == selectedDate.month &&
+                date.day == selectedDate.day;
+            final isToday = date.year == now.year &&
+                date.month == now.month &&
+                date.day == now.day;
+            final dayName = _hariSingkat[date.weekday % 7];
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onDateSelected(date),
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: index < dates.length - 1 ? 6.w(context) : 0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryContainer : AppColors.surface,
+                    borderRadius: BorderRadius.circular(14.w(context)),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isToday ? AppColors.secondary : AppColors.outlineVariant),
+                      width: isSelected ? 1.5 : (isToday ? 1.2 : 1),
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.22),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : [],
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            dayName,
+                            style: AppTextStyles.labelSmall(
+                              context,
+                              color: isSelected
+                                  ? AppColors.onPrimaryContainer.withValues(alpha: 0.85)
+                                  : (isToday ? AppColors.secondary : AppColors.onSurfaceVariant),
+                            ).copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11.w(context),
+                            ),
+                          ),
+                          SizedBox(height: 3.h(context)),
+                          Text(
+                            '${date.day}',
+                            style: AppTextStyles.titleMedium(
+                              context,
+                              color: isSelected
+                                  ? (isToday ? AppColors.onPrimaryContainer : AppColors.primary)
+                                  : (isToday ? AppColors.secondary : AppColors.onSurface),
+                            ).copyWith(
+                              fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600,
+                              fontSize: 16.w(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (isToday)
+                        Positioned(
+                          bottom: 5.h(context),
+                          child: Container(
+                            width: 16.w(context),
+                            height: 3.h(context),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.onPrimaryContainer : AppColors.secondary,
+                              borderRadius: BorderRadius.circular(2.w(context)),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+    }
+
+    // Fallback scrollable jika itemWidth ditentukan atau jumlah hari > 7
     return SizedBox(
-      height: height ?? 74.h(context),
+      height: height ?? 72.h(context),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: dates.length,
@@ -337,10 +435,10 @@ class AniseDatePillBar extends StatelessWidget {
             onTap: () => onDateSelected(date),
             child: Container(
               width: itemWidth ?? 56.w(context),
-              margin: EdgeInsets.only(right: 12.w(context)),
+              margin: EdgeInsets.only(right: 8.w(context)),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
+                borderRadius: BorderRadius.circular(14.w(context)),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.primary
@@ -350,9 +448,9 @@ class AniseDatePillBar extends StatelessWidget {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          color: AppColors.primary.withValues(alpha: 0.22),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         )
                       ]
                     : [],
@@ -370,9 +468,12 @@ class AniseDatePillBar extends StatelessWidget {
                           color: isSelected
                               ? AppColors.onPrimaryContainer.withValues(alpha: 0.85)
                               : (isToday ? AppColors.secondary : AppColors.onSurfaceVariant),
-                        ).copyWith(fontWeight: FontWeight.w600),
+                        ).copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11.w(context),
+                        ),
                       ),
-                      SizedBox(height: 4.h(context)),
+                      SizedBox(height: 3.h(context)),
                       Text(
                         '${date.day}',
                         style: AppTextStyles.titleMedium(
@@ -382,6 +483,7 @@ class AniseDatePillBar extends StatelessWidget {
                               : (isToday ? AppColors.secondary : AppColors.onSurface),
                         ).copyWith(
                           fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600,
+                          fontSize: 16.w(context),
                         ),
                       ),
                     ],
@@ -390,7 +492,7 @@ class AniseDatePillBar extends StatelessWidget {
                     Positioned(
                       bottom: 5.h(context),
                       child: Container(
-                        width: 20.w(context),
+                        width: 16.w(context),
                         height: 3.h(context),
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.onPrimaryContainer : AppColors.secondary,
