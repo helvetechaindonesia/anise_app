@@ -7,6 +7,7 @@ import 'dart:io';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../providers/jurnal_provider.dart';
 
 class GuruTerbitJurnalScreen extends ConsumerStatefulWidget {
@@ -142,26 +143,9 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          children: [
-            Text(
-              'Terbitkan Jurnal',
-              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-            ),
-            Text(
-              'Rencana Pelaksanaan Pembelajaran (Micro-RPP)',
-              style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-            ),
-          ],
-        ),
+      appBar: const AniseAppBar(
+        title: 'Terbitkan Jurnal',
+        subtitle: 'Rencana Pelaksanaan Pembelajaran (Micro-RPP)',
       ),
       body: SafeArea(
         child: jurnalState.when(

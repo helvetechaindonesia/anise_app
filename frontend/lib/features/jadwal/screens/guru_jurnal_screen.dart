@@ -10,6 +10,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/main_header.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/anise_date_filter.dart';
 import '../../notifications/screens/notification_screen.dart';
 import 'guru_terbit_jurnal_screen.dart';
 import 'guru_jurnal_detail_screen.dart';
@@ -28,33 +29,36 @@ class GuruJurnalScreen extends ConsumerStatefulWidget {
 class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
   late DateTime _selectedDate;
   late DateTime _currentWeekStart;
+  bool _isCustomDateSelected = false;
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('id_ID', null);
+    _initCurrentWeek();
+  }
+
+  void _initCurrentWeek() {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    // Set awal pekan ke hari Senin minggu berjalan
     _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    _isCustomDateSelected = false;
   }
 
   void _resetToCurrentWeek() {
-    final now = DateTime.now();
     setState(() {
-      _selectedDate = DateTime(now.year, now.month, now.day);
-      _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+      _initCurrentWeek();
     });
   }
 
   void _navigateWeek(int weekDelta) {
     setState(() {
       _currentWeekStart = _currentWeekStart.add(Duration(days: weekDelta * 7));
-      // Bila tanggal terpilih berada di luar pekan baru, arahkan ke hari pertama pekan baru
       final endOfWeek = _currentWeekStart.add(const Duration(days: 6));
       if (_selectedDate.isBefore(_currentWeekStart) || _selectedDate.isAfter(endOfWeek)) {
         _selectedDate = _currentWeekStart;
       }
+      _isCustomDateSelected = false;
     });
   }
 
@@ -133,15 +137,43 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                   SizedBox(height: 16.h(context)),
                   _buildHeaderTitle(context),
                   SizedBox(height: 16.h(context)),
-                  _buildWeekNavigator(context),
-                  SizedBox(height: 14.h(context)),
                   offDaysAsync.when(
-                    data: (offDaysData) => _buildDynamicDateSelector(context, offDaysData),
+                    data: (offDaysData) {
+                      final activeDates = _getActiveWeekDates(offDaysData);
+                      return AniseDateFilter(
+                        dates: activeDates,
+                        selectedDate: _selectedDate,
+                        isCustomDateSelected: _isCustomDateSelected,
+                        weekNavigator: _buildWeekNavigator(context),
+                        onDateSelected: (date) {
+                          setState(() {
+                            _selectedDate = date;
+                            _isCustomDateSelected = false;
+                          });
+                        },
+                        onReset: _resetToCurrentWeek,
+                      );
+                    },
                     loading: () => SizedBox(
-                      height: 64.h(context),
+                      height: 74.h(context),
                       child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
                     ),
-                    error: (_, __) => _buildFallbackDateSelector(context),
+                    error: (_, __) {
+                      final fallbackDates = List.generate(6, (i) => _currentWeekStart.add(Duration(days: i)));
+                      return AniseDateFilter(
+                        dates: fallbackDates,
+                        selectedDate: _selectedDate,
+                        isCustomDateSelected: _isCustomDateSelected,
+                        weekNavigator: _buildWeekNavigator(context),
+                        onDateSelected: (date) {
+                          setState(() {
+                            _selectedDate = date;
+                            _isCustomDateSelected = false;
+                          });
+                        },
+                        onReset: _resetToCurrentWeek,
+                      );
+                    },
                   ),
                   SizedBox(height: 20.h(context)),
                 ],
@@ -175,56 +207,17 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
             ),
           ],
         ),
-        // Tombol Standarisasi: Pilih Tanggal Spesifik
-        InkWell(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: AppColors.primary,
-                      onPrimary: AppColors.onPrimary,
-                      surface: AppColors.surface,
-                      onSurface: AppColors.onSurface,
-                    ),
-                  ),
-                  child: child!,
-                );
-              },
-            );
-
-            if (picked != null) {
-              setState(() {
-                _selectedDate = DateTime(picked.year, picked.month, picked.day);
-                _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
-              });
-            }
+        // Tombol Standarisasi: AniseDatePickerButton (Pilih Tanggal / Ubah Tanggal)
+        AniseDatePickerButton(
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          onDateSelected: (picked) {
+            setState(() {
+              _selectedDate = DateTime(picked.year, picked.month, picked.day);
+              _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+              _isCustomDateSelected = true;
+            });
           },
-          borderRadius: BorderRadius.circular(20.w(context)),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20.w(context)),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  'Pilih Tanggal',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
@@ -295,143 +288,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildDynamicDateSelector(BuildContext context, Map<String, dynamic> offDaysData) {
-    final activeDates = _getActiveWeekDates(offDaysData);
-
-    if (activeDates.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(16.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-        ),
-        child: Text(
-          'Tidak ada hari KBM aktif pada pekan ini (Libur Sekolah).',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 68.h(context),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: activeDates.length,
-        itemBuilder: (context, index) {
-          final date = activeDates[index];
-          final isSelected = date.year == _selectedDate.year &&
-              date.month == _selectedDate.month &&
-              date.day == _selectedDate.day;
-
-          final dayName = DateFormat('E', 'id_ID').format(date).toUpperCase();
-          final dayNumber = DateFormat('d').format(date);
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDate = date;
-              });
-            },
-            child: Container(
-              width: 54.w(context),
-              margin: EdgeInsets.only(right: 10.w(context)),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.25),
-                  width: isSelected ? 1.5 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    dayName,
-                    style: AppTextStyles.labelSmall(context,
-                            color: isSelected ? AppColors.onPrimaryContainer : AppColors.onSurfaceVariant)
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  SizedBox(height: 4.h(context)),
-                  Text(
-                    dayNumber,
-                    style: AppTextStyles.titleMedium(context,
-                            color: isSelected ? AppColors.onPrimaryContainer : AppColors.onSurface)
-                        .copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  if (isSelected) ...[
-                    SizedBox(height: 4.h(context)),
-                    Container(
-                      width: 4.w(context),
-                      height: 4.w(context),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ]
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFallbackDateSelector(BuildContext context) {
-    // Fallback bila API hari libur offline (Senin - Sabtu)
-    final fallbackDates = List.generate(6, (i) => _currentWeekStart.add(Duration(days: i)));
-    return SizedBox(
-      height: 68.h(context),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: fallbackDates.length,
-        itemBuilder: (context, index) {
-          final date = fallbackDates[index];
-          final isSelected = date.year == _selectedDate.year &&
-              date.month == _selectedDate.month &&
-              date.day == _selectedDate.day;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDate = date),
-            child: Container(
-              width: 54.w(context),
-              margin: EdgeInsets.only(right: 10.w(context)),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
-                border: Border.all(color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.25)),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(DateFormat('E', 'id_ID').format(date).toUpperCase(),
-                      style: AppTextStyles.labelSmall(context, color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant)),
-                  SizedBox(height: 4.h(context)),
-                  Text(DateFormat('d').format(date),
-                      style: AppTextStyles.titleMedium(context, color: isSelected ? AppColors.primary : AppColors.onSurface)),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 

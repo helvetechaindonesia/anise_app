@@ -8,6 +8,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/widgets/anise_date_filter.dart';
 import '../widgets/schedule_card.dart';
 import '../providers/jurnal_provider.dart';
 
@@ -189,236 +190,37 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
             ),
           ],
         ),
-        GestureDetector(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) {
-              setState(() {
-                _selectedDate = picked;
-                _isCustomDateSelected = true;
-              });
-            }
+        AniseDatePickerButton(
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          onDateSelected: (picked) {
+            setState(() {
+              _selectedDate = picked;
+              _isCustomDateSelected = true;
+            });
           },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 8.h(context)),
-            decoration: BoxDecoration(
-              color: _isCustomDateSelected ? AppColors.surfaceVariant : AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(20.w(context)),
-              border: _isCustomDateSelected ? Border.all(color: AppColors.secondary, width: 1.2) : null,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
-                  color: _isCustomDateSelected ? AppColors.primary : AppColors.onPrimaryContainer,
-                  size: 14.w(context),
-                ),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  _isCustomDateSelected ? 'Ubah Tanggal' : 'Pilih Tanggal',
-                  style: AppTextStyles.labelMedium(
-                    context,
-                    color: _isCustomDateSelected ? AppColors.primary : AppColors.onPrimaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
   }
 
   Widget _buildDateSelector(BuildContext context) {
-    if (_isCustomDateSelected) {
-      final hariIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-      final bulanIndo = [
-        '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-      ];
-      final dayName = hariIndo[_selectedDate.weekday % 7];
-      final dateFormatted = '$dayName, ${_selectedDate.day} ${bulanIndo[_selectedDate.month]} ${_selectedDate.year}';
-
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.secondary, width: 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.secondary,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                PhosphorIcons.calendarCheck(PhosphorIconsStyle.bold),
-                color: AppColors.onSecondary,
-                size: 18.w(context),
-              ),
-            ),
-            SizedBox(width: 12.w(context)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'FILTER TANGGAL AKTIF',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(height: 2.h(context)),
-                  Text(
-                    dateFormatted,
-                    style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _initDefaultDates();
-                });
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                  border: Border.all(color: AppColors.outlineVariant),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(PhosphorIcons.x(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.error),
-                    SizedBox(width: 4.w(context)),
-                    Text(
-                      'Reset',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final List<String> hariStr = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
-    final now = DateTime.now();
-
-    return SizedBox(
-      height: 74.h(context),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: dates.length,
-        itemBuilder: (context, index) {
-          final isSelected = index == _selectedDateIndex;
-          final date = dates[index];
-          final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
-          final dayName = hariStr[date.weekday % 7];
-
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDateIndex = index;
-                _selectedDate = date;
-              });
-            },
-            child: Container(
-              width: 56.w(context),
-              margin: EdgeInsets.only(right: 12.w(context)),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
-                border: Border.all(
-                  color: isSelected
-                      ? AppColors.primary
-                      : (isToday ? AppColors.secondary : AppColors.outlineVariant),
-                  width: isSelected ? 1.5 : (isToday ? 1.2 : 1),
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        dayName,
-                        style: AppTextStyles.labelSmall(
-                          context,
-                          color: isSelected
-                              ? AppColors.onPrimaryContainer.withValues(alpha: 0.85)
-                              : (isToday ? AppColors.secondary : AppColors.onSurfaceVariant),
-                        ).copyWith(
-                          fontWeight: (isSelected || isToday) ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 4.h(context)),
-                      Text(
-                        date.day.toString(),
-                        style: AppTextStyles.titleMedium(
-                          context,
-                          color: isSelected
-                              ? AppColors.onPrimaryContainer
-                              : (isToday ? AppColors.secondary : AppColors.onSurface),
-                        ).copyWith(fontWeight: (isSelected || isToday) ? FontWeight.w800 : FontWeight.w600),
-                      ),
-                    ],
-                  ),
-
-                  // Garis indikator bawah untuk Hari Ini
-                  if (isToday)
-                    Positioned(
-                      bottom: 5.h(context),
-                      child: Container(
-                        width: 20.w(context),
-                        height: 3.h(context),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.onPrimaryContainer : AppColors.secondary,
-                          borderRadius: BorderRadius.circular(2.w(context)),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+    return AniseDateFilter(
+      dates: dates,
+      selectedDate: _selectedDate,
+      isCustomDateSelected: _isCustomDateSelected,
+      onDateSelected: (date) {
+        setState(() {
+          _selectedDate = date;
+          _selectedDateIndex = dates.indexOf(date);
+          _isCustomDateSelected = false;
+        });
+      },
+      onReset: () {
+        setState(() {
+          _initDefaultDates();
+        });
+      },
     );
   }
 

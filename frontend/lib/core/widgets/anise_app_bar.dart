@@ -7,6 +7,7 @@ import '../utils/responsive.dart';
 /// Standard App Bar untuk semua Sub-Page di aplikasi Anise
 class AniseAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final String? subtitle;
   final bool showBackButton;
   final VoidCallback? onBackPressed;
   final List<Widget>? actions;
@@ -16,6 +17,7 @@ class AniseAppBar extends StatelessWidget implements PreferredSizeWidget {
   const AniseAppBar({
     Key? key,
     required this.title,
+    this.subtitle,
     this.showBackButton = true,
     this.onBackPressed,
     this.actions,
@@ -40,12 +42,28 @@ class AniseAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onBackPressed ?? () => Navigator.of(context).maybePop(),
             )
           : null,
-      title: Text(
-        title,
-        style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      title: subtitle == null
+          ? Text(
+              title,
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  subtitle!,
+                  style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+                ),
+              ],
+            ),
       actions: actions != null
           ? [
               ...actions!,
