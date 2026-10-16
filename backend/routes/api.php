@@ -99,6 +99,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::post('/{journalId}/like', [JournalController::class, 'toggleLike']);
         Route::post('/{journalId}/save', [JournalController::class, 'toggleSave']);
         Route::post('/{journalId}/comments', [JournalController::class, 'submitComment']);
+        Route::get('/off-days', [JournalController::class, 'getOffDays']);
 
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [JournalController::class, 'getSiswaJournals']);

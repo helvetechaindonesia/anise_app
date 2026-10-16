@@ -539,6 +539,7 @@ class JournalController extends Controller
                     'subject' => $subjectName,
                     'class_name' => $className,
                     'class_id' => $classId,
+                    'subject_id' => $sched?->subject_id ?? $journal->subject_id,
                     'teacher' => $teacherName,
                     'teacher_image' => $teacherImage,
                     'start_time' => $startTime,
@@ -571,6 +572,9 @@ class JournalController extends Controller
                 $result[] = [
                     'id' => 'sched_' . $sched->id,
                     'schedule_id' => $sched->id,
+                    'subject_id' => $sched->subject_id,
+                    'class_id' => $sched->class_id,
+                    'class_name' => $className,
                     'type' => 'schedule',
                     'topic' => 'Jadwal Mengajar: ' . $subjectName . ' (' . $className . ')',
                     'description' => 'Materi pembelajaran belum dipublikasikan oleh Anda untuk sesi ini.',
@@ -598,6 +602,56 @@ class JournalController extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => $result
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getOffDays(Request $request)
+    {
+        try {
+            // 1. Ambil setting hari nonaktif mingguan sekolah dari database school_settings
+            $offDaysSetting = \Illuminate\Support\Facades\DB::table('school_settings')
+                ->where('setting_key', 'school_off_days')
+                ->value('setting_value');
+
+            $offDays = [];
+            if ($offDaysSetting) {
+                $decoded = json_decode($offDaysSetting, true);
+                if (is_array($decoded)) {
+                    $offDays = $decoded;
+                }
+            }
+
+            // Jika belum ada di school_settings, ambil hari yang tidak ada jadwal KBM sama sekali di database schedules
+            if (empty($offDays)) {
+                $activeDays = Schedule::pluck('day_of_week')
+                    ->filter()
+                    ->map(fn($d) => ucfirst(strtolower(trim($d))))
+                    ->unique()
+                    ->toArray();
+
+                $allDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+                $offDays = array_values(array_diff($allDays, $activeDays));
+                if (empty($offDays)) {
+                    $offDays = ['Minggu'];
+                }
+            }
+
+            // 2. Ambil daftar tanggal hari libur aktif dari tabel holidays
+            $holidays = collect();
+            if (\Illuminate\Support\Facades\Schema::hasTable('holidays')) {
+                $holidays = \App\Models\SchoolHoliday::where('is_active', true)
+                    ->get(['id', 'name', 'start_date', 'end_date', 'type', 'description']);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'off_weekdays' => $offDays,
+                    'holidays' => $holidays
+                ]
             ]);
         } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

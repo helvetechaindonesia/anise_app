@@ -105,3 +105,15 @@ final kelasJadwalProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asyn
   }
 });
 
+final offDaysProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/journals/off-days');
+    if (response.data['status'] == 'success') {
+      return Map<String, dynamic>.from(response.data['data'] as Map);
+    }
+  } catch (_) {}
+  return {'off_weekdays': <dynamic>['Minggu'], 'holidays': <dynamic>[]};
+});
+
+

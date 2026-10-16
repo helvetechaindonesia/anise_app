@@ -188,4 +188,94 @@ class JournalTest extends TestCase
                 'data' => [],
             ]);
     }
+
+    public function test_can_get_off_days_from_database(): void
+    {
+        $guru = User::create([
+            'full_name' => 'Pak Test Guru',
+            'username' => 'guru_test_offdays',
+            'email' => 'offdays@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        \App\Models\SchoolHoliday::create([
+            'name' => 'Hari Libur Nasional Test',
+            'start_date' => '2026-10-25',
+            'end_date' => '2026-10-25',
+            'type' => 'NASIONAL',
+            'description' => 'Libur Nasional',
+            'is_active' => true,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        Sanctum::actingAs($guru, ['*']);
+
+        $response = $this->getJson('/api/journals/off-days');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+            ])
+            ->assertJsonStructure([
+                'status',
+                'data' => [
+                    'off_weekdays',
+                    'holidays',
+                ]
+            ])
+            ->assertJsonFragment([
+                'name' => 'Hari Libur Nasional Test',
+            ]);
+    }
+
+    public function test_guru_journals_includes_accurate_schedule_attributes(): void
+    {
+        $guru = User::create([
+            'full_name' => 'Guru Pengampu Akurat',
+            'username' => 'guru_akurat',
+            'email' => 'akurat@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $kelas = SchoolClass::create([
+            'name' => 'XII IPA 1',
+            'code' => '12-IPA-1',
+            'grade_level' => 12,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $mapel = Subject::create([
+            'name' => 'Biologi Sel',
+            'code' => 'BIO-12',
+        ]);
+
+        $schedule = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapel->id,
+            'teacher_id' => $guru->id,
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => 'Senin',
+            'start_time' => '07:30:00',
+            'end_time' => '09:00:00',
+        ]);
+
+        Sanctum::actingAs($guru, ['*']);
+
+        $response = $this->getJson('/api/journals/guru');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+            ])
+            ->assertJsonFragment([
+                'schedule_id' => $schedule->id,
+                'subject_id' => $mapel->id,
+                'class_id' => $kelas->id,
+                'class_name' => '12 XII IPA 1',
+            ]);
+    }
 }
