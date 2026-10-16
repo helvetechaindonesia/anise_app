@@ -31,22 +31,25 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
   }
 
   void _initDefaultDates([Map<String, dynamic>? offDaysData]) {
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
     _isCustomDateSelected = false;
+    final weekMonday = computeActiveWeekMonday(offDaysData);
+    final activeDates = filterActiveWeekDates(
+      weekMonday: weekMonday,
+      offDaysData: offDaysData,
+    );
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
 
-    if (offDaysData != null) {
-      final weekMonday = computeActiveWeekMonday(offDaysData);
-      final activeDates = filterActiveWeekDates(
-        weekMonday: weekMonday,
-        offDaysData: offDaysData,
-      );
-      final today = DateTime(now.year, now.month, now.day);
-      if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
-        _selectedDate = today;
-      } else if (activeDates.isNotEmpty) {
-        _selectedDate = activeDates.first;
-      }
+    if (today.isBefore(releaseDate)) {
+      _selectedDate = activeDates.isNotEmpty ? activeDates.first : releaseDate;
+    } else if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+      _selectedDate = today;
+    } else if (activeDates.isNotEmpty) {
+      _selectedDate = activeDates.first;
+    } else {
+      _selectedDate = weekMonday;
     }
   }
 
@@ -232,14 +235,23 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
           offDaysData: offDaysData,
         );
 
-        // Jika hari saat ini libur / nonaktif, otomatis pilih hari aktif pertama
+        // Jika hari saat ini libur / nonaktif / pra-rilis, otomatis pilih hari aktif pertama
         if (!_isCustomDateSelected && activeDates.isNotEmpty) {
-          final isSelectedInActive = activeDates.any((d) =>
-              d.year == _selectedDate.year &&
-              d.month == _selectedDate.month &&
-              d.day == _selectedDate.day);
-          if (!isSelectedInActive) {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final releaseDateStr = offDaysData['app_release_date']?.toString();
+          final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
+          if (today.isBefore(releaseDate)) {
             _selectedDate = activeDates.first;
+          } else {
+            final isSelectedInActive = activeDates.any((d) =>
+                d.year == _selectedDate.year &&
+                d.month == _selectedDate.month &&
+                d.day == _selectedDate.day);
+            if (!isSelectedInActive) {
+              _selectedDate = activeDates.first;
+            }
           }
         }
 
@@ -266,7 +278,10 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
       ),
       error: (_, __) {
         final currentWeekStart = computeActiveWeekMonday(null);
-        final fallbackDates = List.generate(6, (i) => currentWeekStart.add(Duration(days: i)));
+        final fallbackDates = filterActiveWeekDates(
+          weekMonday: currentWeekStart,
+          offDaysData: null,
+        );
         return AniseDateFilter(
           dates: fallbackDates,
           selectedDate: _selectedDate,

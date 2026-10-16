@@ -114,10 +114,10 @@ final offDaysProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) a
     }
   } catch (_) {}
   return {
-    'off_weekdays': <dynamic>['Minggu'],
+    'off_weekdays': <dynamic>['Minggu', 'Sunday'],
     'first_off_day': 'Minggu',
     'reset_time': '01:00',
-    'current_week_start': null,
+    'current_week_start': '2026-10-26',
     'app_release_date': '2026-10-26',
     'holidays': <dynamic>[],
   };

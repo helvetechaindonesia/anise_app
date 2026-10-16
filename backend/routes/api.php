@@ -58,6 +58,9 @@ Route::match(['get', 'post'], '/dev/reset-clean', [DevController::class, 'resetC
 // Export Presensi XLSX (Dapat diakses via Browser/Download Manager dengan parameter ?token=... atau Bearer Header)
 Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXlsx']);
 
+// Hari Nonaktif & Kalender Akademik Sekolah (Dapat diakses publik/authenticated)
+Route::get('/journals/off-days', [JournalController::class, 'getOffDays']);
+
 Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     
     // ==========================================

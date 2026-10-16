@@ -640,19 +640,22 @@ class JournalController extends Controller
             }
 
             // 2. Ambil tanggal rilis resmi aplikasi dari school_settings (default 26 Oktober 2026)
-            $releaseDate = \Illuminate\Support\Facades\DB::table('school_settings')
+            $releaseDateSetting = \Illuminate\Support\Facades\DB::table('school_settings')
                 ->where('setting_key', 'app_release_date')
                 ->value('setting_value') ?: '2026-10-26';
 
+            $releaseDate = \Carbon\Carbon::parse($releaseDateSetting)->startOfDay();
+            $releaseMonday = $releaseDate->copy()->startOfWeek();
+
             // 3. Tentukan hari nonaktif pertama dan kalkulasi reset mingguan (jam 01.00)
             $dayToIso = [
-                'senin' => 1,
-                'selasa' => 2,
-                'rabu' => 3,
-                'kamis' => 4,
-                'jumat' => 5,
-                'sabtu' => 6,
-                'minggu' => 7,
+                'senin' => 1, 'monday' => 1,
+                'selasa' => 2, 'tuesday' => 2,
+                'rabu' => 3, 'wednesday' => 3,
+                'kamis' => 4, 'thursday' => 4,
+                'jumat' => 5, 'friday' => 5,
+                'sabtu' => 6, 'saturday' => 6,
+                'minggu' => 7, 'sunday' => 7,
             ];
             $isoToDay = [
                 1 => 'Senin',
@@ -665,13 +668,23 @@ class JournalController extends Controller
             ];
 
             $offDayIsos = [];
+            $normalizedOffDays = [];
             foreach ($offDays as $d) {
                 $clean = strtolower(trim($d));
                 if (isset($dayToIso[$clean])) {
-                    $offDayIsos[] = $dayToIso[$clean];
+                    $iso = $dayToIso[$clean];
+                    $offDayIsos[] = $iso;
+                    $normalizedOffDays[] = $isoToDay[$iso];
+                } else {
+                    $normalizedOffDays[] = ucfirst($clean);
                 }
             }
             sort($offDayIsos);
+            $normalizedOffDays = array_values(array_unique($normalizedOffDays));
+            if (empty($offDayIsos)) {
+                $offDayIsos = [7];
+                $normalizedOffDays = ['Minggu'];
+            }
 
             // Hari nonaktif pertama (misal: Sabtu jika Sabtu-Minggu libur, atau Minggu jika hanya Minggu)
             $firstOffDayIso = !empty($offDayIsos) ? $offDayIsos[0] : 7;
@@ -691,10 +704,17 @@ class JournalController extends Controller
             }
 
             if ($hasRolledOver) {
-                $activeWeekStart = $now->copy()->addWeek()->startOfWeek()->format('Y-m-d');
+                $activeWeekStart = $now->copy()->addWeek()->startOfWeek();
             } else {
-                $activeWeekStart = $now->copy()->startOfWeek()->format('Y-m-d');
+                $activeWeekStart = $now->copy()->startOfWeek();
             }
+
+            // Kunci: Tidak boleh lebih mundur dari tanggal rilis resmi (26 Oktober 2026)
+            if ($activeWeekStart->lt($releaseMonday)) {
+                $activeWeekStart = $releaseMonday;
+            }
+
+            $activeWeekStartStr = $activeWeekStart->format('Y-m-d');
 
             // 4. Ambil daftar tanggal hari libur aktif dari tabel holidays
             $holidays = collect();
@@ -706,11 +726,11 @@ class JournalController extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'off_weekdays' => $offDays,
+                    'off_weekdays' => $normalizedOffDays,
                     'first_off_day' => $firstOffDayName,
                     'reset_time' => '01:00',
-                    'current_week_start' => $activeWeekStart,
-                    'app_release_date' => $releaseDate,
+                    'current_week_start' => $activeWeekStartStr,
+                    'app_release_date' => $releaseDateSetting,
                     'holidays' => $holidays,
                 ]
             ]);

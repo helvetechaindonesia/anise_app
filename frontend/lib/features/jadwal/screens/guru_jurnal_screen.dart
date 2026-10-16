@@ -39,10 +39,23 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
   }
 
   void _initCurrentWeek() {
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
-    _currentWeekStart = computeActiveWeekMonday(null);
     _isCustomDateSelected = false;
+    _currentWeekStart = computeActiveWeekMonday(null);
+    final activeDates = filterActiveWeekDates(
+      weekMonday: _currentWeekStart,
+      offDaysData: null,
+    );
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (today.isBefore(ApiConstants.appReleaseDate)) {
+      _selectedDate = activeDates.isNotEmpty ? activeDates.first : ApiConstants.appReleaseDate;
+    } else if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+      _selectedDate = today;
+    } else if (activeDates.isNotEmpty) {
+      _selectedDate = activeDates.first;
+    } else {
+      _selectedDate = _currentWeekStart;
+    }
   }
 
   void _resetToCurrentWeek([Map<String, dynamic>? offDaysData]) {
@@ -55,10 +68,17 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
       );
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+      final releaseDateStr = offDaysData?['app_release_date']?.toString();
+      final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
+      if (today.isBefore(releaseDate)) {
+        _selectedDate = activeDates.isNotEmpty ? activeDates.first : releaseDate;
+      } else if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
         _selectedDate = today;
       } else if (activeDates.isNotEmpty) {
         _selectedDate = activeDates.first;
+      } else {
+        _selectedDate = _currentWeekStart;
       }
     });
   }
@@ -103,14 +123,23 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                         offDaysData: offDaysData,
                       );
 
-                      // Jika hari saat ini adalah hari libur / nonaktif, otomatis pilih hari KBM aktif pertama
+                      // Jika hari saat ini adalah hari libur / nonaktif / pra-rilis, otomatis pilih hari KBM aktif pertama
                       if (!_isCustomDateSelected && activeDates.isNotEmpty) {
-                        final isSelectedInActive = activeDates.any((d) =>
-                            d.year == _selectedDate.year &&
-                            d.month == _selectedDate.month &&
-                            d.day == _selectedDate.day);
-                        if (!isSelectedInActive) {
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final releaseDateStr = offDaysData['app_release_date']?.toString();
+                        final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
+                        if (today.isBefore(releaseDate)) {
                           _selectedDate = activeDates.first;
+                        } else {
+                          final isSelectedInActive = activeDates.any((d) =>
+                              d.year == _selectedDate.year &&
+                              d.month == _selectedDate.month &&
+                              d.day == _selectedDate.day);
+                          if (!isSelectedInActive) {
+                            _selectedDate = activeDates.first;
+                          }
                         }
                       }
 
@@ -132,7 +161,11 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                       child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
                     ),
                     error: (_, __) {
-                      final fallbackDates = List.generate(6, (i) => _currentWeekStart.add(Duration(days: i)));
+                      _currentWeekStart = computeActiveWeekMonday(null);
+                      final fallbackDates = filterActiveWeekDates(
+                        weekMonday: _currentWeekStart,
+                        offDaysData: null,
+                      );
                       return AniseDateFilter(
                         dates: fallbackDates,
                         selectedDate: _selectedDate,

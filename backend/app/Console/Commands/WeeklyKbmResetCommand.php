@@ -49,13 +49,13 @@ class WeeklyKbmResetCommand extends Command
         }
 
         $dayToIso = [
-            'senin' => 1,
-            'selasa' => 2,
-            'rabu' => 3,
-            'kamis' => 4,
-            'jumat' => 5,
-            'sabtu' => 6,
-            'minggu' => 7,
+            'senin' => 1, 'monday' => 1,
+            'selasa' => 2, 'tuesday' => 2,
+            'rabu' => 3, 'wednesday' => 3,
+            'kamis' => 4, 'thursday' => 4,
+            'jumat' => 5, 'friday' => 5,
+            'sabtu' => 6, 'saturday' => 6,
+            'minggu' => 7, 'sunday' => 7,
         ];
         $isoToDay = [
             1 => 'Senin',

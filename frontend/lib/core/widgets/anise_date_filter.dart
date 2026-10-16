@@ -25,11 +25,21 @@ const List<String> _bulanLengkap = [
 
 /// Menghitung hari Senin awal pekan aktif KBM berdasarkan respon API off-days
 /// dan otomatis reset pada pukul 01:00 di hari nonaktif pertama.
+/// Pekan tidak akan pernah lebih mundur dari tanggal rilis resmi (26 Oktober 2026).
 DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
+  final releaseDateStr = offDaysData?['app_release_date']?.toString();
+  final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+  final releaseMonday = DateTime(releaseDate.year, releaseDate.month, releaseDate.day)
+      .subtract(Duration(days: releaseDate.weekday - 1));
+
   if (offDaysData != null && offDaysData['current_week_start'] != null) {
     try {
       final parsed = DateTime.parse(offDaysData['current_week_start'].toString());
-      return DateTime(parsed.year, parsed.month, parsed.day);
+      final weekStart = DateTime(parsed.year, parsed.month, parsed.day);
+      if (weekStart.isBefore(releaseMonday)) {
+        return releaseMonday;
+      }
+      return weekStart;
     } catch (_) {}
   }
 
@@ -37,16 +47,16 @@ DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
   final offWeekdays = (offDaysData?['off_weekdays'] as List<dynamic>?)
           ?.map((e) => e.toString().trim().toLowerCase())
           .toList() ??
-      ['minggu'];
+      ['minggu', 'sunday'];
 
   const dayToIso = {
-    'senin': 1,
-    'selasa': 2,
-    'rabu': 3,
-    'kamis': 4,
-    'jumat': 5,
-    'sabtu': 6,
-    'minggu': 7,
+    'senin': 1, 'monday': 1,
+    'selasa': 2, 'tuesday': 2,
+    'rabu': 3, 'wednesday': 3,
+    'kamis': 4, 'thursday': 4,
+    'jumat': 5, 'friday': 5,
+    'sabtu': 6, 'saturday': 6,
+    'minggu': 7, 'sunday': 7,
   };
 
   int firstOffIso = 7;
@@ -65,13 +75,20 @@ DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
     hasRolledOver = true;
   }
 
+  DateTime calculatedWeek;
   if (hasRolledOver) {
     final nextWeek = now.add(Duration(days: 8 - todayIso));
-    return DateTime(nextWeek.year, nextWeek.month, nextWeek.day);
+    calculatedWeek = DateTime(nextWeek.year, nextWeek.month, nextWeek.day);
   } else {
     final thisWeek = now.subtract(Duration(days: todayIso - 1));
-    return DateTime(thisWeek.year, thisWeek.month, thisWeek.day);
+    calculatedWeek = DateTime(thisWeek.year, thisWeek.month, thisWeek.day);
   }
+
+  // Kunci batas awal: tidak boleh lebih mundur dari tanggal rilis resmi (26 Oktober 2026)
+  if (calculatedWeek.isBefore(releaseMonday)) {
+    return releaseMonday;
+  }
+  return calculatedWeek;
 }
 
 /// Menghasilkan daftar tanggal aktif KBM mingguan (tanpa hari nonaktif & tanpa hari libur)
@@ -82,19 +99,39 @@ List<DateTime> filterActiveWeekDates({
   final offWeekdays = (offDaysData?['off_weekdays'] as List<dynamic>?)
           ?.map((e) => e.toString().trim().toLowerCase())
           .toList() ??
-      ['minggu'];
+      ['minggu', 'sunday'];
 
   final holidays = (offDaysData?['holidays'] as List<dynamic>?) ?? [];
 
+  const dayToIso = {
+    'senin': 1, 'monday': 1,
+    'selasa': 2, 'tuesday': 2,
+    'rabu': 3, 'wednesday': 3,
+    'kamis': 4, 'thursday': 4,
+    'jumat': 5, 'friday': 5,
+    'sabtu': 6, 'saturday': 6,
+    'minggu': 7, 'sunday': 7,
+  };
+
+  final Set<int> offDayIsos = {};
+  for (final d in offWeekdays) {
+    final clean = d.toString().trim().toLowerCase();
+    if (dayToIso.containsKey(clean)) {
+      offDayIsos.add(dayToIso[clean]!);
+    }
+  }
+  // Default jika tidak ada: Minggu (ISO 7) libur
+  if (offDayIsos.isEmpty) {
+    offDayIsos.add(7);
+  }
+
   final List<DateTime> activeDates = [];
-  const indoDays = ['', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
 
   for (int i = 0; i < 7; i++) {
     final date = weekMonday.add(Duration(days: i));
-    final dayName = indoDays[date.weekday].toLowerCase();
 
-    // 1. Lewati hari nonaktif mingguan sekolah (dari database school_settings)
-    if (offWeekdays.contains(dayName)) continue;
+    // 1. Lewati hari nonaktif mingguan sekolah (berdasarkan ISO 1..7: 7=Minggu)
+    if (offDayIsos.contains(date.weekday)) continue;
 
     // 2. Lewati hari libur aktif di database (tabel holidays)
     final dateStr =
