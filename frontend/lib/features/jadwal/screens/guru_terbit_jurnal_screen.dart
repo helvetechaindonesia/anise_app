@@ -539,7 +539,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
     final hasMatch = _selectedJadwal != null && scheduleMap.containsKey(_selectedJadwal);
     final effectiveValue = hasMatch ? _selectedJadwal : null;
-    final double dropdownItemHeight = (68.h(context)).clamp(58.0, 85.0);
+    final double dropdownItemHeight = (82.h(context)).clamp(76.0, 105.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,45 +596,47 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
           // Saat dropdown non-extend (collapsed), tampilkan 2 baris lengkap:
           // Baris 1: Hari dan Tanggal
           // Baris 2: Jam Pelajaran dan Tingkat/Kelas
-          selectedItemBuilder: (context) {
-            return scheduleMap.entries.map((entry) {
-              final s = entry.value;
-              final label = s['label']?.toString() ?? '';
-              final lines = label.split('\n');
-              final dateLine = lines.isNotEmpty ? lines[0] : '';
-              final classLine = lines.length > 1 ? lines[1] : '';
+          selectedItemBuilder: _selectedMapel == null
+              ? null
+              : (context) {
+                  return scheduleMap.entries.map((entry) {
+                    final s = entry.value;
+                    final label = s['label']?.toString() ?? '';
+                    final lines = label.split('\n');
+                    final dateLine = lines.isNotEmpty ? lines[0] : '';
+                    final classLine = lines.length > 1 ? lines[1] : '';
 
-              return Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      dateLine,
-                      style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(
-                        fontWeight: FontWeight.w700,
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            dateLine,
+                            style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (classLine.isNotEmpty) ...[
+                            SizedBox(height: 3.h(context)),
+                            Text(
+                              classLine,
+                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (classLine.isNotEmpty) ...[
-                      SizedBox(height: 2.h(context)),
-                      Text(
-                        classLine,
-                        style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList();
-          },
+                    );
+                  }).toList();
+                },
           items: _selectedMapel == null
               ? []
               : scheduleMap.entries.map((entry) {
@@ -662,7 +664,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 2.h(context)),
+                            SizedBox(height: 3.h(context)),
                             Text(
                               classLine,
                               style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
