@@ -231,6 +231,144 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
     );
   }
 
+  void _showSchedulePickerSheet(
+    BuildContext context,
+    Map<String, dynamic> scheduleMap,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (bottomSheetContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 12.h(context)),
+              Container(
+                width: 44.w(context),
+                height: 4.h(context),
+                decoration: BoxDecoration(
+                  color: AppColors.outline.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2.w(context)),
+                ),
+              ),
+              SizedBox(height: 12.h(context)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pilih Jadwal KBM',
+                            style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2.h(context)),
+                          Text(
+                            'Pilih sesi mengajar yang sesuai untuk jurnal ini',
+                            style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        PhosphorIcons.x(PhosphorIconsStyle.bold),
+                        size: 20.w(context),
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                      onPressed: () => Navigator.pop(bottomSheetContext),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.fromLTRB(16.w(context), 8.h(context), 16.w(context), 24.h(context)),
+                  itemCount: scheduleMap.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 10.h(context)),
+                  itemBuilder: (context, index) {
+                    final entry = scheduleMap.entries.elementAt(index);
+                    final isCurrentSelected = entry.key == selectedJadwal;
+                    final info = _parseScheduleData(entry.value);
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          onChanged(entry.key);
+                          Navigator.pop(bottomSheetContext);
+                        },
+                        borderRadius: BorderRadius.circular(14.w(context)),
+                        child: Container(
+                          padding: EdgeInsets.all(14.w(context)),
+                          decoration: BoxDecoration(
+                            color: isCurrentSelected
+                                ? AppColors.primary.withValues(alpha: 0.06)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(14.w(context)),
+                            border: Border.all(
+                              color: isCurrentSelected
+                                  ? AppColors.primary
+                                  : AppColors.outline.withValues(alpha: 0.25),
+                              width: isCurrentSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildScheduleInfoLines(context, info),
+                              ),
+                              SizedBox(width: 12.w(context)),
+                              Container(
+                                width: 22.w(context),
+                                height: 22.w(context),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isCurrentSelected
+                                        ? AppColors.primary
+                                        : AppColors.outline.withValues(alpha: 0.4),
+                                    width: isCurrentSelected ? 6.w(context) : 1.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic> scheduleMap = {};
@@ -242,120 +380,126 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
     }
 
     final hasMatch = selectedJadwal != null && scheduleMap.containsKey(selectedJadwal);
-    final effectiveValue = hasMatch ? selectedJadwal : null;
+    final selectedSchedule = hasMatch ? scheduleMap[selectedJadwal] : null;
+    final isSelected = selectedSchedule != null;
+    final isEnabled = selectedMapel != null && schedules.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Jadwal KBM & Kelas', style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
+        Text(
+          'Jadwal KBM & Kelas',
+          style: AppTextStyles.labelMedium(context, color: AppColors.onBackground),
+        ),
         SizedBox(height: 8.h(context)),
-        DropdownButtonFormField<String>(
-          key: ValueKey('$effectiveValue-$selectedMapel'),
-          initialValue: effectiveValue,
-          isExpanded: true,
-          isDense: true,
-          itemHeight: null, // Menyesuaikan ukuran konten 3 baris secara natural
-          dropdownColor: AppColors.surface,
-          borderRadius: BorderRadius.circular(14.w(context)),
-          icon: Icon(
-            PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
-            color: AppColors.primary,
-            size: 18.w(context),
-          ),
-          decoration: InputDecoration(
-            prefixIcon: Padding(
-              padding: EdgeInsets.only(left: 14.w(context), right: 12.w(context)),
-              child: Container(
-                width: 44.w(context),
-                height: 44.w(context),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                ),
-                child: Center(
-                  child: Icon(
-                    PhosphorIcons.calendar(PhosphorIconsStyle.fill),
-                    color: AppColors.primary,
-                    size: 24.w(context),
-                  ),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: !isEnabled
+                ? () {
+                    if (selectedMapel == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Silakan pilih mata pelajaran terlebih dahulu.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } else if (schedules.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Tidak ada jadwal KBM yang tersedia untuk mata pelajaran ini.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                : () => _showSchedulePickerSheet(context, scheduleMap),
+            borderRadius: BorderRadius.circular(14.w(context)),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 14.w(context),
+                vertical: isSelected ? 12.h(context) : 14.h(context),
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14.w(context)),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.outline.withValues(alpha: 0.3),
+                  width: isSelected ? 1.5 : 1.0,
                 ),
               ),
-            ),
-            prefixIconConstraints: BoxConstraints(minWidth: 70.w(context)),
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-            ),
-          ),
-          hint: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                selectedMapel == null
-                    ? 'Pilih Mata Pelajaran Terlebih Dahulu'
-                    : 'Pilih Jadwal yang Tersedia',
-                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.45)).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: 3.h(context)),
-              Text(
-                selectedMapel == null
-                    ? 'Mata pelajaran belum dipilih'
-                    : 'Ketuk untuk melihat sesi KBM',
-                style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.3)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-          selectedItemBuilder: selectedMapel == null
-              ? null
-              : (context) {
-                  return scheduleMap.entries.map((entry) {
-                    final info = _parseScheduleData(entry.value);
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: _buildScheduleInfoLines(context, info),
-                    );
-                  }).toList();
-                },
-          items: selectedMapel == null
-              ? []
-              : scheduleMap.entries.map((entry) {
-                  final info = _parseScheduleData(entry.value);
-                  return DropdownMenuItem<String>(
-                    value: entry.key,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.h(context)),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: _buildScheduleInfoLines(context, info),
+              child: Row(
+                children: [
+                  // Prefix Icon (Kotak Kalender)
+                  Container(
+                    width: 44.w(context),
+                    height: 44.w(context),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: isSelected ? 0.12 : 0.08),
+                      borderRadius: BorderRadius.circular(12.w(context)),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        PhosphorIcons.calendar(PhosphorIconsStyle.fill),
+                        color: AppColors.primary,
+                        size: 24.w(context),
                       ),
                     ),
-                  );
-                }).toList(),
-          validator: (val) => val == null ? 'Silakan pilih jadwal KBM' : null,
-          onChanged: selectedMapel == null ? null : onChanged,
+                  ),
+                  SizedBox(width: 12.w(context)),
+
+                  // Tengah: 3 Baris Info atau Hint
+                  Expanded(
+                    child: isSelected
+                        ? _buildScheduleInfoLines(
+                            context,
+                            _parseScheduleData(selectedSchedule),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                selectedMapel == null
+                                    ? 'Pilih Mata Pelajaran Terlebih Dahulu'
+                                    : 'Pilih Jadwal yang Tersedia',
+                                style: AppTextStyles.bodyMedium(
+                                  context,
+                                  color: AppColors.onSurface.withValues(alpha: 0.45),
+                                ).copyWith(fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 3.h(context)),
+                              Text(
+                                selectedMapel == null
+                                    ? 'Mata pelajaran belum dipilih'
+                                    : 'Ketuk untuk melihat sesi KBM',
+                                style: AppTextStyles.labelSmall(
+                                  context,
+                                  color: AppColors.onSurface.withValues(alpha: 0.3),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                  ),
+                  SizedBox(width: 8.w(context)),
+
+                  // Caret Down di sebelah kanan
+                  Icon(
+                    PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
+                    color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
+                    size: 18.w(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
