@@ -506,9 +506,20 @@ class JournalController extends Controller
                 ->with(['subject', 'class.major'])
                 ->get();
 
-            // 2. Ambil seluruh jurnal mengajar yang diterbitkan oleh guru ini
+            // 2. Ambil seluruh jurnal mengajar yang diterbitkan oleh guru ini secara aman
+            $withRelations = ['schedule.subject', 'schedule.class', 'subject'];
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_tasks')) {
+                $withRelations[] = 'tasks';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                $withRelations[] = 'comments';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                $withRelations[] = 'reviews';
+            }
+
             $journals = Journal::where('teacher_id', $user->id)
-                ->with(['schedule.subject', 'schedule.class.major', 'tasks', 'reviews', 'comments'])
+                ->with($withRelations)
                 ->orderBy('teaching_date', 'desc')
                 ->get();
 
@@ -527,7 +538,7 @@ class JournalController extends Controller
                     ->pluck('journal_id');
             }
 
-            $teacherName = $user->guruProfile?->full_name ?: ($user->full_name ?: ($user->username ?? 'Guru Pengajar'));
+            $teacherName = $user->full_name ?: ($user->username ?? 'Guru Pengajar');
             $teacherImage = $user->profile_picture ?? null;
             $result = [];
 
@@ -824,14 +835,14 @@ class JournalController extends Controller
             $schedules = collect();
             try {
                 $schedules = \App\Models\Schedule::where('class_id', $classId)
-                    ->with(['subject', 'teacher.guruProfile'])
+                    ->with(['subject', 'teacher'])
                     ->get();
             } catch (\Throwable $e) {}
 
             // 2. Ambil seluruh jurnal mengajar untuk kelas siswa secara aman
             $journals = collect();
             try {
-                $withRelations = ['schedule.subject', 'schedule.teacher.guruProfile'];
+                $withRelations = ['schedule.subject', 'schedule.teacher', 'teacher', 'subject'];
                 if (\Illuminate\Support\Facades\Schema::hasTable('journal_tasks')) {
                     $withRelations[] = 'tasks';
                 }
@@ -857,6 +868,7 @@ class JournalController extends Controller
                         ->orWhereHas('schedule', function ($q) use ($classId) {
                             $q->where('class_id', $classId);
                         })
+                        ->with(['schedule.subject', 'schedule.teacher', 'teacher', 'subject'])
                         ->get();
                 } catch (\Throwable $ex) {}
             }
@@ -888,8 +900,8 @@ class JournalController extends Controller
             // A. Petakan data Jurnal yang sudah terbit
             foreach ($journals as $journal) {
                 $sched = $journal->schedule ?? null;
-                $teacher = $sched ? $sched->teacher : ($journal->teacher ?? null);
-                $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
+                $teacher = $journal->teacher ?: ($sched ? $sched->teacher : null);
+                $teacherName = $teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar');
                 
                 $subjectName = $sched?->subject?->name ?? ($journal->subject?->name ?? 'Mata Pelajaran');
                 $startTime = $sched ? $sched->start_time : '07:30:00';
