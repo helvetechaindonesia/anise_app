@@ -10,6 +10,7 @@ use App\Models\Jabatan;
 use App\Models\SchoolClass;
 use App\Models\GuruWaliStudent;
 use App\Models\UserFile;
+use App\Http\Resources\UserResource;
 use App\Traits\ApiResponser;
 
 class UserController extends Controller
@@ -21,7 +22,7 @@ class UserController extends Controller
         $roleName = $request->query('role');
         $query = User::query()->with(['role', 'siswaProfile', 'guruProfile']);
         if ($roleName) $query->whereHas('role', fn($q) => $q->where('name', $roleName));
-        return $this->success($query->orderBy('full_name', 'asc')->get(), 'Data User berhasil diambil');
+        return $this->success(UserResource::collection($query->orderBy('full_name', 'asc')->get()), 'Data User berhasil diambil');
     }
 
     public function storeUser(Request $request)
@@ -68,7 +69,7 @@ class UserController extends Controller
         }
 
         $user->load(['role', 'siswaProfile', 'guruProfile']);
-        return $this->success($user, 'User berhasil ditambahkan', 201);
+        return $this->success(new UserResource($user), 'User berhasil ditambahkan', 201);
     }
 
     public function updateUser(Request $request, $id)
@@ -126,7 +127,7 @@ class UserController extends Controller
         }
 
         $user->load(['role', 'siswaProfile', 'guruProfile']);
-        return $this->success($user, 'User berhasil diperbarui');
+        return $this->success(new UserResource($user), 'User berhasil diperbarui');
     }
 
     public function deleteUser(Request $request, $id)
@@ -166,7 +167,7 @@ class UserController extends Controller
     public function searchSiswa(Request $request)
     {
         $query = $request->get('q', '');
-        $students = User::where('role', 'SISWA')
+        $students = User::whereHas('role', fn($q) => $q->where('name', 'SISWA'))
             ->where(fn($q) => $q->where('full_name', 'like', "%{$query}%")->orWhere('username', 'like', "%{$query}%"))
             ->select('id', 'full_name', 'username')->take(20)->get();
         return response()->json($students);

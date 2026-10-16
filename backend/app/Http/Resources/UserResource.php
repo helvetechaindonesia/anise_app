@@ -25,6 +25,7 @@ class UserResource extends JsonResource
             'religion' => $this->religion,
             'role_id' => $this->role_id,
             'role_type' => $this->role_type,
+            'role_name' => $this->role?->name ?? $this->role_type,
             'is_active' => $this->is_active,
             'role' => $this->whenLoaded('role'),
             'siswa_profile' => $this->whenLoaded('siswaProfile'),

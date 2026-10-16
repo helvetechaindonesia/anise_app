@@ -84,6 +84,7 @@ class UserModel {
       address: json['address'],
       parentName: json['siswa_profile']?['parent_name'],
       uniqueId: json['siswa_profile']?['nisn']?.toString() ?? 
+                json['guru_profile']?['nip_nuptk']?.toString() ?? 
                 json['guru_profile']?['nip']?.toString() ?? 
                 json['unique_id']?.toString() ?? 
                 json['username']?.toString(),
@@ -92,7 +93,7 @@ class UserModel {
       isWaliAsuh: hasWaliAsuh,
       tugasTambahan: assignments,
       nis: json['siswa_profile']?['nis']?.toString(),
-      nip: json['guru_profile']?['nip']?.toString(),
+      nip: json['guru_profile']?['nip_nuptk']?.toString() ?? json['guru_profile']?['nip']?.toString(),
       className: json['siswa_profile']?['class']?['name']?.toString() ?? 'XII M2', // Provide fallback just in case
       religion: json['religion']?.toString(),
     );
