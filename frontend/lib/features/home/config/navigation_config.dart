@@ -11,8 +11,7 @@ import '../../poin/screens/poin_screen.dart';
 import '../../jadwal/screens/jadwal_screen.dart';
 import '../../jadwal/screens/guru_jurnal_screen.dart';
 import '../../poin/screens/poin_screen.dart';
-import '../../profile/screens/siswa_profile_screen.dart';
-import '../../notifications/screens/notifications_screen.dart';
+import '../../notifications/screens/notification_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../screens/role_dashboards.dart';
 
@@ -31,7 +30,7 @@ class NavigationConfig {
 
     final baseScreens = <Widget>[
       RoleDashboardPlaceholder(title: 'Dashboard ${user.role.name.toUpperCase()}', role: user.role),
-      const NotificationsScreen(),
+      const NotificationScreen(),
       const ProfileScreen(),
     ];
 

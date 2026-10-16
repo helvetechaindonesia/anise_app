@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
   final Map<String, dynamic> notification;
@@ -39,18 +40,8 @@ class NotificationDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundLight,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Detail Notifikasi',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-        ),
-        centerTitle: true,
+      appBar: const AniseAppBar(
+        title: 'Detail Notifikasi',
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(24.w(context)),

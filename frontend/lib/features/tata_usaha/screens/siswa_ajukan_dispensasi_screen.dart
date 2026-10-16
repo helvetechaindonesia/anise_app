@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../providers/leave_provider.dart';
 
 class SiswaAjukanDispensasiScreen extends ConsumerStatefulWidget {
@@ -95,55 +96,28 @@ class _SiswaAjukanDispensasiScreenState extends ConsumerState<SiswaAjukanDispens
     
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: const AniseAppBar(
+        title: 'Ajukan Dispensasi',
+      ),
       body: SafeArea(
-        child: Column(
+        child: ListView(
+          padding: EdgeInsets.all(20.w(context)),
+          physics: const BouncingScrollPhysics(),
           children: [
-            _buildAppBar(context),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.all(20.w(context)),
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildHeaderInfo(context),
-                  SizedBox(height: 24.h(context)),
-                  _buildInputField(context, 'Alasan Dispensasi', 'Contoh: Lomba antar sekolah, urusan keluarga mendesak', _reasonController, maxLines: 3),
-                  SizedBox(height: 16.h(context)),
-                  _buildDatePicker(context, 'Mulai Tanggal', _startDate, true),
-                  SizedBox(height: 16.h(context)),
-                  _buildDatePicker(context, 'Sampai Tanggal', _endDate, false),
-                  SizedBox(height: 16.h(context)),
-                  _buildFileUpload(context),
-                  SizedBox(height: 32.h(context)),
-                  _buildSubmitButton(context, isSubmitting),
-                  SizedBox(height: 40.h(context)),
-                ],
-              ),
-            ),
+            _buildHeaderInfo(context),
+            SizedBox(height: 24.h(context)),
+            _buildInputField(context, 'Alasan Dispensasi', 'Contoh: Lomba antar sekolah, urusan keluarga mendesak', _reasonController, maxLines: 3),
+            SizedBox(height: 16.h(context)),
+            _buildDatePicker(context, 'Mulai Tanggal', _startDate, true),
+            SizedBox(height: 16.h(context)),
+            _buildDatePicker(context, 'Sampai Tanggal', _endDate, false),
+            SizedBox(height: 16.h(context)),
+            _buildFileUpload(context),
+            SizedBox(height: 32.h(context)),
+            _buildSubmitButton(context, isSubmitting),
+            SizedBox(height: 40.h(context)),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        border: Border(bottom: BorderSide(color: AppColors.outline.withValues(alpha: 0.1))),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground, size: 24.w(context)),
-          ),
-          SizedBox(width: 8.w(context)),
-          Text(
-            'Ajukan Dispensasi',
-            style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-          ),
-        ],
       ),
     );
   }

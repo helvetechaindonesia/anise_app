@@ -5,6 +5,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 
+import '../../../core/widgets/anise_app_bar.dart';
+
 class TuDetailDispensasiScreen extends StatelessWidget {
   final String nama;
   final String kelas;
@@ -28,20 +30,7 @@ class TuDetailDispensasiScreen extends StatelessWidget {
       body: DecorativeBackground(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: AppColors.backgroundLight,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                'Detail Dispensasi',
-                style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-              ),
-            ),
+            const AniseSliverAppBar(title: 'Detail Dispensasi'),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(24.w(context)),

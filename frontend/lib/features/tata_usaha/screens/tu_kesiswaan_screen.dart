@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../lapor/providers/report_provider.dart';
@@ -19,20 +20,7 @@ class TuKesiswaanScreen extends ConsumerWidget {
       body: DecorativeBackground(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              expandedHeight: 120.h(context),
-              pinned: true,
-              backgroundColor: AppColors.surface,
-              elevation: 0,
-              iconTheme: const IconThemeData(color: AppColors.onSurface),
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: EdgeInsets.only(left: 56.w(context), bottom: 16.h(context)),
-                title: Text(
-                  'Aduan Kesiswaan',
-                  style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-                ),
-              ),
-            ),
+            const AniseSliverAppBar(title: 'Aduan Kesiswaan'),
             reportsAsync.when(
               loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
               error: (e, st) => const SliverFillRemaining(

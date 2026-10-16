@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:frontend/core/constants/colors.dart';
 import 'package:frontend/core/network/dio_client.dart';
+import 'package:frontend/core/widgets/anise_app_bar.dart';
 import 'package:frontend/core/widgets/anise_empty_state.dart';
 import 'notification_detail_screen.dart';
 
@@ -102,18 +103,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Notifikasi',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
-        ),
-        centerTitle: true,
+      appBar: const AniseAppBar(
+        title: 'Notifikasi',
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

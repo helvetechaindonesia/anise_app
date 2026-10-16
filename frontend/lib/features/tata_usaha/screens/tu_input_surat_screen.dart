@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/decorative_background.dart';
 
 class TuInputSuratScreen extends StatefulWidget {
@@ -21,19 +22,7 @@ class _TuInputSuratScreenState extends State<TuInputSuratScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Buat Surat Baru',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-        ),
-      ),
+      appBar: const AniseAppBar(title: 'Buat Surat Baru'),
       body: DecorativeBackground(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(24.w(context)),

@@ -4,8 +4,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/section_action_link.dart';
-import '../../jadwal/screens/guru_jurnal_screen.dart';
-
 import '../../bk/screens/bk_bimbingan_screen.dart';
 
 class BkBimbinganWidget extends StatelessWidget {

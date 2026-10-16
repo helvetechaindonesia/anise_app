@@ -6,7 +6,6 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/section_action_link.dart';
 import '../../jadwal/screens/guru_jurnal_screen.dart';
-import '../../jadwal/screens/guru_jurnal_detail_screen.dart';
 import '../../jadwal/screens/jadwal_guru_detail_screen.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../../auth/providers/auth_provider.dart';

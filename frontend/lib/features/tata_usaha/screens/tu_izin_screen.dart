@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../providers/leave_provider.dart';
 
@@ -16,19 +17,7 @@ class TuIzinScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Daftar Izin Siswa',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-        ),
-      ),
+      appBar: const AniseAppBar(title: 'Daftar Izin Siswa'),
       body: izinAsync.when(
         data: (leaves) {
           if (leaves.isEmpty) {

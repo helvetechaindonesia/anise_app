@@ -6,6 +6,8 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 import 'tu_detail_inventaris_screen.dart';
 
+import '../../../core/widgets/anise_app_bar.dart';
+
 class TuInventarisScreen extends StatelessWidget {
   const TuInventarisScreen({Key? key}) : super(key: key);
 
@@ -22,20 +24,7 @@ class TuInventarisScreen extends StatelessWidget {
       body: DecorativeBackground(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: AppColors.backgroundLight,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                'Inventaris Sekolah',
-                style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-              ),
-            ),
+            const AniseSliverAppBar(title: 'Inventaris Sekolah'),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(24.w(context)),

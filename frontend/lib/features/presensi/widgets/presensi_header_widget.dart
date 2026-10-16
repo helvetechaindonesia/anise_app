@@ -4,6 +4,8 @@ import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/anise_dropdown.dart';
 import '../providers/presensi_provider.dart';
 
+/// Komponen filter Bulan & Tahun terstandarisasi untuk modul Presensi.
+/// (Diberi alias [PresensiFilterWidget] untuk memperjelas fungsinya sebagai filter data).
 class PresensiHeaderWidget extends ConsumerWidget {
   const PresensiHeaderWidget({super.key});
 
@@ -77,3 +79,7 @@ class PresensiHeaderWidget extends ConsumerWidget {
     );
   }
 }
+
+/// Alias ramah bagi pengembang: [PresensiFilterWidget]
+typedef PresensiFilterWidget = PresensiHeaderWidget;
+

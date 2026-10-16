@@ -4,7 +4,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:math' as math;
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/utils/responsive.dart';
 import '../../../features/auth/models/user_model.dart';
 
 class IdentityCard3DWidget extends StatefulWidget {
@@ -75,20 +74,50 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
   }
 
   Widget _buildCardContent(BuildContext context) {
-    String nisnNisText = 'NISN/NIS: 0074829103 / 22231008';
-    if (widget.user != null) {
-      final nisn = widget.user!.uniqueId;
-      final nis = widget.user!.nis;
-      if (nisn != null && nisn.isNotEmpty && nis != null && nis.isNotEmpty) {
-        nisnNisText = 'NISN/NIS: $nisn / $nis';
-      } else if (nisn != null && nisn.isNotEmpty) {
-        nisnNisText = 'NISN: $nisn';
-      } else if (nis != null && nis.isNotEmpty) {
-        nisnNisText = 'NIS: $nis';
-      }
-    }
+    final bool isSiswa = widget.user?.role == UserRole.siswa;
+    final userName = widget.user?.fullName ?? (isSiswa ? 'Siswa' : 'Bpk. Guru');
 
-    String className = widget.user?.className ?? 'XII M2';
+    String idText = 'NISN/NIS: 0074829103 / 22231008';
+    String secondaryText = 'KELAS: XII M2';
+
+    if (isSiswa) {
+      if (widget.user != null) {
+        final nisn = widget.user!.uniqueId;
+        final nis = widget.user!.nis;
+        if (nisn != null && nisn.isNotEmpty && nis != null && nis.isNotEmpty) {
+          idText = 'NISN/NIS: $nisn / $nis';
+        } else if (nisn != null && nisn.isNotEmpty) {
+          idText = 'NISN: $nisn';
+        } else if (nis != null && nis.isNotEmpty) {
+          idText = 'NIS: $nis';
+        }
+      }
+      final className = widget.user?.className ?? 'XII M2';
+      secondaryText = 'KELAS: $className';
+    } else {
+      if (widget.user != null) {
+        final nip = widget.user!.nip ?? widget.user!.uniqueId;
+        if (nip != null && nip.isNotEmpty) {
+          idText = 'NIP: $nip';
+        } else {
+          idText = 'NUPTK/NIP: 19890123 201404 1 001';
+        }
+      } else {
+        idText = 'NUPTK/NIP: 19890123 201404 1 001';
+      }
+
+      String peranLabel = 'GURU MAPEL';
+      if (widget.user?.role == UserRole.bk) {
+        peranLabel = 'GURU BK';
+      } else if (widget.user?.role == UserRole.kepalaSekolah) {
+        peranLabel = 'KEPALA SEKOLAH';
+      } else if (widget.user?.role == UserRole.tataUsaha) {
+        peranLabel = 'STAF TATA USAHA';
+      } else if (widget.user?.role == UserRole.pengajar && widget.user!.tugasTambahan.isNotEmpty) {
+        peranLabel = widget.user!.tugasTambahan.first.replaceAll('_', ' ');
+      }
+      secondaryText = 'STATUS: $peranLabel';
+    }
 
     return AspectRatio(
       aspectRatio: 1.58, // Standar rasio ID card / credit card
@@ -258,21 +287,21 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                widget.user?.fullName.toUpperCase() ?? 'SISWA',
+                                userName.toUpperCase(),
                                 style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               SizedBox(height: 6.h(context)),
                               Text(
-                                nisnNisText,
+                                idText,
                                 style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary.withValues(alpha: 0.85)),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               SizedBox(height: 3.h(context)),
                               Text(
-                                'KELAS: $className',
+                                secondaryText,
                                 style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),

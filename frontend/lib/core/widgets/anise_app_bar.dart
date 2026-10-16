@@ -82,3 +82,76 @@ class AniseAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => Size.fromHeight(kToolbarHeight + (bottomHeight ?? 0.0));
 }
+
+/// Standard Sliver App Bar untuk Sub-Page yang menggunakan CustomScrollView
+class AniseSliverAppBar extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final bool showBackButton;
+  final VoidCallback? onBackPressed;
+  final List<Widget>? actions;
+  final bool pinned;
+  final bool floating;
+
+  const AniseSliverAppBar({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.showBackButton = true,
+    this.onBackPressed,
+    this.actions,
+    this.pinned = true,
+    this.floating = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverAppBar(
+      pinned: pinned,
+      floating: floating,
+      backgroundColor: AppColors.backgroundLight,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: true,
+      leading: showBackButton
+          ? IconButton(
+              icon: Icon(
+                PhosphorIcons.caretLeft(PhosphorIconsStyle.bold),
+                color: AppColors.onBackground,
+                size: 24.w(context),
+              ),
+              onPressed: onBackPressed ?? () => Navigator.of(context).maybePop(),
+            )
+          : null,
+      title: subtitle == null
+          ? Text(
+              title,
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  subtitle!,
+                  style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+                ),
+              ],
+            ),
+      actions: actions != null
+          ? [
+              ...actions!,
+              SizedBox(width: 12.w(context)),
+            ]
+          : null,
+    );
+  }
+}
+

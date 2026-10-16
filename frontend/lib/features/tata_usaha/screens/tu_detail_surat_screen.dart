@@ -4,6 +4,8 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 
+import '../../../core/widgets/anise_app_bar.dart';
+
 class TuDetailSuratScreen extends StatelessWidget {
   final Map<String, dynamic> surat;
 
@@ -16,19 +18,7 @@ class TuDetailSuratScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Detail Surat',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-        ),
-      ),
+      appBar: const AniseAppBar(title: 'Detail Surat'),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(24.w(context)),
         child: Column(

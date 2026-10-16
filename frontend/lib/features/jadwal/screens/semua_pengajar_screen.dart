@@ -7,6 +7,8 @@ import '../../../core/utils/responsive.dart';
 import 'jadwal_guru_detail_screen.dart';
 import '../../home/providers/home_provider.dart';
 
+import '../../../core/widgets/anise_app_bar.dart';
+
 class SemuaPengajarScreen extends ConsumerWidget {
   const SemuaPengajarScreen({super.key});
 
@@ -20,20 +22,7 @@ class SemuaPengajarScreen extends ConsumerWidget {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: AppColors.backgroundLight,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text(
-                'Semua Pengajar',
-                style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-              ),
-            ),
+            const AniseSliverAppBar(title: 'Semua Pengajar'),
             SliverPadding(
               padding: EdgeInsets.only(left: 20.w(context), right: 20.w(context), bottom: 20.h(context)),
               sliver: SliverToBoxAdapter(
