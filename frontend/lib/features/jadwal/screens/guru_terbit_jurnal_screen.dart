@@ -12,6 +12,9 @@ import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/jurnal_provider.dart';
+import '../widgets/terbit_jurnal_dropdowns.dart';
+import '../widgets/terbit_jurnal_attachment_box.dart';
+import '../widgets/terbit_jurnal_sop_banner.dart';
 
 class GuruTerbitJurnalScreen extends ConsumerStatefulWidget {
   final String? initialScheduleId;
@@ -242,7 +245,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Banner Info SOP H-24
-                    _buildBannerSOP(context),
+                    const TerbitJurnalSopBanner(),
                     SizedBox(height: 20.h(context)),
 
                     // Card 1: Informasi Jadwal & Mata Pelajaran
@@ -258,9 +261,27 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                             subtitle: 'Pilih mata pelajaran dan sesi jadwal mengajar Anda.',
                           ),
                           SizedBox(height: 16.h(context)),
-                          _buildMapelDropdown(subjects),
+                          TerbitJurnalMapelDropdown(
+                            selectedMapel: _selectedMapel,
+                            subjects: subjects,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedMapel = val;
+                                _selectedJadwal = null;
+                              });
+                            },
+                          ),
                           SizedBox(height: 16.h(context)),
-                          _buildJadwalDropdown(availableSchedules),
+                          TerbitJurnalJadwalDropdown(
+                            selectedJadwal: _selectedJadwal,
+                            schedules: availableSchedules,
+                            selectedMapel: _selectedMapel,
+                            onChanged: (val) {
+                              setState(() {
+                                _selectedJadwal = val;
+                              });
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -319,7 +340,12 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                             subtitle: 'Opsional. Unggah modul PDF, bahan bacaan, atau lembar tugas.',
                           ),
                           SizedBox(height: 16.h(context)),
-                          _buildAttachmentButton(context),
+                          TerbitJurnalAttachmentBox(
+                            selectedFile: _selectedFile,
+                            fileName: _fileName,
+                            onPickFile: _pickFile,
+                            onRemoveFile: _removeFile,
+                          ),
                         ],
                       ),
                     ),
@@ -357,50 +383,6 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     );
   }
 
-  Widget _buildBannerSOP(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(14.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16.w(context)),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.all(6.w(context)),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8.w(context)),
-            ),
-            child: Icon(
-              PhosphorIcons.info(PhosphorIconsStyle.fill),
-              color: AppColors.primary,
-              size: 20.w(context),
-            ),
-          ),
-          SizedBox(width: 12.w(context)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'SOP Penerbitan Jurnal',
-                  style: AppTextStyles.labelLarge(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-                ),
-                SizedBox(height: 2.h(context)),
-                Text(
-                  'Terbitkan jurnal mengajar minimal H-24 jam sebelum KBM dimulai agar materi dan agenda pembelajaran dapat diakses oleh siswa terlebih dahulu.',
-                  style: AppTextStyles.bodySmall(context, color: AppColors.onBackground.withValues(alpha: 0.8)).copyWith(height: 1.4),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildCardHeader(
     BuildContext context, {
@@ -442,255 +424,6 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     );
   }
 
-  Widget _buildMapelDropdown(List<dynamic> subjects) {
-    final Map<String, String> subjectMap = {};
-    for (final s in subjects) {
-      final id = s['id']?.toString();
-      final name = s['name']?.toString() ?? 'Mata Pelajaran';
-      if (id != null && !subjectMap.containsKey(id)) {
-        subjectMap[id] = name;
-      }
-    }
-
-    final hasMatch = _selectedMapel != null && subjectMap.containsKey(_selectedMapel);
-    final effectiveValue = hasMatch ? _selectedMapel : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Mata Pelajaran', style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
-        SizedBox(height: 8.h(context)),
-        DropdownButtonFormField<String>(
-          value: effectiveValue,
-          isExpanded: true,
-          dropdownColor: AppColors.surface,
-          borderRadius: BorderRadius.circular(14.w(context)),
-          icon: Icon(
-            PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
-            color: AppColors.primary,
-            size: 18.w(context),
-          ),
-          decoration: InputDecoration(
-            prefixIcon: Padding(
-              padding: EdgeInsets.only(left: 14.w(context), right: 10.w(context)),
-              child: Icon(
-                PhosphorIcons.bookBookmark(PhosphorIconsStyle.regular),
-                color: AppColors.primary,
-                size: 20.w(context),
-              ),
-            ),
-            prefixIconConstraints: BoxConstraints(minWidth: 46.w(context)),
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-            ),
-          ),
-          hint: Text(
-            'Pilih Mata Pelajaran',
-            style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-          ),
-          items: subjectMap.entries.map((entry) {
-            return DropdownMenuItem<String>(
-              value: entry.key,
-              child: Text(
-                entry.value,
-                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
-          validator: (val) => val == null ? 'Silakan pilih mata pelajaran' : null,
-          onChanged: (val) {
-            setState(() {
-              _selectedMapel = val;
-              _selectedJadwal = null;
-            });
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildJadwalDropdown(List<dynamic> schedules) {
-    final Map<String, dynamic> scheduleMap = {};
-    for (final s in schedules) {
-      final id = s['id']?.toString();
-      if (id != null && !scheduleMap.containsKey(id)) {
-        scheduleMap[id] = s;
-      }
-    }
-
-    final hasMatch = _selectedJadwal != null && scheduleMap.containsKey(_selectedJadwal);
-    final effectiveValue = hasMatch ? _selectedJadwal : null;
-    final double dropdownItemHeight = (82.h(context)).clamp(76.0, 105.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Jadwal KBM & Kelas', style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
-        SizedBox(height: 8.h(context)),
-        DropdownButtonFormField<String>(
-          value: effectiveValue,
-          isExpanded: true,
-          itemHeight: dropdownItemHeight,
-          dropdownColor: AppColors.surface,
-          borderRadius: BorderRadius.circular(14.w(context)),
-          icon: Icon(
-            PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
-            color: AppColors.primary,
-            size: 18.w(context),
-          ),
-          decoration: InputDecoration(
-            prefixIcon: Padding(
-              padding: EdgeInsets.only(left: 14.w(context), right: 10.w(context)),
-              child: Icon(
-                PhosphorIcons.calendar(PhosphorIconsStyle.regular),
-                color: AppColors.primary,
-                size: 22.w(context),
-              ),
-            ),
-            prefixIconConstraints: BoxConstraints(minWidth: 46.w(context)),
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 8.h(context)),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.w(context)),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
-            ),
-          ),
-          hint: Text(
-            _selectedMapel == null
-                ? 'Pilih Mata Pelajaran Terlebih Dahulu'
-                : 'Pilih Jadwal yang Tersedia',
-            style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-          ),
-          // Saat dropdown non-extend (collapsed), tampilkan 2 baris lengkap:
-          // Baris 1: Hari dan Tanggal
-          // Baris 2: Jam Pelajaran dan Tingkat/Kelas
-          selectedItemBuilder: _selectedMapel == null
-              ? null
-              : (context) {
-                  return scheduleMap.entries.map((entry) {
-                    final s = entry.value;
-                    final label = s['label']?.toString() ?? '';
-                    final lines = label.split('\n');
-                    final dateLine = lines.isNotEmpty ? lines[0] : '';
-                    final classLine = lines.length > 1 ? lines[1] : '';
-
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            dateLine,
-                            style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 3.h(context)),
-                            Text(
-                              classLine,
-                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  }).toList();
-                },
-          items: _selectedMapel == null
-              ? []
-              : scheduleMap.entries.map((entry) {
-                  final s = entry.value;
-                  final label = s['label']?.toString() ?? '';
-                  final lines = label.split('\n');
-                  final dateLine = lines.isNotEmpty ? lines[0] : '';
-                  final classLine = lines.length > 1 ? lines[1] : '';
-
-                  return DropdownMenuItem<String>(
-                    value: entry.key,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            dateLine,
-                            style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (classLine.isNotEmpty) ...[
-                            SizedBox(height: 3.h(context)),
-                            Text(
-                              classLine,
-                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-          validator: (val) => val == null ? 'Silakan pilih jadwal KBM' : null,
-          onChanged: _selectedMapel == null
-              ? null
-              : (val) {
-                  setState(() {
-                    _selectedJadwal = val;
-                  });
-                },
-        ),
-      ],
-    );
-  }
 
   Widget _buildTextField(
     BuildContext context, {
@@ -746,99 +479,6 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     );
   }
 
-  Widget _buildAttachmentButton(BuildContext context) {
-    if (_selectedFile != null) {
-      final double sizeMb = _selectedFile!.lengthSync() / (1024 * 1024);
-
-      return Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 14.h(context), horizontal: 16.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14.w(context)),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(10.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10.w(context)),
-              ),
-              child: Icon(PhosphorIcons.filePdf(PhosphorIconsStyle.fill), color: AppColors.primary, size: 24.w(context)),
-            ),
-            SizedBox(width: 14.w(context)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _fileName ?? 'Berkas Terpilih',
-                    style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 2.h(context)),
-                  Text(
-                    '${sizeMb.toStringAsFixed(2)} MB • Siap diunggah',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), color: AppColors.error, size: 20.w(context)),
-              tooltip: 'Hapus Lampiran',
-              onPressed: _removeFile,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return InkWell(
-      onTap: _pickFile,
-      borderRadius: BorderRadius.circular(14.w(context)),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 22.h(context), horizontal: 16.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(14.w(context)),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.5),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: EdgeInsets.all(12.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(PhosphorIcons.cloudArrowUp(PhosphorIconsStyle.bold), color: AppColors.primary, size: 28.w(context)),
-            ),
-            SizedBox(height: 12.h(context)),
-            Text(
-              'Unggah Modul / Materi Pembelajaran',
-              style: AppTextStyles.titleSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 4.h(context)),
-            Text(
-              'Format PDF, DOCX, XLSX, PPTX, JPG, PNG (Maksimal 20 MB)',
-              style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildTaskToggle() {
     return Column(
