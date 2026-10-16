@@ -15,7 +15,7 @@ import '../widgets/guru_layanan_cepat_widget.dart';
 import '../widgets/bimbingan_mentor_widget.dart';
 import '../widgets/guru_jurnal_mengajar_widget.dart';
 import '../widgets/guru_pantau_penugasan_widget.dart';
-import '../widgets/guru_home_header.dart';
+import '../../../core/widgets/main_header.dart';
 import '../../../core/utils/time_helper.dart';
 
 class GuruHomeScreen extends ConsumerStatefulWidget {
@@ -40,11 +40,7 @@ class _GuruHomeScreenState extends ConsumerState<GuruHomeScreen> {
         child: CustomScrollView(
           slivers: [
             // 1. Header (Fixed/Pinned)
-            GuruHomeHeader(
-              user: user,
-              onNotificationTap: () {},
-              onProfileTap: () {},
-            ),
+            const MainHeader(),
 
             SliverToBoxAdapter(
               child: Padding(

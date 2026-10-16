@@ -4,7 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
-import '../../notifications/screens/notification_screen.dart';
+import '../../../core/widgets/main_header.dart';
 import 'tu_input_surat_screen.dart';
 import 'tu_detail_surat_screen.dart';
 
@@ -29,7 +29,7 @@ class TuSuratScreen extends StatelessWidget {
       body: DecorativeBackground(
         child: CustomScrollView(
           slivers: [
-            _buildAppBar(context),
+            const MainHeader(),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w(context)),
@@ -52,54 +52,6 @@ class TuSuratScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  SliverAppBar _buildAppBar(BuildContext context) {
-    return SliverAppBar(
-      pinned: true,
-      backgroundColor: AppColors.surface,
-      elevation: 0,
-      toolbarHeight: 65.h(context),
-      expandedHeight: 65.h(context),
-      titleSpacing: 24.w(context),
-      automaticallyImplyLeading: false, 
-      title: Row(
-        children: [
-          Image.asset(
-            'assets/images/logo-smk.png',
-            height: 36.h(context),
-            width: 36.w(context),
-            fit: BoxFit.contain,
-          ),
-          SizedBox(width: 12.w(context)),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SMA N 1 Peunaron',
-                style: AppTextStyles.headlineSmall(context, color: AppColors.onSurface),
-              ),
-              Text(
-                'Anise By Helvetecha',
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const NotificationScreen()),
-            );
-          },
-          icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
-        ),
-        SizedBox(width: 16.w(context)),
-      ],
     );
   }
 

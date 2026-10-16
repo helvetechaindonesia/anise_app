@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/time_helper.dart';
 import '../../../core/widgets/decorative_background.dart';
-import '../../home/widgets/siswa_home_header.dart';
+import '../../../core/widgets/main_header.dart';
 import '../../home/widgets/guru_identity_card_3d_widget.dart';
 import '../widgets/tu_layanan_cepat_widget.dart';
 import '../widgets/tu_ringkasan_surat_widget.dart';
@@ -31,7 +31,7 @@ class _TuHomeScreenState extends ConsumerState<TuHomeScreen> {
       body: DecorativeBackground(
         child: CustomScrollView(
           slivers: [
-            const SiswaHomeHeader(),
+            const MainHeader(),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24.w(context)),

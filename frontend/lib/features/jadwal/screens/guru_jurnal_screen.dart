@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import '../../../core/constants/colors.dart';
@@ -9,7 +8,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/anise_date_filter.dart';
-import '../../notifications/screens/notification_screen.dart';
+import '../../../core/widgets/main_header.dart';
 import '../widgets/guru_jurnal_card.dart';
 import '../providers/jurnal_provider.dart';
 
@@ -86,7 +85,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
       backgroundColor: AppColors.backgroundLight,
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(context),
+          const MainHeader(),
 
           // 2. Main Title dan Filter Hari Nonaktif Terstandarisasi
           SliverToBoxAdapter(
@@ -172,62 +171,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
           _buildJurnalList(context),
         ],
       ),
-    );
-  }
-
-  SliverAppBar _buildAppBar(BuildContext context) {
-    final canPop = Navigator.canPop(context);
-
-    return SliverAppBar(
-      pinned: true,
-      backgroundColor: AppColors.surface,
-      elevation: 0,
-      toolbarHeight: 65.h(context),
-      expandedHeight: 65.h(context),
-      automaticallyImplyLeading: false,
-      leading: canPop
-          ? IconButton(
-              icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 22.w(context)),
-              onPressed: () => Navigator.pop(context),
-            )
-          : null,
-      titleSpacing: canPop ? 0 : 24.w(context),
-      title: Row(
-        children: [
-          Image.asset(
-            'assets/images/logo-smk.png',
-            height: 36.h(context),
-            width: 36.w(context),
-            fit: BoxFit.contain,
-          ),
-          SizedBox(width: 12.w(context)),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SMA N 1 Peunaron',
-                style: AppTextStyles.headlineSmall(context, color: AppColors.onSurface),
-              ),
-              Text(
-                'Jurnal Mengajar',
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const NotificationScreen()),
-            );
-          },
-          icon: Icon(PhosphorIcons.bell(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
-        ),
-        SizedBox(width: 16.w(context)),
-      ],
     );
   }
 

@@ -7,7 +7,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../auth/models/user_model.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../widgets/guru_identity_card_3d_widget.dart';
-import '../widgets/guru_home_header.dart';
+import '../../../core/widgets/main_header.dart';
 import '../widgets/bk_layanan_cepat_widget.dart';
 import '../widgets/bk_bimbingan_widget.dart';
 import '../widgets/bk_surat_widget.dart';
@@ -35,11 +35,7 @@ class _BkHomeScreenState extends ConsumerState<BkHomeScreen> {
         child: CustomScrollView(
           slivers: [
             // 1. Header (Fixed/Pinned)
-            GuruHomeHeader(
-              user: user,
-              onNotificationTap: () {},
-              onProfileTap: () {},
-            ),
+            const MainHeader(),
 
             SliverToBoxAdapter(
               child: Padding(
