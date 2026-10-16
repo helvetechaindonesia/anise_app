@@ -113,8 +113,11 @@ class NotificationService
 
         self::sendInAppNotification($teacher->id, $title, $message);
 
-        if (!empty($teacher->phone)) {
-            self::sendWhatsApp($teacher->phone, $waMessage);
+        $phone = !empty($teacher->phone) ? $teacher->phone : ($teacher->guruProfile?->phone ?? null);
+        if (!empty($phone)) {
+            self::sendWhatsApp($phone, $waMessage);
+        } else {
+            Log::info("Guru {$teacherName} ({$teacher->username}) belum memiliki nomor telepon di master user.");
         }
 
         return true;

@@ -6,10 +6,20 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../providers/jurnal_provider.dart';
 
 class GuruTerbitJurnalScreen extends ConsumerStatefulWidget {
-  const GuruTerbitJurnalScreen({Key? key}) : super(key: key);
+  final String? initialScheduleId;
+  final String? initialSubjectId;
+  final String? initialTeachingDate;
+
+  const GuruTerbitJurnalScreen({
+    Key? key,
+    this.initialScheduleId,
+    this.initialSubjectId,
+    this.initialTeachingDate,
+  }) : super(key: key);
 
   @override
   ConsumerState<GuruTerbitJurnalScreen> createState() => _GuruTerbitJurnalScreenState();
@@ -19,16 +29,31 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
   final _formKey = GlobalKey<FormState>();
   final _judulController = TextEditingController();
   final _deskripsiController = TextEditingController();
-  
+
   String? _selectedMapel;
   String? _selectedJadwal;
   bool _isAdaTugas = false;
-  
+
   bool _isLoading = false;
   double _uploadProgress = 0.0;
-  
+
   File? _selectedFile;
   String? _fileName;
+  bool _hasInitializedSelection = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedMapel = widget.initialSubjectId;
+    if (widget.initialScheduleId != null && widget.initialTeachingDate != null) {
+      _selectedJadwal = "${widget.initialScheduleId}|${widget.initialTeachingDate}";
+    }
+
+    // Panggil fetchTerbitOptions segera setelah build pertama selesai
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(jurnalProvider.notifier).fetchTerbitOptions();
+    });
+  }
 
   @override
   void dispose() {
@@ -38,28 +63,43 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
   }
 
   Future<void> _pickFile() async {
-    final FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx'],
-    );
+    try {
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx'],
+      );
 
-    if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
-      File file = File(result.files.first.path!);
-      int sizeInBytes = file.lengthSync();
-      double sizeInMb = sizeInBytes / (1024 * 1024);
+      if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+        final File file = File(result.files.first.path!);
+        final int sizeInBytes = file.lengthSync();
+        final double sizeInMb = sizeInBytes / (1024 * 1024);
 
-      if (sizeInMb > 20) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ukuran file maksimal adalah 20 MB'), backgroundColor: AppColors.error),
-        );
-        return;
+        if (sizeInMb > 20) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ukuran file maksimal adalah 20 MB'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
+        setState(() {
+          _selectedFile = file;
+          _fileName = result.files.first.name;
+        });
       }
-
-      setState(() {
-        _selectedFile = file;
-        _fileName = result.files.first.name;
-      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memilih file: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -68,6 +108,32 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
       _selectedFile = null;
       _fileName = null;
     });
+  }
+
+  void _handleAutoSelectSchedule(List<dynamic> schedules) {
+    if (_hasInitializedSelection) return;
+
+    if (widget.initialScheduleId != null) {
+      final match = schedules.firstWhere(
+        (s) {
+          final sId = s['schedule_id']?.toString() ?? s['id']?.toString() ?? '';
+          if (widget.initialTeachingDate != null) {
+            return sId == widget.initialScheduleId && s['teaching_date']?.toString() == widget.initialTeachingDate;
+          }
+          return sId == widget.initialScheduleId;
+        },
+        orElse: () => null,
+      );
+
+      if (match != null) {
+        _selectedJadwal = match['id']?.toString();
+        if (_selectedMapel == null && match['subject_id'] != null) {
+          _selectedMapel = match['subject_id']?.toString();
+        }
+      }
+    }
+
+    _hasInitializedSelection = true;
   }
 
   @override
@@ -91,130 +157,332 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
               style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
             ),
             Text(
-              'Rencana Pelaksanaan Pembelajaran',
+              'Rencana Pelaksanaan Pembelajaran (Micro-RPP)',
               style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
             ),
           ],
         ),
       ),
-      body: jurnalState.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(PhosphorIcons.warningCircle(), size: 48, color: AppColors.error),
-              SizedBox(height: 16),
-              Text('Gagal memuat data: $error'),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(jurnalProvider.notifier).fetchTerbitOptions(),
-                child: const Text('Coba Lagi'),
-              )
-            ],
+      body: SafeArea(
+        child: jurnalState.when(
+          loading: () => const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                SizedBox(height: 16),
+                Text(
+                  'Memuat Opsi Jadwal & Mata Pelajaran...',
+                  style: TextStyle(color: AppColors.onBackground, fontSize: 13),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (data) {
-          final subjects = data['subjects'] as List<dynamic>;
-          final schedules = data['schedules'] as List<dynamic>;
-
-          final availableSchedules = _selectedMapel == null 
-            ? schedules 
-            : schedules.where((s) => s['subject_id'] == _selectedMapel).toList();
-
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 24.h(context)),
-            child: Form(
-              key: _formKey,
+          error: (error, stack) => Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 32.w(context)),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 1. Info Jadwal
-                  _buildSectionTitle(context, 'Pilih Jadwal Master', PhosphorIcons.calendarPlus(PhosphorIconsStyle.bold)),
-                  SizedBox(height: 16.h(context)),
-                  _buildMapelDropdown(subjects),
-                  SizedBox(height: 16.h(context)),
-                  _buildJadwalDropdown(availableSchedules),
-
-                  SizedBox(height: 32.h(context)),
-
-                  // 2. Jurnal Utama
-                  _buildSectionTitle(context, 'Materi Pembelajaran', PhosphorIcons.notePencil(PhosphorIconsStyle.bold)),
-                  SizedBox(height: 16.h(context)),
-                  _buildTextField(
-                    context,
-                    label: 'Judul Materi',
-                    controller: _judulController,
-                    hint: 'Masukkan judul materi yang akan dibahas',
+                  Container(
+                    padding: EdgeInsets.all(16.w(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), size: 48.w(context), color: AppColors.error),
                   ),
                   SizedBox(height: 16.h(context)),
-                  _buildTextField(
-                    context,
-                    label: 'Deskripsi / Tujuan Pembelajaran',
-                    controller: _deskripsiController,
-                    hint: 'Ceritakan secara singkat apa yang akan dicapai...',
-                    maxLines: 4,
+                  Text(
+                    'Gagal Memuat Opsi Terbit Jurnal',
+                    style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
+                    textAlign: TextAlign.center,
                   ),
-
-                  SizedBox(height: 32.h(context)),
-
-                  // 3. Lampiran
-                  _buildSectionTitle(context, 'Lampiran (Opsional)', PhosphorIcons.paperclip(PhosphorIconsStyle.bold)),
-                  SizedBox(height: 16.h(context)),
-                  _buildAttachmentButton(context),
-
-                  SizedBox(height: 32.h(context)),
-
-                  // 4. Pengaturan Tugas
-                  _buildSectionTitle(context, 'Pengaturan Tugas', PhosphorIcons.checkSquareOffset(PhosphorIconsStyle.bold)),
-                  SizedBox(height: 16.h(context)),
-                  _buildTaskToggle(),
-
-                  SizedBox(height: 48.h(context)),
-
-                  // 5. Submit Button
-                  _buildSubmitButton(),
+                  SizedBox(height: 8.h(context)),
+                  Text(
+                    error.toString(),
+                    style: AppTextStyles.bodySmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   SizedBox(height: 24.h(context)),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                      padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 12.h(context)),
+                    ),
+                    onPressed: () => ref.read(jurnalProvider.notifier).fetchTerbitOptions(),
+                    icon: Icon(PhosphorIcons.arrowsClockwise(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.onPrimary),
+                    label: Text('Coba Lagi', style: AppTextStyles.labelLarge(context, color: AppColors.onPrimary)),
+                  ),
                 ],
               ),
             ),
-          );
-        },
+          ),
+          data: (data) {
+            final subjects = (data['subjects'] as List<dynamic>?) ?? [];
+            final schedules = (data['schedules'] as List<dynamic>?) ?? [];
+
+            // Auto prefill initial values jika tersedia
+            _handleAutoSelectSchedule(schedules);
+
+            if (subjects.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32.w(context)),
+                  child: AniseEmptyState(
+                    title: 'Belum Ada Jadwal Mengajar',
+                    subtitle: 'Akun Anda belum memiliki penugasan mata pelajaran atau jadwal KBM aktif dari Bagian Kurikulum.',
+                  ),
+                ),
+              );
+            }
+
+            final availableSchedules = _selectedMapel == null
+                ? schedules
+                : schedules.where((s) => s['subject_id']?.toString() == _selectedMapel).toList();
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 20.h(context)),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Banner Info SOP H-24
+                    Container(
+                      padding: EdgeInsets.all(14.w(context)),
+                      margin: EdgeInsets.only(bottom: 24.h(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14.w(context)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(PhosphorIcons.info(PhosphorIconsStyle.fill), color: AppColors.primary, size: 20.w(context)),
+                          SizedBox(width: 10.w(context)),
+                          Expanded(
+                            child: Text(
+                              'Terbitkan jurnal mengajar minimal H-24 jam sebelum jadwal KBM dimulai agar siswa dapat mempelajari materi terlebih dahulu.',
+                              style: AppTextStyles.bodySmall(context, color: AppColors.onBackground).copyWith(height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 1. Pilih Jadwal Master & Mapel
+                    _buildSectionTitle(context, 'Pilih Jadwal Master', PhosphorIcons.calendarPlus(PhosphorIconsStyle.bold)),
+                    SizedBox(height: 14.h(context)),
+                    _buildMapelDropdown(subjects),
+                    SizedBox(height: 16.h(context)),
+                    _buildJadwalDropdown(availableSchedules),
+
+                    SizedBox(height: 28.h(context)),
+
+                    // 2. Jurnal Utama
+                    _buildSectionTitle(context, 'Materi Pembelajaran', PhosphorIcons.notePencil(PhosphorIconsStyle.bold)),
+                    SizedBox(height: 14.h(context)),
+                    _buildTextField(
+                      context,
+                      label: 'Judul Topik / Materi Pembelajaran',
+                      controller: _judulController,
+                      hint: 'Contoh: Dinamika Partikel & Hukum Newton',
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Judul topik materi wajib diisi.';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 16.h(context)),
+                    _buildTextField(
+                      context,
+                      label: 'Deskripsi / Tujuan Pembelajaran (Micro-RPP)',
+                      controller: _deskripsiController,
+                      hint: 'Jelaskan tujuan dan poin-poin yang akan dicapai dalam sesi ini...',
+                      maxLines: 4,
+                    ),
+
+                    SizedBox(height: 28.h(context)),
+
+                    // 3. Lampiran Dokumen
+                    _buildSectionTitle(context, 'Lampiran Dokumen (Opsional)', PhosphorIcons.paperclip(PhosphorIconsStyle.bold)),
+                    SizedBox(height: 14.h(context)),
+                    _buildAttachmentButton(context),
+
+                    SizedBox(height: 28.h(context)),
+
+                    // 4. Pengaturan Tugas
+                    _buildSectionTitle(context, 'Pengaturan Tugas Siswa', PhosphorIcons.checkSquareOffset(PhosphorIconsStyle.bold)),
+                    SizedBox(height: 14.h(context)),
+                    _buildTaskToggle(),
+
+                    SizedBox(height: 40.h(context)),
+
+                    // 5. Submit Button
+                    _buildSubmitButton(),
+                    SizedBox(height: 32.h(context)),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildMapelDropdown(List<dynamic> subjects) {
-    return _buildDropdownField(
-      context,
-      label: 'Mata Pelajaran',
-      value: _selectedMapel,
-      items: subjects.map((s) => {'id': s['id'], 'label': s['name']}).toList(),
-      onChanged: (val) {
-        setState(() {
-          _selectedMapel = val;
-          _selectedJadwal = null;
-        });
-      },
-      icon: PhosphorIcons.bookBookmark(PhosphorIconsStyle.regular),
-      hint: 'Pilih Mata Pelajaran',
+    // Deduping subjects by ID
+    final Map<String, String> subjectMap = {};
+    for (final s in subjects) {
+      final id = s['id']?.toString();
+      final name = s['name']?.toString() ?? 'Mata Pelajaran';
+      if (id != null && !subjectMap.containsKey(id)) {
+        subjectMap[id] = name;
+      }
+    }
+
+    final hasMatch = _selectedMapel != null && subjectMap.containsKey(_selectedMapel);
+    final effectiveValue = hasMatch ? _selectedMapel : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Mata Pelajaran', style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
+        SizedBox(height: 8.h(context)),
+        DropdownButtonFormField<String>(
+          value: effectiveValue,
+          isExpanded: true,
+          decoration: InputDecoration(
+            prefixIcon: Icon(PhosphorIcons.bookBookmark(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20.w(context)),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+          ),
+          hint: Text('Pilih Mata Pelajaran', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4))),
+          items: subjectMap.entries.map((entry) {
+            return DropdownMenuItem<String>(
+              value: entry.key,
+              child: Text(
+                entry.value,
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          validator: (val) => val == null ? 'Silakan pilih mata pelajaran' : null,
+          onChanged: (val) {
+            setState(() {
+              _selectedMapel = val;
+              _selectedJadwal = null;
+            });
+          },
+        ),
+      ],
     );
   }
 
   Widget _buildJadwalDropdown(List<dynamic> schedules) {
-    return _buildDropdownField(
-      context,
-      label: 'Jadwal KBM',
-      value: _selectedJadwal,
-      items: _selectedMapel == null ? [] : schedules.map((s) => {'id': s['id'], 'label': s['label']}).toList(),
-      onChanged: _selectedMapel == null ? null : (val) {
-        setState(() {
-          _selectedJadwal = val;
-        });
-      },
-      icon: PhosphorIcons.calendar(PhosphorIconsStyle.regular),
-      hint: _selectedMapel == null ? 'Pilih Mata Pelajaran Terlebih Dahulu' : 'Pilih Jadwal yang Tersedia',
-      isFullWidthText: true,
+    // Deduping schedules by ID
+    final Map<String, dynamic> scheduleMap = {};
+    for (final s in schedules) {
+      final id = s['id']?.toString();
+      if (id != null && !scheduleMap.containsKey(id)) {
+        scheduleMap[id] = s;
+      }
+    }
+
+    final hasMatch = _selectedJadwal != null && scheduleMap.containsKey(_selectedJadwal);
+    final effectiveValue = hasMatch ? _selectedJadwal : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Jadwal KBM & Kelas', style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
+        SizedBox(height: 8.h(context)),
+        DropdownButtonFormField<String>(
+          value: effectiveValue,
+          isExpanded: true,
+          decoration: InputDecoration(
+            prefixIcon: Icon(PhosphorIcons.calendar(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20.w(context)),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+          ),
+          hint: Text(
+            _selectedMapel == null ? 'Pilih Mata Pelajaran Terlebih Dahulu' : 'Pilih Jadwal yang Tersedia',
+            style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
+          ),
+          selectedItemBuilder: (context) {
+            return scheduleMap.entries.map((entry) {
+              final label = entry.value['label']?.toString() ?? '';
+              final firstLine = label.split('\n').first;
+              return Text(
+                firstLine,
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              );
+            }).toList();
+          },
+          items: _selectedMapel == null
+              ? []
+              : scheduleMap.entries.map((entry) {
+                  final s = entry.value;
+                  final label = s['label']?.toString() ?? '';
+                  final lines = label.split('\n');
+                  final dateLine = lines.isNotEmpty ? lines[0] : '';
+                  final classLine = lines.length > 1 ? lines[1] : '';
+
+                  return DropdownMenuItem<String>(
+                    value: entry.key,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4.h(context)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            dateLine,
+                            style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (classLine.isNotEmpty) ...[
+                            SizedBox(height: 2.h(context)),
+                            Text(
+                              classLine,
+                              style: AppTextStyles.labelSmall(context, color: AppColors.primary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          validator: (val) => val == null ? 'Silakan pilih jadwal KBM' : null,
+          onChanged: _selectedMapel == null
+              ? null
+              : (val) {
+                  setState(() {
+                    _selectedJadwal = val;
+                  });
+                },
+        ),
+      ],
     );
   }
 
@@ -235,10 +503,10 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Ada Penugasan?', style: AppTextStyles.titleSmall(context, color: AppColors.onSurface)),
+                    Text('Ada Penugasan Siswa?', style: AppTextStyles.titleSmall(context, color: AppColors.onSurface)),
                     SizedBox(height: 4.h(context)),
                     Text(
-                      'Aktifkan jika sesi ini memiliki tugas khusus.',
+                      'Aktifkan jika sesi pembelajaran ini disertai tugas mandiri atau kelompok.',
                       style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
                     ),
                   ],
@@ -256,7 +524,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
             ],
           ),
           if (_isAdaTugas) ...[
-            SizedBox(height: 16.h(context)),
+            SizedBox(height: 14.h(context)),
             Container(
               padding: EdgeInsets.all(12.w(context)),
               decoration: BoxDecoration(
@@ -267,11 +535,11 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
               child: Row(
                 children: [
                   Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.warning, size: 20.w(context)),
-                  SizedBox(width: 12.w(context)),
+                  SizedBox(width: 10.w(context)),
                   Expanded(
                     child: Text(
-                      'Setelah jurnal ini diterbitkan, pastikan Anda membuat detail tugasnya di halaman Penugasan agar terhubung ke jurnal ini.',
-                      style: AppTextStyles.labelMedium(context, color: AppColors.warning),
+                      'Siswa akan menerima badge penugasan pada kartu jurnal ini.',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.warning).copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -288,76 +556,109 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
       children: [
         if (_isLoading) ...[
           LinearProgressIndicator(
-            value: _uploadProgress,
+            value: _uploadProgress > 0 ? _uploadProgress : null,
             backgroundColor: AppColors.primary.withValues(alpha: 0.2),
             valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             borderRadius: BorderRadius.circular(4),
           ),
           SizedBox(height: 8.h(context)),
           Text(
-            'Mengunggah... ${(_uploadProgress * 100).toStringAsFixed(0)}%',
+            _uploadProgress > 0 ? 'Mengunggah materi... ${(_uploadProgress * 100).toStringAsFixed(0)}%' : 'Menerbitkan jurnal...',
             style: AppTextStyles.labelMedium(context, color: AppColors.primary),
           ),
           SizedBox(height: 16.h(context)),
         ],
         SizedBox(
           width: double.infinity,
-          height: 54.h(context),
+          height: 52.h(context),
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.w(context)),
+                borderRadius: BorderRadius.circular(14.w(context)),
               ),
               elevation: 0,
             ),
             onPressed: _isLoading ? null : () async {
-              if (_selectedMapel == null || _selectedJadwal == null || _judulController.text.isEmpty) {
+              if (!_formKey.currentState!.validate()) {
+                return;
+              }
+
+              if (_selectedMapel == null || _selectedJadwal == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Harap lengkapi Mapel, Jadwal, dan Judul Materi.'), backgroundColor: AppColors.error),
+                  const SnackBar(
+                    content: Text('Harap pilih Mata Pelajaran dan Jadwal KBM terlebih dahulu.'),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
                 return;
               }
 
-              setState(() { 
-                _isLoading = true; 
+              setState(() {
+                _isLoading = true;
                 _uploadProgress = 0.0;
               });
 
               final success = await ref.read(jurnalProvider.notifier).terbitJurnal(
                 scheduleId: _selectedJadwal!,
                 subjectId: _selectedMapel!,
-                topicMaterial: _judulController.text,
-                description: _deskripsiController.text,
+                topicMaterial: _judulController.text.trim(),
+                description: _deskripsiController.text.trim(),
                 hasTask: _isAdaTugas,
                 attachment: _selectedFile,
                 onProgress: (progress) {
-                  setState(() {
-                    _uploadProgress = progress;
-                  });
-                }
+                  if (mounted) {
+                    setState(() {
+                      _uploadProgress = progress;
+                    });
+                  }
+                },
               );
 
-              setState(() { _isLoading = false; });
+              if (mounted) {
+                setState(() { _isLoading = false; });
+              }
 
               if (success && mounted) {
+                // Refresh provider agar feed guru & siswa langsung memuat jurnal baru
+                ref.invalidate(allJournalsProvider);
+                ref.invalidate(kelasJadwalProvider);
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Jurnal Berhasil Diterbitkan!'),
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.onPrimary),
+                        const SizedBox(width: 10),
+                        const Text('Jurnal Mengajar Berhasil Diterbitkan!'),
+                      ],
+                    ),
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: AppColors.primary,
                   ),
                 );
-                Navigator.pop(context);
+                Navigator.pop(context, true);
               } else if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Gagal menerbitkan jurnal.'), backgroundColor: AppColors.error),
+                  const SnackBar(
+                    content: Text('Gagal menerbitkan jurnal. Silakan periksa koneksi Anda.'),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
-            child: _isLoading 
-                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2))
-                : Text('Terbitkan Jurnal Sekarang', style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary)),
+            child: _isLoading
+                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: AppColors.onPrimary, strokeWidth: 2.5))
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.onPrimary),
+                      SizedBox(width: 8.w(context)),
+                      Text('Terbitkan Jurnal Sekarang', style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary)),
+                    ],
+                  ),
           ),
         ),
       ],
@@ -374,7 +675,14 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     );
   }
 
-  Widget _buildTextField(BuildContext context, {required String label, required TextEditingController controller, String? hint, int maxLines = 1}) {
+  Widget _buildTextField(
+    BuildContext context, {
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -383,75 +691,17 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
         TextFormField(
           controller: controller,
           maxLines: maxLines,
+          validator: validator,
           style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 16.h(context)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.outline)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context)), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField(BuildContext context, {required String label, String? value, required List<Map<String, dynamic>> items, Function(String?)? onChanged, required IconData icon, String? hint, bool isFullWidthText = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.labelMedium(context, color: AppColors.onBackground)),
-        SizedBox(height: 8.h(context)),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 4.h(context)),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12.w(context)),
-            border: Border.all(color: AppColors.outline),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              itemHeight: null,
-              isDense: false,
-              value: value,
-              hint: hint != null ? Text(hint, style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4))) : null,
-              icon: Icon(PhosphorIcons.caretDown(), color: AppColors.onSurface.withValues(alpha: 0.5)),
-              items: items.map((item) {
-                return DropdownMenuItem<String>(
-                  value: item['id'].toString(),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 8.h(context)),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.outline.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(icon, color: AppColors.primary, size: 20.w(context)),
-                        SizedBox(width: 12.w(context)),
-                        Expanded(
-                          child: Text(
-                            item['label'].toString(),
-                            style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
-                            overflow: isFullWidthText ? TextOverflow.visible : TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
           ),
         ),
       ],
@@ -462,11 +712,11 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     if (_selectedFile != null) {
       return Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 16.h(context), horizontal: 16.w(context)),
+        padding: EdgeInsets.symmetric(vertical: 14.h(context), horizontal: 16.w(context)),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.primaryContainer),
+          borderRadius: BorderRadius.circular(14.w(context)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
         ),
         child: Row(
           children: [
@@ -493,22 +743,22 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
     return InkWell(
       onTap: _pickFile,
-      borderRadius: BorderRadius.circular(16.w(context)),
+      borderRadius: BorderRadius.circular(14.w(context)),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: 24.h(context)),
+        padding: EdgeInsets.symmetric(vertical: 20.h(context)),
         decoration: BoxDecoration(
-          color: AppColors.primaryContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(color: AppColors.primaryContainer, style: BorderStyle.solid),
+          color: AppColors.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14.w(context)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
-            Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 32.w(context)),
+            Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 28.w(context)),
             SizedBox(height: 8.h(context)),
-            Text('Upload Foto atau File PDF', style: AppTextStyles.titleSmall(context, color: AppColors.primary)),
+            Text('Upload Modul / Materi PDF atau Gambar', style: AppTextStyles.titleSmall(context, color: AppColors.primary)),
             SizedBox(height: 4.h(context)),
-            Text('Maks. 20MB (png, jpg, pdf, docx, dll)', style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6))),
+            Text('Maks. 20MB (PDF, DOCX, PPTX, JPG, PNG)', style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6))),
           ],
         ),
       ),

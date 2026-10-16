@@ -9,8 +9,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('kbm:check-reminders', function () {
-    $this->call(CheckKbmRemindersCommand::class);
-})->purpose('Memindai jadwal KBM untuk peringatan H-24 terbit jurnal dan 15 menit presensi cam');
-
+// Jadwalkan pemindaian KBM setiap 15 menit
 Schedule::command('kbm:check-reminders')->everyFifteenMinutes();

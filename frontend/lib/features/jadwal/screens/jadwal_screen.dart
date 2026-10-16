@@ -38,28 +38,6 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
     _isCustomDateSelected = false;
   }
 
-  bool _matchesDayOfWeek(dynamic dayOfWeek, int targetWeekday) {
-    if (dayOfWeek == null) return false;
-    if (dayOfWeek is int) {
-      return dayOfWeek == targetWeekday;
-    }
-    final str = dayOfWeek.toString().trim().toLowerCase();
-    final intVal = int.tryParse(str);
-    if (intVal != null) {
-      return intVal == targetWeekday;
-    }
-    const Map<String, int> map = {
-      'senin': 1, 'monday': 1,
-      'selasa': 2, 'tuesday': 2,
-      'rabu': 3, 'wednesday': 3,
-      'kamis': 4, 'thursday': 4,
-      'jumat': 5, "jum'at": 5, 'friday': 5,
-      'sabtu': 6, 'saturday': 6,
-      'minggu': 7, 'sunday': 7, 'ahad': 7,
-    };
-    return map[str] == targetWeekday;
-  }
-
   ScheduleStatus _determineStatus(dynamic item) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -450,48 +428,20 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
     return journalsAsync.when(
       data: (journals) {
         final selectedDateStr = "${_selectedDate.year.toString().padLeft(4, '0')}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
-        final selectedWeekday = _selectedDate.weekday; // 1 (Senin) - 7 (Minggu)
 
-        // 1. Ambil jurnal yang spesifik terbit pada tanggal yang dipilih
+        // 1. Ambil HANYA jurnal yang sudah diterbitkan spesifik pada tanggal yang dipilih
+        // Cangkang jadwal yang belum diterbitkan TIDAK DITAMPILKAN ke siswa agar informasi tidak rancu
         final dateJournals = journals.where((j) {
-          if (j['teaching_date'] != null) {
-            final td = j['teaching_date'].toString().substring(0, 10);
-            return td == selectedDateStr;
-          }
-          return false;
-        }).toList();
-
-        // Tandai mata pelajaran atau schedule_id yang sudah memiliki jurnal pada tanggal terpilih
-        final Set<String> coveredKeys = {};
-        for (final j in dateJournals) {
-          if (j['schedule_id'] != null) {
-            coveredKeys.add(j['schedule_id'].toString());
-          }
-          if (j['subject'] != null) {
-            coveredKeys.add(j['subject'].toString().toLowerCase().trim());
-          }
-        }
-
-        // 2. Ambil jadwal reguler untuk hari terpilih yang belum diterbitkan jurnalnya
-        final regularSchedules = journals.where((j) {
           final isSchedule = j['type'] == 'schedule' || j['teaching_date'] == null;
-          if (!isSchedule) return false;
+          if (isSchedule) return false;
 
-          final dow = j['day_of_week'];
-          if (!_matchesDayOfWeek(dow, selectedWeekday)) return false;
-
-          final schedId = j['schedule_id']?.toString();
-          final subj = j['subject']?.toString().toLowerCase().trim();
-
-          if (schedId != null && coveredKeys.contains(schedId)) return false;
-          if (subj != null && coveredKeys.contains(subj)) return false;
-
-          return true;
+          final td = j['teaching_date'].toString().substring(0, 10);
+          return td == selectedDateStr;
         }).toList();
 
-        final combinedList = [...dateJournals, ...regularSchedules];
+        final combinedList = [...dateJournals];
 
-        // 3. Urutkan berdasarkan waktu mulai (start_time ASC)
+        // 2. Urutkan berdasarkan waktu mulai (start_time ASC)
         combinedList.sort((a, b) {
           final timeA = a['start_time']?.toString() ?? '00:00';
           final timeB = b['start_time']?.toString() ?? '00:00';
@@ -502,8 +452,8 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
           return const SliverFillRemaining(
             hasScrollBody: false,
             child: AniseEmptyState(
-              title: 'Belum Ada Data Jadwal',
-              subtitle: 'Tidak ada agenda akademik atau kegiatan pembelajaran pada hari ini.',
+              title: 'Belum Ada Jurnal Pembelajaran',
+              subtitle: 'Guru mata pelajaran belum menerbitkan materi atau catatan pembelajaran untuk tanggal ini.',
             ),
           );
         }

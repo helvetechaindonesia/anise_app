@@ -53,19 +53,41 @@ class CheckKbmRemindersCommand extends Command
 
         $this->info("\n[1] Memeriksa jadwal KBM besok ({$tomorrowDayName}, {$tomorrowDateStr})...");
 
+        $force = (bool)$this->option('force');
+
         $upcomingSchedules = Schedule::where('day_of_week', $tomorrowDayName)
+            ->whereNotNull('teacher_id')
             ->with(['teacher.guruProfile', 'subject', 'class'])
             ->get();
 
         $h24NotifiedCount = 0;
         foreach ($upcomingSchedules as $sched) {
+            if (!$sched->teacher) continue;
+
             // Cek apakah jurnal sudah diterbitkan untuk tanggal besok
             $journalExists = Journal::where('schedule_id', $sched->id)
                 ->whereDate('teaching_date', $tomorrowDateStr)
                 ->exists();
 
             if (!$journalExists) {
-                $this->warn(" -> Jurnal belum terbit: {$sched->subject?->name} ({$sched->class?->grade_level} {$sched->class?->name}) - Guru: {$sched->teacher?->username}");
+                $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
+
+                // Anti-spam deduplikasi jika tidak --force
+                if (!$force) {
+                    $alreadyNotified = \App\Models\Notification::where('user_id', $sched->teacher_id)
+                        ->where('title', 'like', '%H-24%')
+                        ->where('message', 'like', "%{$subjectName}%")
+                        ->where('created_at', '>=', $now->copy()->subHours(20))
+                        ->exists();
+
+                    if ($alreadyNotified) {
+                        $this->line(" -> [Skip] Guru {$sched->teacher->username} ({$subjectName}) sudah menerima notifikasi H-24 hari ini.");
+                        continue;
+                    }
+                }
+
+                $phone = $sched->teacher->phone ?: ($sched->teacher->guruProfile?->phone ?? '-');
+                $this->warn(" -> Peringatan H-24 ke {$sched->teacher->username} (WA: {$phone}): {$subjectName} ({$sched->class?->grade_level} {$sched->class?->name})");
                 NotificationService::notifyGuruH24Journal($sched, $tomorrow);
                 $h24NotifiedCount++;
             }

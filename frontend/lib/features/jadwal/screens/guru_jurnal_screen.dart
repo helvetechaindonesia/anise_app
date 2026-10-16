@@ -604,7 +604,13 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                             onPressed: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const GuruTerbitJurnalScreen()),
+                                MaterialPageRoute(
+                                  builder: (context) => GuruTerbitJurnalScreen(
+                                    initialScheduleId: journal['schedule_id']?.toString(),
+                                    initialSubjectId: journal['subject_id']?.toString(),
+                                    initialTeachingDate: journal['teaching_date']?.toString(),
+                                  ),
+                                ),
                               );
                             },
                             icon: Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.bold), size: 16.w(context)),

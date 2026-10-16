@@ -100,7 +100,8 @@ class JournalController extends Controller
                 }
             }
 
-            // Urutkan berdasarkan tanggal terdekat
+            // Deduping per unique ID dan urutkan berdasarkan tanggal terdekat
+            $formattedSchedules = collect($formattedSchedules)->unique('id')->values()->all();
             usort($formattedSchedules, function($a, $b) {
                 return strcmp($a['teaching_date'], $b['teaching_date']);
             });
@@ -766,38 +767,8 @@ class JournalController extends Controller
                 ];
             }
 
-            // B. Petakan Jadwal Reguler mingguan (Template mata pelajaran)
-            foreach ($schedules as $sched) {
-                $teacher = $sched->teacher ?? null;
-                $teacherName = $teacher?->guruProfile ? $teacher->guruProfile->full_name : ($teacher?->full_name ?: ($teacher?->username ?? 'Guru Pengajar'));
-                $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
-
-                $result[] = [
-                    'id' => 'sched_' . $sched->id,
-                    'schedule_id' => $sched->id,
-                    'type' => 'schedule',
-                    'topic' => 'Jadwal Rutin: ' . $subjectName,
-                    'description' => 'Materi pembelajaran belum dipublikasikan oleh guru mata pelajaran.',
-                    'created_at' => $sched->created_at ? $sched->created_at->toIso8601String() : null,
-                    'teaching_date' => null,
-                    'subject' => $subjectName,
-                    'teacher' => $teacherName,
-                    'teacher_image' => $teacher?->profile_picture ?? null,
-                    'start_time' => $sched->start_time,
-                    'end_time' => $sched->end_time,
-                    'day_of_week' => $sched->day_of_week,
-                    'has_task' => false,
-                    'task_title' => null,
-                    'attachment_url' => null,
-                    'likes' => 0,
-                    'is_liked' => false,
-                    'is_saved' => false,
-                    'comments' => 0,
-                    'rating' => 5.0,
-                    'has_rated' => false,
-                    'my_rating' => null
-                ];
-            }
+            // B. Siswa HANYA melihat jurnal yang SUDAH DITERBITKAN oleh guru pengampu
+            // Cangkang jadwal yang belum diterbitkan dihilangkan dari feed siswa agar tidak rancu
 
             return response()->json([
                 'status' => 'success',
