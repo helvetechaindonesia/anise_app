@@ -101,6 +101,18 @@ class TerbitJurnalMapelDropdown extends StatelessWidget {
   }
 }
 
+class _ScheduleDisplayInfo {
+  final String dayDate;
+  final String time;
+  final String className;
+
+  const _ScheduleDisplayInfo({
+    required this.dayDate,
+    required this.time,
+    required this.className,
+  });
+}
+
 class TerbitJurnalJadwalDropdown extends StatelessWidget {
   final String? selectedJadwal;
   final List<dynamic> schedules;
@@ -115,6 +127,110 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
     required this.onChanged,
   });
 
+  _ScheduleDisplayInfo _parseScheduleData(Map<String, dynamic> s) {
+    String dayDate = '';
+    String time = '';
+    String className = '';
+
+    if (s['day_name'] != null && s['date_formatted'] != null) {
+      dayDate = "${s['day_name']}, ${s['date_formatted']}";
+    }
+    if (s['time_range'] != null) {
+      time = s['time_range'].toString();
+    }
+    if (s['class_name'] != null) {
+      className = s['class_name'].toString();
+    }
+
+    if (dayDate.isEmpty || time.isEmpty || className.isEmpty) {
+      final label = s['label']?.toString() ?? '';
+      final lines = label.split('\n');
+      if (dayDate.isEmpty && lines.isNotEmpty) dayDate = lines[0];
+      if (lines.length > 1) {
+        final subparts = lines[1].split('•');
+        if (time.isEmpty && subparts.isNotEmpty) time = subparts[0].trim();
+        if (className.isEmpty && subparts.length > 1) className = subparts[1].trim();
+        if (className.isEmpty && subparts.length == 1) className = lines[1].trim();
+      }
+    }
+
+    return _ScheduleDisplayInfo(
+      dayDate: dayDate.isEmpty ? 'Jadwal KBM' : dayDate,
+      time: time.isEmpty ? 'Jam Pelajaran' : time,
+      className: className.isEmpty ? 'Kelas' : className,
+    );
+  }
+
+  Widget _buildScheduleInfoLines(
+    BuildContext context,
+    _ScheduleDisplayInfo info,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Baris 1: Hari, Tanggal/Bulan/Tahun
+        Text(
+          info.dayDate,
+          style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        SizedBox(height: 4.h(context)),
+
+        // Baris 2: Jam
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              PhosphorIcons.clock(PhosphorIconsStyle.bold),
+              size: 13.w(context),
+              color: AppColors.onSurfaceVariant,
+            ),
+            SizedBox(width: 5.w(context)),
+            Flexible(
+              child: Text(
+                info.time,
+                style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant).copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 4.h(context)),
+
+        // Baris 3: Kelas
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              PhosphorIcons.chalkboard(PhosphorIconsStyle.bold),
+              size: 13.w(context),
+              color: AppColors.primary,
+            ),
+            SizedBox(width: 5.w(context)),
+            Flexible(
+              child: Text(
+                info.className,
+                style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic> scheduleMap = {};
@@ -127,7 +243,6 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
 
     final hasMatch = selectedJadwal != null && scheduleMap.containsKey(selectedJadwal);
     final effectiveValue = hasMatch ? selectedJadwal : null;
-    final double dropdownItemHeight = (105.h(context)).clamp(96.0, 125.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,174 +253,103 @@ class TerbitJurnalJadwalDropdown extends StatelessWidget {
           key: ValueKey('$effectiveValue-$selectedMapel'),
           initialValue: effectiveValue,
           isExpanded: true,
-          itemHeight: dropdownItemHeight,
+          isDense: true,
+          itemHeight: null, // Menyesuaikan ukuran konten 3 baris secara natural
           dropdownColor: AppColors.surface,
-          borderRadius: BorderRadius.circular(16.w(context)),
+          borderRadius: BorderRadius.circular(14.w(context)),
           icon: Icon(
             PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
             color: AppColors.primary,
-            size: 20.w(context),
+            size: 18.w(context),
           ),
           decoration: InputDecoration(
-            constraints: BoxConstraints(
-              minHeight: (124.h(context)).clamp(116.0, 140.0),
-            ),
             prefixIcon: Padding(
               padding: EdgeInsets.only(left: 14.w(context), right: 12.w(context)),
               child: Container(
-                width: 48.w(context),
-                height: 48.w(context),
+                width: 44.w(context),
+                height: 44.w(context),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14.w(context)),
+                  borderRadius: BorderRadius.circular(12.w(context)),
                 ),
                 child: Center(
                   child: Icon(
                     PhosphorIcons.calendar(PhosphorIconsStyle.fill),
                     color: AppColors.primary,
-                    size: 26.w(context),
+                    size: 24.w(context),
                   ),
                 ),
               ),
             ),
-            prefixIconConstraints: BoxConstraints(minWidth: 76.w(context), minHeight: 52.w(context)),
+            prefixIconConstraints: BoxConstraints(minWidth: 70.w(context)),
             filled: true,
             fillColor: AppColors.surface,
             contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.w(context)),
+              borderRadius: BorderRadius.circular(14.w(context)),
               borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.w(context)),
+              borderRadius: BorderRadius.circular(14.w(context)),
               borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.3)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.w(context)),
+              borderRadius: BorderRadius.circular(14.w(context)),
               borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16.w(context)),
+              borderRadius: BorderRadius.circular(14.w(context)),
               borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
           ),
-          hint: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  selectedMapel == null
-                      ? 'Pilih Mata Pelajaran Terlebih Dahulu'
-                      : 'Pilih Jadwal yang Tersedia',
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.45)).copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          hint: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                selectedMapel == null
+                    ? 'Pilih Mata Pelajaran Terlebih Dahulu'
+                    : 'Pilih Jadwal yang Tersedia',
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.45)).copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                SizedBox(height: 4.h(context)),
-                Text(
-                  selectedMapel == null
-                      ? 'Mata pelajaran belum dipilih'
-                      : 'Pilih sesi KBM untuk mengisi jurnal',
-                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.3)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 3.h(context)),
+              Text(
+                selectedMapel == null
+                    ? 'Mata pelajaran belum dipilih'
+                    : 'Ketuk untuk melihat sesi KBM',
+                style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.3)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
           selectedItemBuilder: selectedMapel == null
               ? null
               : (context) {
                   return scheduleMap.entries.map((entry) {
-                    final s = entry.value;
-                    final label = s['label']?.toString() ?? '';
-                    final lines = label.split('\n');
-                    final dateLine = lines.isNotEmpty ? lines[0] : '';
-                    final classLine = lines.length > 1 ? lines[1] : '';
-
+                    final info = _parseScheduleData(entry.value);
                     return Align(
                       alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              dateLine,
-                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (classLine.isNotEmpty) ...[
-                              SizedBox(height: 4.h(context)),
-                              Text(
-                                classLine,
-                                style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                      child: _buildScheduleInfoLines(context, info),
                     );
                   }).toList();
                 },
           items: selectedMapel == null
               ? []
               : scheduleMap.entries.map((entry) {
-                  final s = entry.value;
-                  final label = s['label']?.toString() ?? '';
-                  final lines = label.split('\n');
-                  final dateLine = lines.isNotEmpty ? lines[0] : '';
-                  final classLine = lines.length > 1 ? lines[1] : '';
-
+                  final info = _parseScheduleData(entry.value);
                   return DropdownMenuItem<String>(
                     value: entry.key,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.h(context)),
+                      child: Align(
                         alignment: Alignment.centerLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              dateLine,
-                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (classLine.isNotEmpty) ...[
-                              SizedBox(height: 4.h(context)),
-                              Text(
-                                classLine,
-                                style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
-                        ),
+                        child: _buildScheduleInfoLines(context, info),
                       ),
                     ),
                   );
