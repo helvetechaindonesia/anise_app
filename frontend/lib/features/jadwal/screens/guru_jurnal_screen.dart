@@ -51,17 +51,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
     });
   }
 
-  void _navigateWeek(int weekDelta) {
-    setState(() {
-      _currentWeekStart = _currentWeekStart.add(Duration(days: weekDelta * 7));
-      final endOfWeek = _currentWeekStart.add(const Duration(days: 6));
-      if (_selectedDate.isBefore(_currentWeekStart) || _selectedDate.isAfter(endOfWeek)) {
-        _selectedDate = _currentWeekStart;
-      }
-      _isCustomDateSelected = false;
-    });
-  }
-
   /// Memfilter hari aktif KBM di pekan ini berdasarkan data hari nonaktif & hari libur dari database
   List<DateTime> _getActiveWeekDates(Map<String, dynamic> offDaysData) {
     final offWeekdays = (offDaysData['off_weekdays'] as List<dynamic>?)
@@ -127,7 +116,7 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
             },
           ),
 
-          // 2. Main Title, Navigasi Pekan, dan Filter Hari Nonaktif
+          // 2. Main Title dan Filter Hari Nonaktif Terstandarisasi
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.w(context)),
@@ -144,7 +133,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                         dates: activeDates,
                         selectedDate: _selectedDate,
                         isCustomDateSelected: _isCustomDateSelected,
-                        weekNavigator: _buildWeekNavigator(context),
                         onDateSelected: (date) {
                           setState(() {
                             _selectedDate = date;
@@ -164,7 +152,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
                         dates: fallbackDates,
                         selectedDate: _selectedDate,
                         isCustomDateSelected: _isCustomDateSelected,
-                        weekNavigator: _buildWeekNavigator(context),
                         onDateSelected: (date) {
                           setState(() {
                             _selectedDate = date;
@@ -219,74 +206,6 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
             });
           },
         ),
-      ],
-    );
-  }
-
-  Widget _buildWeekNavigator(BuildContext context) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final isCurrentWeek = _currentWeekStart.isBefore(today.add(const Duration(days: 7))) &&
-        _currentWeekStart.add(const Duration(days: 6)).isAfter(today.subtract(const Duration(days: 1)));
-
-    final endOfWeek = _currentWeekStart.add(const Duration(days: 5));
-    final weekRangeText = "${DateFormat('d MMM', 'id_ID').format(_currentWeekStart)} - ${DateFormat('d MMM yyyy', 'id_ID').format(endOfWeek)}";
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            InkWell(
-              onTap: () => _navigateWeek(-1),
-              borderRadius: BorderRadius.circular(8.w(context)),
-              child: Container(
-                padding: EdgeInsets.all(6.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8.w(context)),
-                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
-                ),
-                child: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface),
-              ),
-            ),
-            SizedBox(width: 8.w(context)),
-            Text(
-              weekRangeText,
-              style: AppTextStyles.labelMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w700),
-            ),
-            SizedBox(width: 8.w(context)),
-            InkWell(
-              onTap: () => _navigateWeek(1),
-              borderRadius: BorderRadius.circular(8.w(context)),
-              child: Container(
-                padding: EdgeInsets.all(6.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8.w(context)),
-                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
-                ),
-                child: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurface),
-              ),
-            ),
-          ],
-        ),
-        if (!isCurrentWeek)
-          InkWell(
-            onTap: _resetToCurrentWeek,
-            borderRadius: BorderRadius.circular(12.w(context)),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12.w(context)),
-              ),
-              child: Text(
-                'Pekan Ini',
-                style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
       ],
     );
   }

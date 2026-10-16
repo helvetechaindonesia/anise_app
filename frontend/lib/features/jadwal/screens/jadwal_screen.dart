@@ -21,8 +21,6 @@ class JadwalScreen extends ConsumerStatefulWidget {
 
 class _JadwalScreenState extends ConsumerState<JadwalScreen> {
   DateTime _selectedDate = DateTime.now();
-  late List<DateTime> dates;
-  late int _selectedDateIndex;
   bool _isCustomDateSelected = false;
 
   @override
@@ -32,11 +30,52 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
   }
 
   void _initDefaultDates() {
-    // Tampilkan 14 hari: 3 hari sebelumnya, hari ini, dan 10 hari ke depan
-    dates = List.generate(14, (index) => DateTime.now().add(Duration(days: index - 3)));
-    _selectedDateIndex = 3;
-    _selectedDate = dates[_selectedDateIndex];
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
     _isCustomDateSelected = false;
+  }
+
+  /// Memfilter hari aktif KBM di pekan ini berdasarkan data hari nonaktif & hari libur dari database
+  List<DateTime> _getActiveWeekDates(Map<String, dynamic> offDaysData) {
+    final offWeekdays = (offDaysData['off_weekdays'] as List<dynamic>?)
+            ?.map((e) => e.toString().trim().toLowerCase())
+            .toList() ??
+        ['minggu'];
+
+    final holidays = (offDaysData['holidays'] as List<dynamic>?) ?? [];
+
+    final List<DateTime> activeDates = [];
+    const indoDays = ['', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+    final now = DateTime.now();
+    final currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
+
+    for (int i = 0; i < 7; i++) {
+      final date = currentWeekStart.add(Duration(days: i));
+      final dayName = indoDays[date.weekday].toLowerCase();
+
+      // Cek hari nonaktif mingguan sekolah dari database
+      if (offWeekdays.contains(dayName)) continue;
+
+      // Cek rentang hari libur aktif di database
+      final dateStr = "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      bool isHoliday = false;
+      for (final h in holidays) {
+        final start = h['start_date']?.toString().substring(0, 10);
+        final end = (h['end_date'] ?? h['start_date'])?.toString().substring(0, 10);
+        if (start != null && end != null) {
+          if (dateStr.compareTo(start) >= 0 && dateStr.compareTo(end) <= 0) {
+            isHoliday = true;
+            break;
+          }
+        }
+      }
+
+      if (isHoliday) continue;
+
+      activeDates.add(date);
+    }
+
+    return activeDates;
   }
 
   ScheduleStatus _determineStatus(dynamic item) {
@@ -205,21 +244,52 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
   }
 
   Widget _buildDateSelector(BuildContext context) {
-    return AniseDateFilter(
-      dates: dates,
-      selectedDate: _selectedDate,
-      isCustomDateSelected: _isCustomDateSelected,
-      onDateSelected: (date) {
-        setState(() {
-          _selectedDate = date;
-          _selectedDateIndex = dates.indexOf(date);
-          _isCustomDateSelected = false;
-        });
+    final offDaysAsync = ref.watch(offDaysProvider);
+
+    return offDaysAsync.when(
+      data: (offDaysData) {
+        final activeDates = _getActiveWeekDates(offDaysData);
+        return AniseDateFilter(
+          dates: activeDates,
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          onDateSelected: (date) {
+            setState(() {
+              _selectedDate = date;
+              _isCustomDateSelected = false;
+            });
+          },
+          onReset: () {
+            setState(() {
+              _initDefaultDates();
+            });
+          },
+        );
       },
-      onReset: () {
-        setState(() {
-          _initDefaultDates();
-        });
+      loading: () => SizedBox(
+        height: 74.h(context),
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+      ),
+      error: (_, __) {
+        final now = DateTime.now();
+        final currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
+        final fallbackDates = List.generate(6, (i) => currentWeekStart.add(Duration(days: i)));
+        return AniseDateFilter(
+          dates: fallbackDates,
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          onDateSelected: (date) {
+            setState(() {
+              _selectedDate = date;
+              _isCustomDateSelected = false;
+            });
+          },
+          onReset: () {
+            setState(() {
+              _initDefaultDates();
+            });
+          },
+        );
       },
     );
   }
