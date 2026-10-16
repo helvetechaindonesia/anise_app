@@ -31,6 +31,10 @@ class Journal extends Model
         'class_notes'
     ];
 
+    protected $casts = [
+        'has_task' => 'boolean',
+    ];
+
     public function schedule()
     {
         return $this->belongsTo(\App\Models\Schedule::class, 'schedule_id');

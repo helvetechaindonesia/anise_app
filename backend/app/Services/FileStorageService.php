@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Journal;
 use App\Models\JournalTask;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -9,6 +10,28 @@ use Illuminate\Support\Str;
 
 class FileStorageService
 {
+    /**
+     * Simpan lampiran modul / bahan ajar pada penerbitan jurnal mengajar (Journals)
+     * Format: journals/{TAHUN_AJARAN}/{KODE_KELAS}/{KODE_MAPEL}/journal_{ID}/materi_{timestamp}_{name}.{ext}
+     */
+    public static function storeJournalAttachment(UploadedFile $file, Journal $journal): string
+    {
+        $academicYear = $journal->class?->academicYear?->name ?? date('Y');
+        $academicYearSlug = Str::slug($academicYear);
+
+        $classCode = Str::upper(Str::slug($journal->class?->code ?? $journal->class?->name ?? 'UMUM'));
+        $subjectCode = Str::upper(Str::slug($journal->subject?->code ?? $journal->subject?->name ?? 'MAPEL'));
+        $journalFolder = 'journal_' . substr($journal->id, 0, 8);
+
+        $ext = $file->getClientOriginalExtension() ?: 'bin';
+        $origName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $filename = "materi_" . time() . "_{$origName}.{$ext}";
+
+        $targetDirectory = "journals/{$academicYearSlug}/{$classCode}/{$subjectCode}/{$journalFolder}";
+
+        return $file->storeAs($targetDirectory, $filename, 'public');
+    }
+
     /**
      * Simpan berkas jawaban tugas siswa (Submissions)
      * Format: submissions/{TAHUN_AJARAN}/{KODE_KELAS}/{KODE_MAPEL}/task_{ID}/{NIS}_{NAMA}/ans_{timestamp}.{ext}
@@ -19,7 +42,6 @@ class FileStorageService
         $academicYear = $task->journal?->class?->academicYear?->name ?? date('Y');
         $academicYearSlug = Str::slug($academicYear);
 
-        // 2. Kode Kelas
         $classCode = Str::upper(Str::slug($task->journal?->class?->code ?? $task->journal?->class?->name ?? 'UMUM'));
 
         // 3. Kode Mapel

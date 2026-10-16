@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Journal;
 use App\Models\JournalTask;
 use App\Models\JournalTaskAttachment;
 use App\Models\StudentTaskSubmission;
@@ -31,6 +32,9 @@ class AssignmentController extends Controller
                 'due_date' => $request->due_date
             ]);
 
+            // Sinkronisasi status penugasan di tabel journals
+            Journal::where('id', $request->journal_id)->update(['has_task' => true]);
+
             if ($request->hasFile('attachment')) {
                 $task->load(['journal.class.academicYear', 'journal.subject']);
                 $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
@@ -43,7 +47,8 @@ class AssignmentController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Tugas berhasil dibuat.'
+                'message' => 'Tugas berhasil dibuat.',
+                'data' => $task
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

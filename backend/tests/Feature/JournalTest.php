@@ -278,4 +278,143 @@ class JournalTest extends TestCase
                 'class_name' => '12 XII IPA 1',
             ]);
     }
+
+    public function test_guru_can_publish_journal_with_task_and_attachment(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $guru = User::create([
+            'full_name' => 'Guru Penulis Jurnal',
+            'username' => 'guru_jurnal_test',
+            'email' => 'terbit@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $kelas = SchoolClass::create([
+            'name' => 'X MIPA 3',
+            'code' => '10-MIPA-3',
+            'grade_level' => 10,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $mapel = Subject::create([
+            'name' => 'Matematika Peminatan',
+            'code' => 'MAT-PEM-10',
+        ]);
+
+        $schedule = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapel->id,
+            'teacher_id' => $guru->id,
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => 'Monday',
+            'start_time' => '07:30:00',
+            'end_time' => '09:00:00',
+        ]);
+
+        Sanctum::actingAs($guru, ['*']);
+
+        $fakeFile = \Illuminate\Http\UploadedFile::fake()->create('modul_vektor.pdf', 500, 'application/pdf');
+
+        $payload = [
+            'schedule_id' => "{$schedule->id}|2026-10-26",
+            'subject_id' => $mapel->id,
+            'topic_material' => 'Operasi Aljabar Vektor',
+            'description' => 'Membahas konsep penjumlahan dan proyeksi vektor.',
+            'has_task' => 1,
+            'attachment' => $fakeFile,
+        ];
+
+        $response = $this->postJson('/api/journals/terbit', $payload);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+                'message' => 'Jurnal berhasil diterbitkan',
+            ]);
+
+        $journal = \App\Models\Journal::where('teacher_id', $guru->id)->first();
+        $this->assertNotNull($journal);
+        $this->assertTrue((bool)$journal->has_task);
+        $this->assertNotNull($journal->attachment_url);
+        $this->assertStringContainsString('/storage/journals/', $journal->attachment_url);
+
+        // Pastikan JournalTask terbuat dan attachment tertaut
+        $task = \App\Models\JournalTask::where('journal_id', $journal->id)->first();
+        $this->assertNotNull($task);
+        $this->assertEquals('Tugas: Operasi Aljabar Vektor', $task->title);
+        $this->assertDatabaseHas('journal_task_attachments', [
+            'journal_task_id' => $task->id,
+            'attachment_name' => 'modul_vektor.pdf',
+        ]);
+    }
+
+    public function test_assignment_api_syncs_journal_has_task(): void
+    {
+        $guru = User::create([
+            'full_name' => 'Guru Penugasan Api',
+            'username' => 'guru_assign_api',
+            'email' => 'assign@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $this->guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $kelas = SchoolClass::create([
+            'name' => 'XI IPS 1',
+            'code' => '11-IPS-1',
+            'grade_level' => 11,
+            'academic_year_id' => $this->academicYear->id,
+        ]);
+
+        $mapel = Subject::create([
+            'name' => 'Sosiologi',
+            'code' => 'SOS-11',
+        ]);
+
+        $schedule = Schedule::create([
+            'class_id' => $kelas->id,
+            'subject_id' => $mapel->id,
+            'teacher_id' => $guru->id,
+            'academic_year_id' => $this->academicYear->id,
+            'day_of_week' => 'Wednesday',
+            'start_time' => '10:00:00',
+            'end_time' => '11:30:00',
+        ]);
+
+        // Awalnya jurnal dibuat tanpa penugasan
+        $journal = \App\Models\Journal::create([
+            'teacher_id' => $guru->id,
+            'schedule_id' => $schedule->id,
+            'class_id' => $kelas->id,
+            'subject_id' => $mapel->id,
+            'teaching_date' => '2026-10-28',
+            'topic_material' => 'Stratifikasi Sosial',
+            'has_task' => false,
+            'status' => 'Aktif',
+        ]);
+
+        $this->assertFalse((bool)$journal->has_task);
+
+        Sanctum::actingAs($guru, ['*']);
+
+        // Sekarang API POST /api/assignments dipanggil untuk menginput tugas baru
+        $response = $this->postJson('/api/assignments', [
+            'journal_id' => $journal->id,
+            'title' => 'Tugas Analisis Stratifikasi',
+            'description' => 'Kerjakan lembar kerja 3.1 di buku pegangan.',
+            'due_date' => '2026-11-04 23:59:59',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+            ]);
+
+        // Verifikasi bahwa kolom has_task di tabel journals otomatis sinkron menjadi true
+        $journal->refresh();
+        $this->assertTrue((bool)$journal->has_task);
+    }
 }

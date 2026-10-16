@@ -87,12 +87,21 @@ class JournalController extends Controller
                         // Kita gabungkan schedule_id dan tanggal sebagai ID
                         $uniqueId = $sched->id . '|' . $currentDate->format('Y-m-d');
                         
+                        $startTimeClean = substr($sched->start_time, 0, 5);
+                        $endTimeClean = substr($sched->end_time, 0, 5);
+                        $timeRange = "Jam {$startTimeClean} - {$endTimeClean}";
+                        $gradeClass = "Tingkat {$grade} {$className}";
+
                         $formattedSchedules[] = [
                             'id' => $uniqueId,
                             'subject_id' => $sched->subject_id,
                             'schedule_id' => $sched->id,
                             'teaching_date' => $currentDate->format('Y-m-d'),
-                            'label' => "{$hariIndo}, {$tanggalString}\nJam {$sched->start_time} - {$sched->end_time}, Tingkat {$grade} {$className}"
+                            'day_name' => $hariIndo,
+                            'date_formatted' => $tanggalString,
+                            'time_range' => $timeRange,
+                            'class_name' => $gradeClass,
+                            'label' => "{$hariIndo}, {$tanggalString}\n{$timeRange} • {$gradeClass}"
                         ];
                         
                         $currentDate->addWeek();
@@ -125,11 +134,11 @@ class JournalController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'schedule_id' => 'required', // Bisa berupa "uuid|YYYY-MM-DD"
+            'schedule_id' => 'required', // Format: "uuid|YYYY-MM-DD"
             'subject_id' => 'required|exists:subjects,id',
             'topic_material' => 'required|string',
             'description' => 'nullable|string',
-            'has_task' => 'boolean',
+            'has_task' => 'nullable',
             'attachment' => 'nullable|file|max:20480'
         ]);
 
@@ -144,6 +153,8 @@ class JournalController extends Controller
 
         $schedule = Schedule::findOrFail($realScheduleId);
 
+        $hasTask = $request->boolean('has_task');
+
         $journal = new Journal();
         $journal->teacher_id = Auth::id();
         $journal->schedule_id = $schedule->id;
@@ -152,11 +163,21 @@ class JournalController extends Controller
         $journal->teaching_date = $teachingDate; // Ambil dari dropdown
         $journal->topic_material = $request->topic_material;
         $journal->description = $request->description;
-        $journal->has_task = $request->has_task ?? false;
+        $journal->has_task = $hasTask;
         $journal->status = 'Aktif';
+        $journal->published_at = now();
         $journal->save();
 
-        if ($journal->has_task || $request->hasFile('attachment')) {
+        // 1. Simpan berkas lampiran materi / modul jika diunggah
+        if ($request->hasFile('attachment')) {
+            $journal->load(['class.academicYear', 'subject']);
+            $path = FileStorageService::storeJournalAttachment($request->file('attachment'), $journal);
+            $journal->attachment_url = '/storage/' . $path;
+            $journal->save();
+        }
+
+        // 2. Jika toggle has_task aktif, buat record penugasan awal untuk siswa
+        if ($hasTask) {
             $task = JournalTask::create([
                 'journal_id' => $journal->id,
                 'title' => 'Tugas: ' . $journal->topic_material,
@@ -164,13 +185,12 @@ class JournalController extends Controller
                 'due_date' => now()->addDays(7)
             ]);
 
-            if ($request->hasFile('attachment')) {
-                $task->load(['journal.class.academicYear', 'journal.subject']);
-                $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
+            // Jika jurnal memiliki attachment materi, hubungkan juga ke penugasan
+            if ($journal->attachment_url && $request->hasFile('attachment')) {
                 JournalTaskAttachment::create([
                     'journal_task_id' => $task->id,
                     'attachment_name' => $request->file('attachment')->getClientOriginalName(),
-                    'attachment_url' => '/storage/' . $path
+                    'attachment_url' => $journal->attachment_url
                 ]);
             }
         }
