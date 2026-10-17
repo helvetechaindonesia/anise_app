@@ -5,10 +5,14 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/anise_insight_card.dart';
 import '../../../core/widgets/anise_time_filter_dropdowns.dart';
 import '../../../core/widgets/anise_capsule_tab_bar.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
+import '../../../core/widgets/anise_cangkang_tugas_card.dart';
+import '../../../core/widgets/anise_guru_task_card.dart';
 import 'guru_tugas_penilaian_screen.dart';
 import 'guru_input_tugas_screen.dart';
 import '../providers/tugas_provider.dart';
@@ -225,20 +229,8 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Manajemen Tugas',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-        ),
-        // Poin 2: Hapus tanda plus di pojok kanan atas halaman penugasan
-        actions: const [],
+      appBar: const AniseAppBar(
+        title: 'Manajemen Tugas',
       ),
       body: tasksAsync.when(
         data: (allRawTasks) {
@@ -390,30 +382,9 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
   /// Poin 1d: Tab Belum Terbit (Card Cangkang Tugas)
   Widget _buildPendingList(BuildContext context, List<dynamic> pendingTasks) {
     if (pendingTasks.isEmpty) {
-      return Center(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(PhosphorIcons.checkSquareOffset(PhosphorIconsStyle.fill), color: AppColors.onSurfaceVariant.withValues(alpha: 0.25), size: 56.w(context)),
-              SizedBox(height: 14.h(context)),
-              Text(
-                'Tidak ada tugas yang menunggu dibuat',
-                style: AppTextStyles.titleMedium(context, color: AppColors.onSurfaceVariant),
-              ),
-              SizedBox(height: 6.h(context)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40.w(context)),
-                child: Text(
-                  'Ketika Anda menerbitkan jurnal dengan toggle "Ada Tugas" aktif, cangkang tugas akan muncul di sini siap untuk diterbitkan.',
-                  style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return const AniseEmptyState(
+        title: 'Belum Ada Tugas Dibuat',
+        subtitle: 'Ketika Anda menerbitkan jurnal dengan opsi tugas aktif, cangkang tugas akan muncul di sini siap untuk diterbitkan.',
       );
     }
 
@@ -423,150 +394,42 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
       itemCount: pendingTasks.length,
       itemBuilder: (context, index) {
         final item = pendingTasks[index] as Map<String, dynamic>;
-        return _buildCangkangTugasCard(context, item);
-      },
-    );
-  }
+        final journalId = item['journal_id']?.toString() ?? item['id']?.toString() ?? '';
+        final subjectId = item['subject_id']?.toString();
+        final subject = item['subject_name']?.toString() ?? 'Mata Pelajaran';
+        final className = item['class_name']?.toString() ?? 'Kelas';
+        final journalTitle = item['title']?.toString() ?? 'Jurnal Pembelajaran';
+        final journalDesc = item['description']?.toString() ?? '';
 
-  /// Poin 1d: Card Cangkang Tugas
-  Widget _buildCangkangTugasCard(BuildContext context, Map<String, dynamic> data) {
-    final journalId = data['journal_id']?.toString() ?? data['id']?.toString() ?? '';
-    final subjectId = data['subject_id']?.toString();
-    final subject = data['subject_name']?.toString() ?? 'Mata Pelajaran';
-    final className = data['class_name']?.toString() ?? 'Kelas';
-    final journalTitle = data['title']?.toString() ?? 'Jurnal Pembelajaran';
-    final journalDesc = data['description']?.toString() ?? '';
-
-    // Efek border kuning tua menyala untuk belum terbit / cangkang
-    final cardBorderColor = const Color(0xFFF59E0B);
-    final cardShadow = [
-      BoxShadow(
-        color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-        blurRadius: 10,
-        spreadRadius: 1,
-      ),
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.03),
-        blurRadius: 10,
-        offset: const Offset(0, 4),
-      ),
-    ];
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 16.h(context)),
-      padding: EdgeInsets.all(18.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        border: Border.all(color: cardBorderColor, width: 1.5),
-        boxShadow: cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Mata Pelajaran
-          Text(
-            subject,
-            style: AppTextStyles.titleMedium(context, color: AppColors.primary).copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 2.h(context)),
-
-          // 2. Kelas (tepat di bawah mata pelajaran)
-          Text(
-            className,
-            style: AppTextStyles.labelMedium(context, color: AppColors.onSurfaceVariant).copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          // Kasih jarak
-          SizedBox(height: 12.h(context)),
-
-          // 3. Judul Jurnal
-          Text(
-            journalTitle,
-            style: AppTextStyles.bodyLarge(context, color: AppColors.onSurface).copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-
-          // 4. Deskripsi Jurnal
-          if (journalDesc.isNotEmpty) ...[
-            SizedBox(height: 4.h(context)),
-            Text(
-              journalDesc,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
-            ),
-          ],
-
-          SizedBox(height: 16.h(context)),
-
-          // 5. Tombol Buat Tugas
-          SizedBox(
-            width: double.infinity,
-            height: 42.h(context),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.w(context)),
+        return AniseCangkangTugasCard(
+          subject: subject,
+          className: className,
+          journalTitle: journalTitle,
+          journalDescription: journalDesc,
+          onBuatTugas: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GuruInputTugasScreen(
+                  initialJournalId: journalId,
+                  initialSubjectId: subjectId,
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GuruInputTugasScreen(
-                      initialJournalId: journalId,
-                      initialSubjectId: subjectId,
-                    ),
-                  ),
-                );
-              },
-              icon: Icon(PhosphorIcons.plusCircle(PhosphorIconsStyle.bold), size: 18.w(context)),
-              label: Text(
-                'Buat Tugas',
-                style: AppTextStyles.labelLarge(context).copyWith(fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
   /// Poin 1e: Tab Tugas Aktif & Tugas Selesai
   Widget _buildPublishedList(BuildContext context, List<dynamic> taskList, {required bool isActive}) {
     if (taskList.isEmpty) {
-      return Center(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(PhosphorIcons.clipboardText(PhosphorIconsStyle.fill), color: AppColors.onSurfaceVariant.withValues(alpha: 0.25), size: 56.w(context)),
-              SizedBox(height: 14.h(context)),
-              Text(
-                isActive ? 'Tidak ada tugas aktif' : 'Tidak ada tugas selesai',
-                style: AppTextStyles.titleMedium(context, color: AppColors.onSurfaceVariant),
-              ),
-              SizedBox(height: 6.h(context)),
-              Text(
-                isActive
-                    ? 'Buat tugas dari tab "Belum" untuk membagikannya ke siswa.'
-                    : 'Tugas yang telah melewati batas waktu pengumpulan akan tampil di sini.',
-                style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+      return AniseEmptyState(
+        title: isActive ? 'Belum Ada Tugas Aktif' : 'Belum Ada Tugas Selesai',
+        subtitle: isActive
+            ? 'Buat tugas dari tab "Belum" untuk membagikannya ke siswa.'
+            : 'Tugas yang telah melewati batas waktu pengumpulan akan tampil di sini.',
       );
     }
 
@@ -589,225 +452,39 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
     final subject = data['subject_name']?.toString() ?? 'Mata Pelajaran';
     final className = data['class_name']?.toString() ?? 'Kelas';
     final dueDateFormatted = data['due_date_formatted']?.toString() ?? data['due_date']?.toString() ?? '-';
+    final isPublisher = data['is_publisher'] == true;
     
     final submitted = (data['submitted_count'] ?? 0) as int;
     final graded = (data['graded_count'] ?? 0) as int;
     final total = (data['total_students'] ?? 0) as int;
-    final progress = total > 0 ? (submitted / total).clamp(0.0, 1.0) : 0.0;
 
-    // Warna & efek border menyala sesuai status
-    final Color cardBorderColor;
-    final List<BoxShadow> cardShadow;
-
-    if (isActive) {
-      // Hijau agak menyala untuk aktif
-      cardBorderColor = const Color(0xFF10B981);
-      cardShadow = [
-        BoxShadow(
-          color: const Color(0xFF10B981).withValues(alpha: 0.35),
-          blurRadius: 10,
-          spreadRadius: 1,
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
-        ),
-      ];
-    } else {
-      // Abu-abu / hitam muda untuk selesai
-      cardBorderColor = AppColors.outlineVariant;
-      cardShadow = [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.04),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ];
-    }
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 16.h(context)),
-      padding: EdgeInsets.all(18.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        border: Border.all(color: cardBorderColor, width: isActive ? 1.5 : 1.0),
-        boxShadow: cardShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Baris 1: Mata Pelajaran & Hamburger Menu (titik tiga)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Text(
-                  subject,
-                  style: AppTextStyles.titleMedium(context, color: AppColors.primary).copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Icon(
-                  PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
-                  color: AppColors.onSurfaceVariant,
-                  size: 22.w(context),
-                ),
-                onSelected: (val) {
-                  if (val == 'edit') {
-                    _showEditTaskModal(context, data);
-                  } else if (val == 'delete') {
-                    _showDeleteConfirmDialog(context, taskId, title);
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.onSurface),
-                        SizedBox(width: 8.w(context)),
-                        const Text('Edit Tugas'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.error),
-                        SizedBox(width: 8.w(context)),
-                        Text('Hapus Tugas', style: TextStyle(color: AppColors.error)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // Header Baris 2: Kelas (tepat di bawah mata pelajaran)
-          Text(
-            className,
-            style: AppTextStyles.labelMedium(context, color: AppColors.onSurfaceVariant).copyWith(
-              fontWeight: FontWeight.w600,
+    return AniseGuruTaskCard(
+      taskId: taskId,
+      subject: subject,
+      className: className,
+      title: title,
+      description: description,
+      dueDateFormatted: dueDateFormatted,
+      submittedCount: submitted,
+      gradedCount: graded,
+      totalStudents: total,
+      isActive: isActive,
+      isPublisher: isPublisher,
+      onEdit: () => _showEditTaskModal(context, data),
+      onDelete: () => _showDeleteConfirmDialog(context, taskId, title),
+      onPenilaian: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GuruTugasPenilaianScreen(
+              taskId: taskId,
+              title: title,
+              subject: subject,
+              className: className,
             ),
           ),
-
-          // Kasih jarak
-          SizedBox(height: 12.h(context)),
-
-          // 3. Judul Tugas (Bukan judul jurnal)
-          Text(
-            title,
-            style: AppTextStyles.bodyLarge(context, color: AppColors.onSurface).copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-
-          // 4. Keterangan Tugas (tidak perlu full, maxLines 2)
-          if (description.isNotEmpty) ...[
-            SizedBox(height: 4.h(context)),
-            Text(
-              description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
-            ),
-          ],
-
-          SizedBox(height: 8.h(context)),
-          Row(
-            children: [
-              Icon(PhosphorIcons.clock(PhosphorIconsStyle.regular), size: 14.w(context), color: AppColors.onSurfaceVariant),
-              SizedBox(width: 4.w(context)),
-              Text(
-                'Tenggat: $dueDateFormatted',
-                style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
-              ),
-            ],
-          ),
-
-          Spacing.custom(context, 12),
-
-          // Progress Pengumpulan
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Pengumpulan Siswa',
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurfaceVariant),
-              ),
-              Row(
-                children: [
-                  Text(
-                    '$submitted / $total Siswa',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  if (submitted > 0) ...[
-                    Text(' • ', style: TextStyle(color: AppColors.onSurfaceVariant)),
-                    Text(
-                      '$graded Dinilai',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ]
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 6.h(context)),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4.w(context)),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6.h(context),
-              backgroundColor: AppColors.backgroundLight,
-              valueColor: AlwaysStoppedAnimation<Color>(isActive ? const Color(0xFF10B981) : AppColors.outline),
-            ),
-          ),
-          Spacing.custom(context, 14),
-
-          // 5. Tombol Penilaian
-          SizedBox(
-            width: double.infinity,
-            height: 42.h(context),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GuruTugasPenilaianScreen(
-                      taskId: taskId,
-                      title: title,
-                      subject: subject,
-                      className: className,
-                    ),
-                  ),
-                );
-              },
-              icon: Icon(PhosphorIcons.checks(PhosphorIconsStyle.bold), size: 18.w(context)),
-              label: Text(
-                'Penilaian',
-                style: AppTextStyles.labelLarge(context).copyWith(fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

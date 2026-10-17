@@ -5,6 +5,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_insight_card.dart';
 import '../../../core/widgets/anise_time_filter_dropdowns.dart';
 import '../../../core/widgets/anise_capsule_tab_bar.dart';
@@ -256,20 +257,10 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
     );
   }
 
-  SliverAppBar _buildAppBar(BuildContext context) {
-    return SliverAppBar(
+  Widget _buildAppBar(BuildContext context) {
+    return const AniseSliverAppBar(
+      title: 'Tugas & Evaluasi',
       pinned: true,
-      backgroundColor: AppColors.backgroundLight,
-      elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onSurface, size: 24.w(context)),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: Text(
-        'Tugas & Evaluasi',
-        style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-      ),
     );
   }
 }

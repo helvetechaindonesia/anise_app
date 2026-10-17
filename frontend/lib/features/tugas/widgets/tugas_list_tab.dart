@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/constants/colors.dart';
-import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/anise_empty_state.dart';
 import 'tugas_item_card.dart';
 
 class TugasListTab extends StatelessWidget {
@@ -20,18 +20,10 @@ class TugasListTab extends StatelessWidget {
     final filteredTasks = allTasks.where((t) => t['status'] == status).toList();
 
     if (filteredTasks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(PhosphorIcons.checks(PhosphorIconsStyle.fill), size: 48.w(context), color: AppColors.onBackground.withValues(alpha: 0.2)),
-            SizedBox(height: 16.h(context)),
-            Text(
-              'Tidak ada tugas',
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.5)),
-            ),
-          ],
-        ),
+      return AniseEmptyState(
+        title: 'Belum Ada Tugas',
+        subtitle: 'Tidak ada tugas dengan status $status saat ini.',
+        icon: PhosphorIcons.checks(PhosphorIconsStyle.fill),
       );
     }
 

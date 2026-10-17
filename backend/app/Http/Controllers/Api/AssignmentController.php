@@ -119,7 +119,7 @@ class AssignmentController extends Controller
                 }
             }
 
-            $publishedTasks = $query->get()->map(function ($task) use ($now) {
+            $publishedTasks = $query->get()->map(function ($task) use ($now, $user) {
                 $schedule = $task->journal->schedule ?? null;
                 $classObj = $schedule?->class;
                 $className = $classObj ? ($classObj->grade_level . ' ' . $classObj->name) : 'Kelas';
@@ -151,6 +151,8 @@ class AssignmentController extends Controller
                     'submitted_count' => $submittedCount,
                     'graded_count' => $gradedCount,
                     'total_students' => $totalStudents,
+                    'teacher_id' => $task->journal?->teacher_id ?? $schedule?->teacher_id,
+                    'is_publisher' => (($task->journal?->teacher_id && $task->journal->teacher_id === $user->id) || ($schedule?->teacher_id && $schedule->teacher_id === $user->id)),
                     'attachments' => $task->attachments->map(fn($a) => [
                         'id' => $a->id,
                         'name' => $a->attachment_name,
@@ -183,7 +185,7 @@ class AssignmentController extends Controller
                 }
             }
 
-            $cangkangTasks = $pendingJournalsQuery->get()->map(function ($j) {
+            $cangkangTasks = $pendingJournalsQuery->get()->map(function ($j) use ($user) {
                 $schedule = $j->schedule ?? null;
                 $classObj = $schedule?->class;
                 $className = $classObj ? ($classObj->grade_level . ' ' . $classObj->name) : 'Kelas';
@@ -208,6 +210,8 @@ class AssignmentController extends Controller
                     'submitted_count' => 0,
                     'graded_count' => 0,
                     'total_students' => $totalStudents,
+                    'teacher_id' => $j->teacher_id ?? $schedule?->teacher_id,
+                    'is_publisher' => (($j->teacher_id && $j->teacher_id === $user->id) || ($schedule?->teacher_id && $schedule->teacher_id === $user->id)),
                     'attachments' => []
                 ];
             });
@@ -427,9 +431,12 @@ class AssignmentController extends Controller
             $user = Auth::user();
             $task = JournalTask::with('journal.schedule')->findOrFail($id);
 
-            $schedule = $task->journal->schedule ?? null;
-            if (!$schedule || $schedule->teacher_id !== $user->id) {
-                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk mengubah tugas ini.'], 403);
+            $journalTeacherId = $task->journal?->teacher_id;
+            $scheduleTeacherId = $task->journal?->schedule?->teacher_id;
+            $isOwner = ($journalTeacherId && $journalTeacherId === $user->id) || ($scheduleTeacherId && $scheduleTeacherId === $user->id);
+
+            if (!$isOwner) {
+                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk mengubah tugas ini karena bukan penerbit tugas.'], 403);
             }
 
             $task->update([
@@ -449,31 +456,37 @@ class AssignmentController extends Controller
     }
 
     /**
-     * Guru menghapus tugas
+     * Guru menghapus tugas (mengembalikan tugas ke card cangkang / belum terbit)
      */
     public function deleteTask($id)
     {
         try {
             $user = Auth::user();
-            $task = JournalTask::with('journal.schedule')->findOrFail($id);
+            $task = JournalTask::with(['journal.schedule', 'attachments'])->findOrFail($id);
 
-            $schedule = $task->journal->schedule ?? null;
-            if (!$schedule || $schedule->teacher_id !== $user->id) {
-                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk menghapus tugas ini.'], 403);
+            $journalTeacherId = $task->journal?->teacher_id;
+            $scheduleTeacherId = $task->journal?->schedule?->teacher_id;
+            $isOwner = ($journalTeacherId && $journalTeacherId === $user->id) || ($scheduleTeacherId && $scheduleTeacherId === $user->id);
+
+            if (!$isOwner) {
+                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk menghapus tugas ini karena bukan penerbit tugas.'], 403);
             }
 
             $journalId = $task->journal_id;
+            
+            // Hapus lampiran tugas terlebih dahulu
+            $task->attachments()->delete();
             $task->delete();
 
-            // Cek apakah jurnal masih punya tugas lain
-            $remainingTasks = JournalTask::where('journal_id', $journalId)->count();
-            if ($remainingTasks === 0) {
-                Journal::where('id', $journalId)->update(['has_task' => false]);
+            // Poin 2: Kembalikan status jurnal ke cangkang (has_task = true)
+            // Sehingga tugas kembali muncul di tab "Belum" sebagai cangkang, bukan terhapus total
+            if ($journalId) {
+                Journal::where('id', $journalId)->update(['has_task' => true]);
             }
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Tugas berhasil dihapus.'
+                'message' => 'Tugas berhasil dihapus dan dikembalikan ke status belum terbit (cangkang tugas).'
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

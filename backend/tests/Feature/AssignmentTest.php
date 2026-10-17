@@ -236,4 +236,74 @@ class AssignmentTest extends TestCase
             'status' => 'GRADED',
         ]);
     }
+
+    /**
+     * Test 5: Guru penerbit menghapus tugas -> tugas dikembalikan ke cangkang (journal has_task = true)
+     */
+    public function test_delete_task_reverts_to_cangkang(): void
+    {
+        $task = JournalTask::create([
+            'journal_id' => $this->journal->id,
+            'title' => 'Tugas Aljabar Linear',
+            'description' => 'Kerjakan nomor 1 - 10',
+            'due_date' => Carbon::now()->addDays(2)->toDateTimeString(),
+        ]);
+
+        $response = $this->actingAs($this->guru)->deleteJson("/api/assignments/{$task->id}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+            ]);
+
+        // Pastikan JournalTask terhapus
+        $this->assertDatabaseMissing('journal_tasks', ['id' => $task->id]);
+
+        // Pastikan Journal tetap ada dan has_task = true (kembali ke cangkang di tab Belum)
+        $this->assertDatabaseHas('journals', [
+            'id' => $this->journal->id,
+            'has_task' => true,
+        ]);
+    }
+
+    /**
+     * Test 6: Bukan penerbit tidak bisa mengedit atau menghapus tugas
+     */
+    public function test_non_publisher_cannot_edit_or_delete_task(): void
+    {
+        $guruRole = Role::firstOrCreate(['name' => 'GURU']);
+        $otherGuru = User::create([
+            'full_name' => 'Guru Lain',
+            'username' => 'guru_lain',
+            'email' => 'otherguru@sekolah.sch.id',
+            'password_hash' => bcrypt('password'),
+            'role_id' => $guruRole->id,
+            'is_active' => true,
+        ]);
+
+        $task = JournalTask::create([
+            'journal_id' => $this->journal->id,
+            'title' => 'Tugas Fisika',
+            'description' => 'Hukum Newton',
+            'due_date' => Carbon::now()->addDays(2)->toDateTimeString(),
+        ]);
+
+        // Coba edit oleh guru lain
+        $editResponse = $this->actingAs($otherGuru)->putJson("/api/assignments/{$task->id}", [
+            'title' => 'Ganti Judul Ilegal',
+            'description' => 'Ganti deskripsi ilegal',
+            'due_date' => Carbon::now()->addDays(5)->toDateTimeString(),
+        ]);
+        $editResponse->assertStatus(403);
+
+        // Coba hapus oleh guru lain
+        $deleteResponse = $this->actingAs($otherGuru)->deleteJson("/api/assignments/{$task->id}");
+        $deleteResponse->assertStatus(403);
+
+        // Pastikan tugas masih utuh
+        $this->assertDatabaseHas('journal_tasks', [
+            'id' => $task->id,
+            'title' => 'Tugas Fisika',
+        ]);
+    }
 }
