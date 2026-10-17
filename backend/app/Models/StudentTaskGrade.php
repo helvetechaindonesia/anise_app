@@ -14,7 +14,8 @@ class StudentTaskGrade extends Model
     protected $fillable = [
         'submission_id',
         'teacher_id',
-        'score'
+        'score',
+        'feedback'
     ];
 
     public function submission()

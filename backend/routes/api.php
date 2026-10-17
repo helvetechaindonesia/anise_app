@@ -123,6 +123,10 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::middleware('role:GURU')->group(function () {
             Route::post('/', [AssignmentController::class, 'storeTask']);
             Route::get('/', [AssignmentController::class, 'getTasks']);
+            Route::get('/{taskId}/submissions', [AssignmentController::class, 'getTaskSubmissions']);
+            Route::post('/submissions/{submissionId}/grade', [AssignmentController::class, 'gradeSubmission']);
+            Route::put('/{id}', [AssignmentController::class, 'updateTask']);
+            Route::delete('/{id}', [AssignmentController::class, 'deleteTask']);
         });
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);

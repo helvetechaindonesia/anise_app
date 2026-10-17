@@ -165,7 +165,8 @@ class JournalController extends Controller
             ], 422);
         }
 
-        $hasTask = $request->boolean('has_task');
+        $hasTaskInput = $request->input('has_task');
+        $hasTask = filter_var($hasTaskInput, FILTER_VALIDATE_BOOLEAN) || $hasTaskInput == 1 || $hasTaskInput === '1' || $hasTaskInput === 'true';
 
         $journal = new Journal();
         $journal->teacher_id = Auth::id();
@@ -188,24 +189,8 @@ class JournalController extends Controller
             $journal->save();
         }
 
-        // 2. Jika toggle has_task aktif, buat record penugasan awal untuk siswa
-        if ($hasTask) {
-            $task = JournalTask::create([
-                'journal_id' => $journal->id,
-                'title' => 'Tugas: ' . $journal->topic_material,
-                'description' => $journal->description,
-                'due_date' => now()->addDays(7)
-            ]);
-
-            // Jika jurnal memiliki attachment materi, hubungkan juga ke penugasan
-            if ($journal->attachment_url && $request->hasFile('attachment')) {
-                JournalTaskAttachment::create([
-                    'journal_task_id' => $task->id,
-                    'attachment_name' => $request->file('attachment')->getClientOriginalName(),
-                    'attachment_url' => $journal->attachment_url
-                ]);
-            }
-        }
+        // 2. Jika toggle has_task aktif, jurnal akan bertindak sebagai cangkang penugasan
+        // Guru kemudian membuat rincian penugasan melalui tombol 'Buat Tugas' di Jurnal atau Halaman Penugasan.
 
         // 3. Notifikasi ke seluruh siswa aktif di kelas bersangkutan
         try {
@@ -253,7 +238,8 @@ class JournalController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Anda bukan guru penerbit jurnal ini.'], 403);
             }
 
-            $hasTask = $request->boolean('has_task');
+            $hasTaskInput = $request->input('has_task');
+            $hasTask = filter_var($hasTaskInput, FILTER_VALIDATE_BOOLEAN) || $hasTaskInput == 1 || $hasTaskInput === '1' || $hasTaskInput === 'true';
 
             $journal->topic_material = $request->topic_material;
             $journal->description = $request->description;
@@ -267,29 +253,9 @@ class JournalController extends Controller
 
             $journal->save();
 
-            // Sinkronisasi status penugasan
-            if ($hasTask) {
-                $existingTask = JournalTask::where('journal_id', $journal->id)->first();
-                if (!$existingTask) {
-                    $task = JournalTask::create([
-                        'journal_id' => $journal->id,
-                        'title' => 'Tugas: ' . $journal->topic_material,
-                        'description' => $journal->description,
-                        'due_date' => now()->addDays(7)
-                    ]);
-                    if ($journal->attachment_url && $request->hasFile('attachment')) {
-                        JournalTaskAttachment::create([
-                            'journal_task_id' => $task->id,
-                            'attachment_name' => $request->file('attachment')->getClientOriginalName(),
-                            'attachment_url' => $journal->attachment_url
-                        ]);
-                    }
-                } else {
-                    $existingTask->update([
-                        'title' => 'Tugas: ' . $journal->topic_material,
-                        'description' => $journal->description,
-                    ]);
-                }
+            // Jika toggle has_task dimatikan dan belum ada siswa yang mengerjakan, bisa diatur
+            if (!$hasTask) {
+                // Jurnal tidak lagi membutuhkan penugasan
             }
 
             return response()->json([
@@ -645,10 +611,15 @@ class JournalController extends Controller
                 }
 
                 $hasTask = (bool)($journal->has_task ?? false);
+                $taskId = null;
                 $taskTitle = null;
+                $taskDueDate = null;
                 if ($journal->relationLoaded('tasks') && $journal->tasks && $journal->tasks->isNotEmpty()) {
                     $hasTask = true;
-                    $taskTitle = $journal->tasks->first()->title;
+                    $firstTask = $journal->tasks->first();
+                    $taskId = $firstTask->id;
+                    $taskTitle = $firstTask->title;
+                    $taskDueDate = $firstTask->due_date ? Carbon::parse($firstTask->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm') : null;
                 }
 
                 $likesCount = 0;
@@ -705,7 +676,9 @@ class JournalController extends Controller
                     'end_time' => $endTime,
                     'day_of_week' => $dayOfWeek,
                     'has_task' => $hasTask,
+                    'task_id' => $taskId,
                     'task_title' => $taskTitle,
+                    'task_due_date' => $taskDueDate,
                     'attachment_url' => $journal->attachment_url ?? null,
                     'check_in_time' => $journal->check_in_time ? Carbon::parse($journal->check_in_time)->format('H:i') : null,
                     'filled_at' => $journal->filled_at ? Carbon::parse($journal->filled_at)->format('H:i') : null,
@@ -1003,11 +976,16 @@ class JournalController extends Controller
                 }
 
                 $hasTask = (bool)($journal->has_task ?? false);
+                $taskId = null;
                 $taskTitle = null;
+                $taskDueDate = null;
                 try {
                     if ($journal->relationLoaded('tasks') && $journal->tasks && $journal->tasks->isNotEmpty()) {
                         $hasTask = true;
-                        $taskTitle = $journal->tasks->first()->title;
+                        $firstTask = $journal->tasks->first();
+                        $taskId = $firstTask->id;
+                        $taskTitle = $firstTask->title;
+                        $taskDueDate = $firstTask->due_date ? Carbon::parse($firstTask->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm') : null;
                     }
                 } catch (\Throwable $e) {}
 
@@ -1060,7 +1038,9 @@ class JournalController extends Controller
                     'end_time' => $endTime,
                     'day_of_week' => $dayOfWeek,
                     'has_task' => $hasTask,
+                    'task_id' => $taskId,
                     'task_title' => $taskTitle,
+                    'task_due_date' => $taskDueDate,
                     'attachment_url' => $journal->attachment_url ?? null,
                     'likes' => $likesCount,
                     'is_liked' => $myLikedIds->contains($journal->id),
