@@ -215,7 +215,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                         child: Row(
                           children: [
                             Icon(
-                              selectedFile != null ? PhosphorIcons.fileCheck(PhosphorIconsStyle.bold) : PhosphorIcons.paperclip(PhosphorIconsStyle.bold),
+                              selectedFile != null ? PhosphorIcons.checkCircle(PhosphorIconsStyle.bold) : PhosphorIcons.paperclip(PhosphorIconsStyle.bold),
                               color: selectedFile != null ? AppColors.primary : AppColors.onSurfaceVariant,
                               size: 20.w(context),
                             ),
@@ -527,6 +527,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
     
     final submitted = (data['submitted_count'] ?? 0) as int;
     final graded = (data['graded_count'] ?? 0) as int;
+    final total = (data['total_students'] ?? 0) as int;
     final attachments = data['attachments'] as List<dynamic>?;
 
     return AniseGuruTaskCard(
