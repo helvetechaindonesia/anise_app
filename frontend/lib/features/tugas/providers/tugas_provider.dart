@@ -18,6 +18,20 @@ final journalsBySubjectProvider = FutureProvider.family<List<dynamic>, String>((
   }
 });
 
+/// Mengambil daftar siswa dan status submission untuk 1 tugas (Halaman Penilaian Guru)
+final taskSubmissionsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, taskId) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/assignments/$taskId/submissions');
+    if (response.data['status'] == 'success') {
+      return response.data['data'] as Map<String, dynamic>;
+    }
+    return {'task': {}, 'students': []};
+  } catch (e) {
+    throw Exception(e.toString());
+  }
+});
+
 class TugasNotifier extends StateNotifier<AsyncValue<void>> {
   final Dio _dio;
 
@@ -61,6 +75,64 @@ class TugasNotifier extends StateNotifier<AsyncValue<void>> {
         },
       );
 
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
+
+  Future<bool> updateTugas({
+    required String taskId,
+    required String title,
+    required String description,
+    required String dueDate,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.put(
+        '/assignments/$taskId',
+        data: {
+          'title': title,
+          'description': description,
+          'due_date': dueDate,
+        },
+      );
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
+
+  Future<bool> deleteTugas({required String taskId}) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.delete('/assignments/$taskId');
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
+
+  Future<bool> gradeSubmission({
+    required String submissionId,
+    required double score,
+    String? feedback,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.post(
+        '/assignments/submissions/$submissionId/grade',
+        data: {
+          'score': score,
+          if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
+        },
+      );
       state = const AsyncValue.data(null);
       return response.data['status'] == 'success';
     } catch (e, stack) {
@@ -137,3 +209,4 @@ final getTasksProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
     throw Exception(e.toString());
   }
 });
+

@@ -4,6 +4,8 @@ import '../../../../core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../tugas/screens/guru_input_tugas_screen.dart';
+import '../../tugas/screens/guru_tugas_penilaian_screen.dart';
+import '../../tugas/screens/tugas_detail_screen.dart';
 import 'schedule_card_components.dart';
 import 'schedule_share_modal.dart';
 
@@ -24,6 +26,9 @@ class ScheduleCard extends StatefulWidget {
   final String? classNotes;
   final bool hasFileAttachment;
   final bool hasTask;
+  final String? taskId;
+  final String? taskTitle;
+  final String? taskDueDate;
   final String? subjectId;
   final String? fileName;
   final String? fileSize;
@@ -63,6 +68,9 @@ class ScheduleCard extends StatefulWidget {
     this.classNotes,
     this.hasFileAttachment = false,
     this.hasTask = false,
+    this.taskId,
+    this.taskTitle,
+    this.taskDueDate,
     this.subjectId,
     this.fileName,
     this.fileSize,
@@ -269,58 +277,137 @@ class _ScheduleCardState extends State<ScheduleCard> {
             ),
           ],
 
-          // TOMBOL "ADA TUGAS" (Khusus Tampilan Pengajar/Publisher)
-          if (widget.isPublisher && (widget.hasTask || widget.hasFileAttachment)) ...[
-            SizedBox(height: 12.h(context)),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12.w(context)),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GuruInputTugasScreen(
-                          initialSubjectId: widget.subjectId,
-                          initialJournalId: widget.journalId,
-                        ),
-                      ),
-                    );
-                  },
+          // TOMBOL TUGAS (DI BAWAH LAMPIRAN FILE)
+          if (widget.hasTask) ...[
+            if (widget.taskId != null && widget.taskId!.isNotEmpty) ...[
+              // Tugas sudah diterbitkan
+              SizedBox(height: 12.h(context)),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(12.w(context)),
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12.w(context)),
-                      border: Border.all(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          PhosphorIcons.plusCircle(PhosphorIconsStyle.bold),
-                          color: AppColors.primary,
-                          size: 18.w(context),
-                        ),
-                        SizedBox(width: 8.w(context)),
-                        Text(
-                          'Buat Tugas',
-                          style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
-                            fontWeight: FontWeight.w700,
+                  child: InkWell(
+                    onTap: () {
+                      if (widget.isPublisher) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GuruTugasPenilaianScreen(
+                              taskId: widget.taskId!,
+                              title: widget.taskTitle,
+                              subject: widget.subjectName,
+                              className: widget.className,
+                            ),
                           ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TugasDetailScreen(
+                              taskId: widget.taskId!,
+                              subject: widget.subjectName,
+                              teacher: widget.teacherName,
+                              title: widget.taskTitle ?? 'Tugas Pembelajaran',
+                              timeInfo: widget.taskDueDate != null ? 'Tenggat: ${widget.taskDueDate}' : 'Tugas Pembelajaran',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                      decoration: BoxDecoration(
+                        color: widget.isPublisher
+                            ? AppColors.primary.withValues(alpha: 0.08)
+                            : AppColors.secondary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        border: Border.all(
+                          color: widget.isPublisher ? AppColors.primary : AppColors.secondary,
+                          width: 1.5,
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            widget.isPublisher
+                                ? PhosphorIcons.checks(PhosphorIconsStyle.bold)
+                                : PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
+                            color: widget.isPublisher ? AppColors.primary : AppColors.secondary,
+                            size: 18.w(context),
+                          ),
+                          SizedBox(width: 8.w(context)),
+                          Text(
+                            widget.isPublisher ? 'Buka Penilaian Tugas' : 'Buka / Kerjakan Tugas',
+                            style: AppTextStyles.labelMedium(
+                              context,
+                              color: widget.isPublisher ? AppColors.primary : AppColors.secondary,
+                            ).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ] else if (widget.isPublisher) ...[
+              // Tugas belum dibuat oleh guru
+              SizedBox(height: 12.h(context)),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.w(context)),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GuruInputTugasScreen(
+                            initialSubjectId: widget.subjectId,
+                            initialJournalId: widget.journalId,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            PhosphorIcons.plusCircle(PhosphorIconsStyle.bold),
+                            color: AppColors.primary,
+                            size: 18.w(context),
+                          ),
+                          SizedBox(width: 8.w(context)),
+                          Text(
+                            'Buat Tugas',
+                            style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
 
           if (widget.hasImages) ...[

@@ -122,6 +122,7 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
                           context,
                           MaterialPageRoute(
                             builder: (context) => GuruTugasPenilaianScreen(
+                              taskId: tugas['id']?.toString() ?? '',
                               title: tugas['title'],
                               subject: tugas['subject_name'],
                               className: tugas['class_name'],

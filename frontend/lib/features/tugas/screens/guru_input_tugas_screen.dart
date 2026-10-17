@@ -33,8 +33,8 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   final _judulController = TextEditingController();
   final _instruksiController = TextEditingController();
   
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
   
   File? _selectedFile;
   String? _fileName;
@@ -45,6 +45,12 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
     super.initState();
     _selectedMapel = widget.initialSubjectId;
     _selectedJurnal = widget.initialJournalId;
+    
+    // Default deadline: besok pukul 23:59 WIB
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    _selectedDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    _selectedTime = const TimeOfDay(hour: 23, minute: 59);
+
     Future.microtask(() => ref.read(jurnalProvider.notifier).fetchTerbitOptions());
   }
 
@@ -58,7 +64,7 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx'],
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx', 'zip'],
     );
 
     if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
@@ -87,11 +93,11 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
+      initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null) {
       setState(() {
         _selectedDate = picked;
       });
@@ -101,9 +107,9 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 23, minute: 59),
+      initialTime: _selectedTime,
     );
-    if (picked != null && picked != _selectedTime) {
+    if (picked != null) {
       setState(() {
         _selectedTime = picked;
       });
@@ -114,6 +120,7 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   Widget build(BuildContext context) {
     final jurnalState = ref.watch(jurnalProvider);
     final isSubmitting = ref.watch(tugasProvider).isLoading;
+    final isLinkedFromJournal = widget.initialJournalId != null && widget.initialJournalId!.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -132,8 +139,8 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
               style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
             ),
             Text(
-              'Terbitkan untuk siswa',
-              style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
+              isLinkedFromJournal ? 'Terhubung dengan Jurnal Mengajar' : 'Terbitkan tugas untuk kelas siswa',
+              style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
             ),
           ],
         ),
@@ -143,128 +150,156 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
           final subjects = data['subjects'] as List<dynamic>? ?? [];
           
           return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 24.h(context)),
+            padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 20.h(context)),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionTitle(context, 'Pilih Mata Pelajaran', PhosphorIcons.bookBookmark(PhosphorIconsStyle.bold)),
-                  Spacing.custom(context, 16),
-                  _buildDropdownField(
-                    context,
-                    label: 'Mata Pelajaran',
-                    value: _selectedMapel,
-                    items: subjects.map((s) => {'id': s['id'], 'label': s['name']}).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedMapel = val;
-                        _selectedJurnal = null; // reset jurnal
-                      });
-                    },
-                    icon: PhosphorIcons.bookBookmark(PhosphorIconsStyle.regular),
-                  ),
-
-                  if (_selectedMapel != null) ...[
-                    Spacing.custom(context, 32),
-                    _buildSectionTitle(context, 'Pilih Jurnal', PhosphorIcons.notebook(PhosphorIconsStyle.bold)),
-                    Spacing.custom(context, 16),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final journalsAsync = ref.watch(journalsBySubjectProvider(_selectedMapel!));
-                        return journalsAsync.when(
-                          data: (journals) {
-                            if (journals.isEmpty) {
-                              return Container(
-                                padding: EdgeInsets.all(16.w(context)),
-                                decoration: BoxDecoration(
-                                  color: AppColors.warning.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12.w(context)),
-                                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.warning),
-                                    SizedBox(width: 12.w(context)),
-                                    Expanded(
-                                      child: Text(
-                                        'Tidak ada jurnal yang ditemukan untuk mata pelajaran ini. Buat jurnal terlebih dahulu.',
-                                        style: AppTextStyles.bodySmall(context, color: AppColors.warning),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                            return _buildDropdownField(
-                              context,
-                              label: 'Jurnal Terkait',
-                              value: _selectedJurnal,
-                              items: journals.map((j) {
-                                final date = DateFormat('dd MMM yyyy').format(DateTime.parse(j['created_at']));
-                                return {'id': j['id'], 'label': '${j['topic_material']} ($date)'};
-                              }).toList(),
-                              onChanged: (val) {
-                                setState(() {
-                                  _selectedJurnal = val;
-                                });
-                              },
-                              icon: PhosphorIcons.notebook(PhosphorIconsStyle.regular),
-                            );
-                          },
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, s) => Text('Gagal memuat jurnal: $e', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
-                        );
-                      },
+                  // Jika terhubung dari Jurnal
+                  if (isLinkedFromJournal) ...[
+                    Container(
+                      padding: EdgeInsets.all(14.w(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(14.w(context)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(PhosphorIcons.link(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                          SizedBox(width: 10.w(context)),
+                          Expanded(
+                            child: Text(
+                              'Tugas ini otomatis terhubung ke jurnal pembelajaran yang baru saja Anda pilih.',
+                              style: AppTextStyles.bodySmall(context, color: AppColors.onPrimaryContainer),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    Spacing.custom(context, 16),
                   ],
 
-                  if (_selectedJurnal != null) ...[
-                    Spacing.custom(context, 32),
-                    _buildSectionTitle(context, 'Informasi Tugas', PhosphorIcons.info(PhosphorIconsStyle.bold)),
-                    Spacing.custom(context, 16),
+                  if (!isLinkedFromJournal) ...[
+                    _buildSectionTitle(context, 'Pilih Mata Pelajaran', PhosphorIcons.bookBookmark(PhosphorIconsStyle.bold)),
+                    Spacing.custom(context, 12),
+                    _buildDropdownField(
+                      context,
+                      label: 'Mata Pelajaran',
+                      value: _selectedMapel,
+                      items: subjects.map((s) => {'id': s['id'], 'label': s['name']}).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedMapel = val;
+                          _selectedJurnal = null; // reset jurnal
+                        });
+                      },
+                      icon: PhosphorIcons.bookBookmark(PhosphorIconsStyle.regular),
+                    ),
+
+                    if (_selectedMapel != null) ...[
+                      Spacing.custom(context, 24),
+                      _buildSectionTitle(context, 'Pilih Jurnal Terkait', PhosphorIcons.notebook(PhosphorIconsStyle.bold)),
+                      Spacing.custom(context, 12),
+                      Consumer(
+                        builder: (context, ref, child) {
+                          final journalsAsync = ref.watch(journalsBySubjectProvider(_selectedMapel!));
+                          return journalsAsync.when(
+                            data: (journals) {
+                              if (journals.isEmpty) {
+                                return Container(
+                                  padding: EdgeInsets.all(16.w(context)),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12.w(context)),
+                                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), color: AppColors.warning),
+                                      SizedBox(width: 12.w(context)),
+                                      Expanded(
+                                        child: Text(
+                                          'Belum ada jurnal yang diterbitkan untuk mapel ini. Silakan terbitkan jurnal mengajar terlebih dahulu.',
+                                          style: AppTextStyles.bodySmall(context, color: AppColors.warning),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return _buildDropdownField(
+                                context,
+                                label: 'Jurnal Mengajar',
+                                value: _selectedJurnal,
+                                items: journals.map((j) {
+                                  final date = DateFormat('dd MMM yyyy').format(DateTime.parse(j['created_at']));
+                                  return {'id': j['id'], 'label': '${j['topic_material']} ($date)'};
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedJurnal = val;
+                                  });
+                                },
+                                icon: PhosphorIcons.notebook(PhosphorIconsStyle.regular),
+                              );
+                            },
+                            loading: () => const Center(child: CircularProgressIndicator()),
+                            error: (e, s) => Text('Gagal memuat jurnal: $e', style: AppTextStyles.bodyMedium(context, color: AppColors.error)),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+
+                  if (_selectedJurnal != null || isLinkedFromJournal) ...[
+                    Spacing.custom(context, 24),
+                    _buildSectionTitle(context, 'Detail Tugas', PhosphorIcons.notePencil(PhosphorIconsStyle.bold)),
+                    Spacing.custom(context, 12),
                     _buildTextField(
                       context,
                       label: 'Judul Tugas',
                       controller: _judulController,
-                      hint: 'Contoh: Makalah Sejarah VOC',
+                      hint: 'Contoh: Analisis Dinamika Struktur Organisasi',
                       icon: PhosphorIcons.textT(PhosphorIconsStyle.regular),
-                      validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Judul tugas wajib diisi' : null,
                     ),
                     Spacing.custom(context, 16),
                     _buildTextField(
                       context,
-                      label: 'Instruksi Pengerjaan',
+                      label: 'Petunjuk & Instruksi Pengerjaan',
                       controller: _instruksiController,
-                      hint: 'Jelaskan instruksi atau format tugas...',
-                      maxLines: 5,
-                      validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
+                      hint: 'Jelaskan tata cara pengerjaan, format berkas, atau kriteria penilaian...',
+                      maxLines: 4,
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Instruksi tugas wajib diisi' : null,
                     ),
 
-                    Spacing.custom(context, 32),
-                    _buildSectionTitle(context, 'Pengaturan Tambahan', PhosphorIcons.slidersHorizontal(PhosphorIconsStyle.bold)),
-                    Spacing.custom(context, 16),
+                    Spacing.custom(context, 24),
+                    _buildSectionTitle(context, 'Tenggat Waktu Pengumpulan', PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold)),
+                    Spacing.custom(context, 12),
                     
                     Row(
                       children: [
                         Expanded(
                           child: InkWell(
                             onTap: () => _selectDate(context),
+                            borderRadius: BorderRadius.circular(12.w(context)),
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+                              padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(12.w(context)),
-                                border: Border.all(color: AppColors.onSurface.withValues(alpha: 0.1)),
+                                border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20),
-                                  SizedBox(width: 12.w(context)),
+                                  Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20.w(context)),
+                                  SizedBox(width: 10.w(context)),
                                   Expanded(
                                     child: Text(
-                                      _selectedDate == null ? 'Tanggal Tenggat' : DateFormat('dd MMM yyyy').format(_selectedDate!),
-                                      style: AppTextStyles.bodyMedium(context, color: _selectedDate == null ? AppColors.onSurface.withValues(alpha: 0.5) : AppColors.onSurface),
+                                      DateFormat('dd MMM yyyy').format(_selectedDate),
+                                      style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ],
@@ -272,25 +307,26 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(width: 16.w(context)),
+                        SizedBox(width: 12.w(context)),
                         Expanded(
                           child: InkWell(
                             onTap: () => _selectTime(context),
+                            borderRadius: BorderRadius.circular(12.w(context)),
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+                              padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
                                 borderRadius: BorderRadius.circular(12.w(context)),
-                                border: Border.all(color: AppColors.onSurface.withValues(alpha: 0.1)),
+                                border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(PhosphorIcons.clock(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20),
-                                  SizedBox(width: 12.w(context)),
+                                  Icon(PhosphorIcons.clock(PhosphorIconsStyle.regular), color: AppColors.primary, size: 20.w(context)),
+                                  SizedBox(width: 10.w(context)),
                                   Expanded(
                                     child: Text(
-                                      _selectedTime == null ? 'Jam Tenggat' : _selectedTime!.format(context),
-                                      style: AppTextStyles.bodyMedium(context, color: _selectedTime == null ? AppColors.onSurface.withValues(alpha: 0.5) : AppColors.onSurface),
+                                      _selectedTime.format(context),
+                                      style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                 ],
@@ -302,17 +338,17 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                     ),
 
                     Spacing.custom(context, 24),
-                    _buildSectionTitle(context, 'Lampiran (Opsional)', PhosphorIcons.paperclip(PhosphorIconsStyle.bold)),
-                    Spacing.custom(context, 16),
+                    _buildSectionTitle(context, 'Lampiran Tugas Guru (Opsional)', PhosphorIcons.paperclip(PhosphorIconsStyle.bold)),
+                    Spacing.custom(context, 12),
                     InkWell(
                       onTap: _pickFile,
                       borderRadius: BorderRadius.circular(16.w(context)),
                       child: Container(
-                        padding: EdgeInsets.all(24.w(context)),
+                        padding: EdgeInsets.all(20.w(context)),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.05),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(16.w(context)),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), style: BorderStyle.solid),
+                          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
                         ),
                         child: _selectedFile == null ? Column(
                           children: [
@@ -322,31 +358,31 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                                 color: AppColors.primary.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 28),
+                              child: Icon(PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 26.w(context)),
                             ),
-                            SizedBox(height: 12.h(context)),
-                            Text('Tap untuk unggah file', style: AppTextStyles.labelLarge(context, color: AppColors.primary)),
+                            SizedBox(height: 10.h(context)),
+                            Text('Ketuk untuk unggah soal / modul tugas', style: AppTextStyles.labelLarge(context, color: AppColors.primary)),
                             SizedBox(height: 4.h(context)),
-                            Text('Maks. 20MB (PDF, JPG, PNG, DOCX, dll)', style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5))),
+                            Text('PDF, Dokumen, atau Gambar (Maks. 20MB)', style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)),
                           ],
                         ) : Row(
                           children: [
                             Container(
-                              padding: EdgeInsets.all(12.w(context)),
+                              padding: EdgeInsets.all(10.w(context)),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(12.w(context)),
+                                color: AppColors.primaryContainer,
+                                borderRadius: BorderRadius.circular(10.w(context)),
                               ),
-                              child: Icon(PhosphorIcons.file(PhosphorIconsStyle.fill), color: Colors.white, size: 24),
+                              child: Icon(PhosphorIcons.file(PhosphorIconsStyle.fill), color: AppColors.primary, size: 22.w(context)),
                             ),
-                            SizedBox(width: 16.w(context)),
+                            SizedBox(width: 12.w(context)),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_fileName ?? 'File Terpilih', style: AppTextStyles.titleSmall(context, color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Text(_fileName ?? 'Berkas Terlampir', style: AppTextStyles.titleSmall(context, color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   SizedBox(height: 2.h(context)),
-                                  Text('${(_selectedFile!.lengthSync() / (1024 * 1024)).toStringAsFixed(2)} MB', style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
+                                  Text('${(_selectedFile!.lengthSync() / (1024 * 1024)).toStringAsFixed(2)} MB', style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)),
                                 ],
                               ),
                             ),
@@ -368,35 +404,46 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                       Spacing.custom(context, 16),
                       LinearProgressIndicator(
                         value: _uploadProgress,
-                        backgroundColor: AppColors.surface,
+                        backgroundColor: AppColors.backgroundLight,
                         valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
                       SizedBox(height: 4.h(context)),
-                      Text('${(_uploadProgress * 100).toStringAsFixed(1)}% Mengunggah...', style: AppTextStyles.labelSmall(context, color: AppColors.primary)),
+                      Text('${(_uploadProgress * 100).toStringAsFixed(0)}% Mengunggah...', style: AppTextStyles.labelSmall(context, color: AppColors.primary)),
                     ],
 
-                    Spacing.custom(context, 40),
+                    Spacing.custom(context, 32),
                     SizedBox(
                       width: double.infinity,
+                      height: 48.h(context),
                       child: ElevatedButton(
                         onPressed: isSubmitting ? null : () async {
                           if (_formKey.currentState!.validate()) {
-                            if (_selectedDate == null || _selectedTime == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tenggat waktu wajib diisi!'), backgroundColor: Colors.red));
+                            final effectiveJournalId = _selectedJurnal ?? widget.initialJournalId;
+                            if (effectiveJournalId == null || effectiveJournalId.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Pilih jurnal mengajar terlebih dahulu!'), backgroundColor: AppColors.error),
+                              );
                               return;
                             }
-                            
+
                             final dueDateTime = DateTime(
-                              _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
-                              _selectedTime!.hour, _selectedTime!.minute,
+                              _selectedDate.year, _selectedDate.month, _selectedDate.day,
+                              _selectedTime.hour, _selectedTime.minute,
                             );
+
+                            if (dueDateTime.isBefore(DateTime.now())) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Tenggat waktu tidak boleh di masa lalu!'), backgroundColor: AppColors.error),
+                              );
+                              return;
+                            }
                             
                             final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(dueDateTime);
                             
                             final success = await ref.read(tugasProvider.notifier).createTugas(
-                              journalId: _selectedJurnal!,
-                              title: _judulController.text,
-                              description: _instruksiController.text,
+                              journalId: effectiveJournalId,
+                              title: _judulController.text.trim(),
+                              description: _instruksiController.text.trim(),
                               dueDate: formattedDate,
                               attachment: _selectedFile,
                               onProgress: (progress) {
@@ -407,10 +454,15 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                             );
                             
                             if (success && mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tugas berhasil diterbitkan!'), backgroundColor: Colors.green));
+                              ref.invalidate(getTasksProvider);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Tugas berhasil diterbitkan untuk siswa!'), backgroundColor: AppColors.secondary),
+                              );
                               Navigator.pop(context);
                             } else if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal menerbitkan tugas.'), backgroundColor: Colors.red));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Gagal menerbitkan tugas. Coba beberapa saat lagi.'), backgroundColor: AppColors.error),
+                              );
                               setState(() {
                                 _uploadProgress = 0.0;
                               });
@@ -420,13 +472,12 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 16.h(context)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.w(context))),
                           elevation: 0,
                         ),
                         child: isSubmitting
-                            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Text('Terbitkan Tugas', style: AppTextStyles.titleSmall(context, color: Colors.white)),
+                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text('Terbitkan Tugas Sekarang', style: AppTextStyles.titleSmall(context, color: Colors.white)),
                       ),
                     ),
                   ],
@@ -435,12 +486,13 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, s) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Gagal memuat opsi mapel'),
+              const Text('Gagal memuat data formulir tugas'),
+              SizedBox(height: 8.h(context)),
               ElevatedButton(
                 onPressed: () => ref.read(jurnalProvider.notifier).fetchTerbitOptions(),
                 child: const Text('Coba Lagi'),
@@ -455,9 +507,9 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.primary, size: 24),
+        Icon(icon, color: AppColors.primary, size: 20.w(context)),
         SizedBox(width: 8.w(context)),
-        Text(title, style: AppTextStyles.titleMedium(context, color: AppColors.onBackground)),
+        Text(title, style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -466,7 +518,6 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
     BuildContext context, {
     required String label,
     TextEditingController? controller,
-    String? initialValue,
     String? hint,
     IconData? icon,
     int maxLines = 1,
@@ -475,31 +526,30 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.labelLarge(context, color: AppColors.onSurface)),
-        SizedBox(height: 8.h(context)),
+        Text(label, style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold)),
+        SizedBox(height: 6.h(context)),
         TextFormField(
           controller: controller,
-          initialValue: initialValue,
           maxLines: maxLines,
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.4)),
-            prefixIcon: icon != null ? Icon(icon, color: AppColors.onSurface.withValues(alpha: 0.5)) : null,
+            hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+            prefixIcon: icon != null ? Icon(icon, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)) : null,
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.all(16.w(context)),
+            contentPadding: EdgeInsets.all(14.w(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: BorderSide(color: AppColors.onSurface.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.15)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: BorderSide(color: AppColors.onSurface.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.15)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
@@ -523,8 +573,8 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.labelLarge(context, color: AppColors.onSurface)),
-        SizedBox(height: 8.h(context)),
+        Text(label, style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold)),
+        SizedBox(height: 6.h(context)),
         DropdownButtonFormField<String>(
           value: value,
           onChanged: onChanged,
@@ -533,29 +583,27 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                 child: Text(item['label'].toString(), style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface)),
               )).toList(),
           decoration: InputDecoration(
-            prefixIcon: icon != null ? Icon(icon, color: AppColors.onSurface.withValues(alpha: 0.5)) : null,
+            prefixIcon: icon != null ? Icon(icon, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)) : null,
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 16.h(context)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 14.h(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: BorderSide(color: AppColors.onSurface.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.15)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: BorderSide(color: AppColors.onSurface.withValues(alpha: 0.1)),
+              borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.15)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
             ),
           ),
           dropdownColor: AppColors.surface,
-          icon: Icon(PhosphorIcons.caretDown(), color: AppColors.onSurface.withValues(alpha: 0.5)),
+          icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurfaceVariant, size: 16.w(context)),
         ),
       ],
     );
   }
 }
-
-

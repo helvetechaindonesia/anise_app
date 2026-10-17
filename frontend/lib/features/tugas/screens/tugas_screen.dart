@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/constants/api_constants.dart';
 import '../widgets/tugas_list_tab.dart';
 import '../providers/tugas_provider.dart';
 
@@ -17,20 +18,44 @@ class TugasScreen extends ConsumerStatefulWidget {
 class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<String> _months = [
-    'Semua Bulan',
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-  ];
-  final List<String> _years = ['Semua Tahun', '2024', '2025', '2026', '2027'];
+  static final DateTime _releaseDate = ApiConstants.appReleaseDate; // 26 Oktober 2026
 
-  String _selectedMonth = 'Semua Bulan';
-  String _selectedYear = 'Semua Tahun';
+  List<String> get _years {
+    final currentYear = DateTime.now().year;
+    final releaseYear = _releaseDate.year;
+    final maxYear = currentYear >= releaseYear ? currentYear + 1 : releaseYear + 1;
+    final List<String> list = ['Semua Tahun'];
+    for (int y = releaseYear; y <= maxYear; y++) {
+      list.add(y.toString());
+    }
+    return list;
+  }
+
+  List<String> get _months {
+    const allMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final List<String> list = ['Semua Bulan'];
+    if (_selectedYear == _releaseDate.year.toString()) {
+      // Tidak boleh memilih bulan sebelum rilis aplikasi (Oktober 2026)
+      list.addAll(allMonths.sublist(_releaseDate.month - 1));
+    } else {
+      list.addAll(allMonths);
+    }
+    return list;
+  }
+
+  late String _selectedMonth;
+  late String _selectedYear;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    _selectedYear = 'Semua Tahun';
+    _selectedMonth = 'Semua Bulan';
   }
 
   @override
@@ -82,8 +107,12 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
       }
 
       if (_selectedMonth != 'Semua Bulan') {
-        final monthIndex = _months.indexOf(_selectedMonth); // 1 = Jan, 12 = Des
-        if (monthIndex > 0 && parsed.month != monthIndex) {
+        const allCalendarMonths = [
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        final calMonthIndex = allCalendarMonths.indexOf(_selectedMonth) + 1;
+        if (calMonthIndex > 0 && parsed.month != calMonthIndex) {
           return false;
         }
       }
@@ -241,6 +270,9 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
                   if (newValue != null) {
                     setState(() {
                       _selectedYear = newValue;
+                      if (!_months.contains(_selectedMonth)) {
+                        _selectedMonth = 'Semua Bulan';
+                      }
                     });
                   }
                 },
@@ -324,10 +356,10 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
         dividerColor: AppColors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         splashBorderRadius: BorderRadius.circular(100),
-        tabs: [
-          Tab(text: 'Belum ($belumCount)'),
-          Tab(text: 'Selesai ($selesaiCount)'),
-          Tab(text: 'Terlewat ($terlewatCount)'),
+        tabs: const [
+          Tab(text: 'Belum'),
+          Tab(text: 'Selesai'),
+          Tab(text: 'Terlewat'),
         ],
       ),
     );

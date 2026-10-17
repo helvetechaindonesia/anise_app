@@ -15,6 +15,7 @@ import '../providers/jurnal_provider.dart';
 import '../widgets/terbit_jurnal_dropdowns.dart';
 import '../widgets/terbit_jurnal_attachment_box.dart';
 import '../widgets/terbit_jurnal_sop_banner.dart';
+import '../../tugas/providers/tugas_provider.dart';
 
 class GuruTerbitJurnalScreen extends ConsumerStatefulWidget {
   final String? initialScheduleId;
@@ -701,6 +702,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                       // Refresh provider agar feed guru & siswa langsung memuat jurnal baru
                       ref.invalidate(allJournalsProvider);
                       ref.invalidate(kelasJadwalProvider);
+                      ref.invalidate(getTasksProvider);
 
                       await AniseFeedbackDialog.showSuccess(
                         context,
