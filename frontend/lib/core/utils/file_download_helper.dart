@@ -23,18 +23,25 @@ class FileDownloadHelper {
 
     String absoluteUrl = fileUrl.trim();
     if (!absoluteUrl.startsWith('http://') && !absoluteUrl.startsWith('https://')) {
-      final base = ApiConstants.baseUrl.replaceAll('/api', '');
-      if (!absoluteUrl.startsWith('/')) {
-        absoluteUrl = '/$absoluteUrl';
+      if (absoluteUrl.startsWith('/storage/')) {
+        // Berkas statis di web server
+        final serverHost = ApiConstants.baseUrl.replaceAll('/api', '');
+        absoluteUrl = '$serverHost$absoluteUrl';
+      } else {
+        // Endpoint API (misal /journals/{id}/download)
+        final cleanBase = ApiConstants.baseUrl.endsWith('/')
+            ? ApiConstants.baseUrl.substring(0, ApiConstants.baseUrl.length - 1)
+            : ApiConstants.baseUrl;
+        final cleanPath = absoluteUrl.startsWith('/') ? absoluteUrl : '/$absoluteUrl';
+        absoluteUrl = '$cleanBase$cleanPath';
       }
-      absoluteUrl = '$base$absoluteUrl';
     }
 
     // Nama berkas
     String fileName = preferredFileName?.trim() ?? '';
     if (fileName.isEmpty) {
       fileName = absoluteUrl.split('?').first.split('/').last;
-      if (fileName.isEmpty) {
+      if (fileName.isEmpty || fileName.contains('download')) {
         fileName = 'Dokumen_${DateTime.now().millisecondsSinceEpoch}.pdf';
       }
     }
