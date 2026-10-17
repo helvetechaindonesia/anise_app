@@ -228,6 +228,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
               fileName: widget.fileName,
               fileSize: widget.fileSize,
               attachmentUrl: widget.attachmentUrl,
+              journalId: widget.journalId,
             ),
           ],
           if (widget.hasImages) ...[

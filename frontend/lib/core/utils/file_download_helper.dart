@@ -7,6 +7,7 @@ import '../constants/colors.dart';
 import '../constants/api_constants.dart';
 import '../theme/app_text_styles.dart';
 import 'responsive.dart';
+import 'shared_prefs.dart';
 
 class FileDownloadHelper {
   /// Mengunduh berkas langsung via Dio dan menyimpannya ke folder Download HP
@@ -77,9 +78,16 @@ class FileDownloadHelper {
       }
 
       final dio = Dio();
+      final token = await SharedPrefs.getToken();
+      final options = Options(
+        headers: {
+          if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
+      );
       await dio.download(
         absoluteUrl,
         savePath,
+        options: options,
       );
 
       if (!context.mounted) return;

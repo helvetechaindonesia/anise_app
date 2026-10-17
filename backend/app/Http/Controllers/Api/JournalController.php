@@ -1318,4 +1318,35 @@ class JournalController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Endpoint unduh berkas lampiran jurnal secara langsung dan aman
+     * Menjamin berkas tetap dapat diunduh baik via storage symlink maupun direct response
+     */
+    public function downloadAttachment($journalId)
+    {
+        try {
+            $journal = Journal::findOrFail($journalId);
+
+            if (empty($journal->attachment_url)) {
+                return response()->json(['status' => 'error', 'message' => 'Jurnal ini tidak memiliki berkas lampiran.'], 404);
+            }
+
+            // Path relatif di storage disk public: buang prefix '/storage/'
+            $relativePath = ltrim(str_replace('/storage/', '', $journal->attachment_url), '/');
+
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($relativePath)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas fisik tidak ditemukan di server.'], 404);
+            }
+
+            $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
+            $fileName = basename($fullPath);
+
+            return response()->download($fullPath, $fileName, [
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengunduh berkas: ' . $e->getMessage()], 500);
+        }
+    }
 }

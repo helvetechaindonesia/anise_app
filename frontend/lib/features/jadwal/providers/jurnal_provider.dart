@@ -88,6 +88,17 @@ final allJournalsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asyn
   
   if (user == null) return [];
 
+  // Polling ringan real-time setiap 5 detik saat layar jadwal aktif
+  final timer = dart_io.Platform.isWindows || dart_io.Platform.isAndroid || dart_io.Platform.isIOS
+      ? Stream.periodic(const Duration(seconds: 5)).listen((_) {
+          ref.invalidateSelf();
+        })
+      : null;
+
+  ref.onDispose(() {
+    timer?.cancel();
+  });
+
   final endpoint = user.role == UserRole.siswa ? '/journals/siswa' : '/journals/guru';
 
   try {

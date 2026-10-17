@@ -152,6 +152,7 @@ class FileAttachmentWidget extends StatelessWidget {
   final String? fileName;
   final String? fileSize;
   final String? attachmentUrl;
+  final String? journalId;
   final VoidCallback? onDownload;
 
   const FileAttachmentWidget({
@@ -160,6 +161,7 @@ class FileAttachmentWidget extends StatelessWidget {
     this.fileName,
     this.fileSize,
     this.attachmentUrl,
+    this.journalId,
     this.onDownload,
   }) : super(key: key);
 
@@ -169,7 +171,7 @@ class FileAttachmentWidget extends StatelessWidget {
       return;
     }
 
-    if (attachmentUrl == null || attachmentUrl!.trim().isEmpty) {
+    if ((attachmentUrl == null || attachmentUrl!.trim().isEmpty) && (journalId == null || journalId!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tautan berkas lampiran tidak tersedia.'),
@@ -179,9 +181,15 @@ class FileAttachmentWidget extends StatelessWidget {
       return;
     }
 
+    // Jika ada journalId, arahkan ke endpoint download terproteksi
+    String targetUrl = attachmentUrl ?? '';
+    if (journalId != null && journalId!.isNotEmpty) {
+      targetUrl = '/journals/$journalId/download';
+    }
+
     await FileDownloadHelper.downloadFile(
       context: context,
-      fileUrl: attachmentUrl!,
+      fileUrl: targetUrl,
       preferredFileName: fileName,
     );
   }
