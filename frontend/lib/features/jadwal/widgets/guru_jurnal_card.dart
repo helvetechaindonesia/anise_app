@@ -9,8 +9,11 @@ import '../../../core/widgets/anise_card.dart';
 import '../providers/jurnal_provider.dart';
 import '../screens/guru_terbit_jurnal_screen.dart';
 import '../screens/guru_jurnal_detail_screen.dart';
+import 'package:dio/dio.dart';
+import '../../../core/network/dio_client.dart';
 import '../../presensi/screens/presensi_camera_screen.dart';
 import 'guru_isi_jurnal_dialog.dart';
+import 'schedule_card.dart';
 import 'schedule_share_modal.dart';
 
 class GuruJurnalCard extends ConsumerWidget {
@@ -124,6 +127,204 @@ class GuruJurnalCard extends ConsumerWidget {
       // Border abu-abu / hitam muda untuk card terbit / selesai
       cardBorderColor = AppColors.outlineVariant;
       cardBorderWidth = 1.0;
+    }
+
+    // Jika jurnal SUDAH DITERBITKAN (!isScheduleOnly):
+    // Standardisasi UI dengan ScheduleCard yang persis seperti siswa
+    if (!isScheduleOnly) {
+      String uploadTime = 'Jadwal Rutin';
+      if (journal['created_at'] != null) {
+        final createdAt = DateTime.tryParse(journal['created_at'].toString());
+        if (createdAt != null) {
+          final diff = DateTime.now().difference(createdAt);
+          if (diff.inHours < 1) {
+            uploadTime = '${diff.inMinutes.clamp(1, 59)} Menit yang lalu';
+          } else if (diff.inHours < 24) {
+            uploadTime = '${diff.inHours} Jam yang lalu';
+          } else {
+            uploadTime = '${diff.inDays} Hari yang lalu';
+          }
+        }
+      }
+
+      ScheduleStatus cardStatus = ScheduleStatus.upcoming;
+      if (status == 'Selesai') {
+        cardStatus = ScheduleStatus.selesai;
+      } else if (status == 'Aktif') {
+        cardStatus = ScheduleStatus.live;
+      }
+
+      final bool hasTask = journal['has_task'] == true || journal['attachment_url'] != null;
+      final String? fileName = journal['attachment_url'] != null
+          ? journal['attachment_url'].toString().split('/').last
+          : (hasTask ? (journal['task_title'] ?? 'Tugas.pdf') : null);
+
+      final int likes = (journal['likes'] as num?)?.toInt() ?? 0;
+      final bool isLiked = journal['is_liked'] == true;
+      final bool isSaved = journal['is_saved'] == true;
+      final int comments = (journal['comments'] as num?)?.toInt() ?? 0;
+      final int rating = ((journal['rating'] as num?)?.toInt() ?? 5).clamp(1, 5);
+      final bool hasRated = journal['has_rated'] == true;
+      final int? userRating = (journal['my_rating'] as num?)?.toInt();
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: 16.h(context)),
+        child: ScheduleCard(
+          journalId: jId,
+          status: cardStatus,
+          timeRange: timeRange,
+          uploadTime: uploadTime,
+          subjectName: subjectName,
+          className: className,
+          teacherName: (journal['teacher'] != null && journal['teacher'].toString().trim().isNotEmpty)
+              ? journal['teacher'].toString().trim()
+              : 'Guru Pengajar',
+          teacherImage: journal['teacher_image'] as String?,
+          teacherRole: 'Guru Pengajar',
+          topicTitle: journal['topic'] as String?,
+          description: journal['description'] ?? 'Belum ada catatan materi.',
+          classNotes: journal['class_notes'] as String?,
+          hasFileAttachment: hasTask,
+          fileName: fileName,
+          fileSize: hasTask ? '1.5 MB' : null,
+          attachmentUrl: journal['attachment_url'] as String?,
+          likes: likes,
+          isLiked: isLiked,
+          isSaved: isSaved,
+          isPublisher: true,
+          comments: comments,
+          initialRating: rating,
+          hasRated: hasRated,
+          userRating: userRating,
+          customActionWidget: _buildActionArea(
+            context,
+            status,
+            isScheduleOnly,
+            isCheckedIn,
+            isFilled,
+            jId,
+            subjectName,
+            className,
+            timeRange,
+            selectedDateStr,
+          ),
+          onEdit: () async {
+            final res = await GuruIsiJurnalDialog.show(
+              context,
+              journalId: jId,
+              subjectName: subjectName,
+              className: className,
+              timeRange: timeRange,
+            );
+            if (res == true) {
+              onRefresh();
+            }
+          },
+          onDelete: () {
+            _confirmDeleteJournal(context, ref, jId, subjectName, className);
+          },
+          onRatingChanged: (newRating) async {
+            try {
+              final dio = ref.read(dioProvider);
+              await dio.post('/journals/$jId/rate', data: {'rating': newRating});
+              ref.invalidate(allJournalsProvider);
+            } catch (e) {
+              if (context.mounted) {
+                String errMsg = 'Gagal menyimpan penilaian.';
+                if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+                  errMsg = e.response!.data['message'].toString();
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(errMsg), backgroundColor: AppColors.error),
+                );
+              }
+            }
+          },
+          onLikeToggled: () async {
+            try {
+              final dio = ref.read(dioProvider);
+              await dio.post('/journals/$jId/like');
+            } catch (_) {}
+          },
+          onSaveToggled: () async {
+            try {
+              final dio = ref.read(dioProvider);
+              await dio.post('/journals/$jId/save');
+              ref.invalidate(allJournalsProvider);
+            } catch (_) {}
+          },
+          onFetchComments: () async {
+            try {
+              final dio = ref.read(dioProvider);
+              final res = await dio.get('/journals/$jId/comments');
+              if (res.data['status'] == 'success') {
+                final list = res.data['data'] as List<dynamic>;
+                return list.map((item) {
+                  String timeStr = 'Baru saja';
+                  if (item['created_at'] != null) {
+                    final dt = DateTime.tryParse(item['created_at'].toString());
+                    if (dt != null) {
+                      final diff = DateTime.now().difference(dt);
+                      if (diff.inMinutes < 1) {
+                        timeStr = 'Baru saja';
+                      } else if (diff.inHours < 1) {
+                        timeStr = '${diff.inMinutes}m lalu';
+                      } else if (diff.inHours < 24) {
+                        timeStr = '${diff.inHours}j lalu';
+                      } else {
+                        timeStr = '${diff.inDays}h lalu';
+                      }
+                    }
+                  }
+                  final isMe = item['is_me'] == true || item['can_delete'] == true;
+                  final authorName = item['author_name'] ?? (isMe ? 'Saya' : 'Siswa');
+                  return {
+                    'id': item['id'],
+                    'user': isMe ? 'Saya' : authorName,
+                    'text': item['comment_text'] ?? '',
+                    'time': timeStr,
+                    'is_me': isMe,
+                    'can_delete': item['can_delete'] == true,
+                  };
+                }).toList();
+              }
+            } catch (_) {}
+            return [];
+          },
+          onCommentSubmitted: (text) async {
+            try {
+              final dio = ref.read(dioProvider);
+              final res = await dio.post('/journals/$jId/comments', data: {'comment_text': text});
+              ref.invalidate(allJournalsProvider);
+              if (res.data['status'] == 'success') {
+                return res.data['data'] ?? true;
+              }
+              return false;
+            } catch (e) {
+              if (context.mounted) {
+                String errMsg = 'Gagal mengirim komentar.';
+                if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+                  errMsg = e.response!.data['message'].toString();
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(errMsg), backgroundColor: AppColors.error),
+                );
+              }
+              return false;
+            }
+          },
+          onDeleteComment: (commentId) async {
+            try {
+              final dio = ref.read(dioProvider);
+              final res = await dio.delete('/journals/$jId/comments/$commentId');
+              ref.invalidate(allJournalsProvider);
+              return res.data['status'] == 'success';
+            } catch (_) {
+              return false;
+            }
+          },
+        ),
+      );
     }
 
     return AniseCard(

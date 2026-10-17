@@ -324,6 +324,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                     timeRange: timeRange,
                     uploadTime: uploadTime,
                     subjectName: j['subject'] ?? 'Pelajaran',
+                    className: j['class_name'] as String?,
                     teacherName: (j['teacher'] != null && j['teacher'].toString().trim().isNotEmpty)
                         ? j['teacher'].toString().trim()
                         : (j['subject'] == 'Bahasa Indonesia'
@@ -333,7 +334,9 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                                 : 'Guru Pengajar')),
                     teacherImage: j['teacher_image'] as String?,
                     teacherRole: 'Guru Pengajar',
-                    description: j['description'] ?? j['topic'] ?? 'Belum ada catatan materi.',
+                    topicTitle: j['topic'] as String?,
+                    description: j['description'] ?? 'Belum ada catatan materi.',
+                    classNotes: j['class_notes'] as String?,
                     hasFileAttachment: hasTask,
                     fileName: fileName,
                     fileSize: hasTask ? '1.5 MB' : null,

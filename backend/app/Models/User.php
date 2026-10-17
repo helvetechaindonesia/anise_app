@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['full_name', 'username', 'email', 'password_hash', 'role_id', 'is_active', 'phone', 'address', 'gender', 'religion'])]
+#[Fillable(['full_name', 'username', 'email', 'password_hash', 'role_id', 'is_active', 'phone', 'address', 'gender', 'religion', 'avatar', 'birth_place', 'birth_date'])]
 #[Hidden(['password_hash', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -40,11 +40,16 @@ class User extends Authenticatable
     }
 
     // Append custom attribute
-    protected $appends = ['role_type'];
+    protected $appends = ['role_type', 'profile_picture'];
 
     public function getRoleTypeAttribute()
     {
         return $this->role ? $this->role->name : null;
+    }
+
+    public function getProfilePictureAttribute()
+    {
+        return $this->avatar;
     }
 
     // Relationships

@@ -8,6 +8,7 @@ import '../constants/api_constants.dart';
 import '../theme/app_text_styles.dart';
 import 'responsive.dart';
 import 'shared_prefs.dart';
+import 'local_notification_helper.dart';
 
 class FileDownloadHelper {
   /// Mengunduh berkas langsung via Dio dan menyimpannya ke folder Download HP
@@ -97,6 +98,13 @@ class FileDownloadHelper {
         options: options,
       );
 
+      // Trigger Push Notifikasi Sistem (Bisa diklik langsung buka berkas)
+      final downloadedFileName = savePath.split('/').last;
+      LocalNotificationHelper.showDownloadCompleteNotification(
+        filePath: savePath,
+        fileName: downloadedFileName,
+      );
+
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -112,7 +120,7 @@ class FileDownloadHelper {
               SizedBox(width: 10.w(context)),
               Expanded(
                 child: Text(
-                  'Tersimpan di Download: ${savePath.split('/').last}',
+                  'Tersimpan di Download: $downloadedFileName',
                   style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
                 ),
               ),

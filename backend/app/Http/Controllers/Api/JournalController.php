@@ -207,6 +207,28 @@ class JournalController extends Controller
             }
         }
 
+        // 3. Notifikasi ke seluruh siswa aktif di kelas bersangkutan
+        try {
+            $teacher = Auth::user();
+            $teacherName = $teacher->full_name ?: ($teacher->username ?? 'Guru Pengampu');
+            $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
+            $className = $schedule->class ? ($schedule->class->grade_level . ' ' . $schedule->class->name) : 'Kelas';
+            $dateStr = Carbon::parse($teachingDate)->locale('id')->isoFormat('dddd, D MMMM Y');
+
+            $notifTitle = "Materi Baru: {$subjectName}";
+            $notifMessage = "Bapak/Ibu {$teacherName} telah menerbitkan jurnal pembelajaran untuk {$subjectName} di {$className} ({$dateStr}). Silakan periksa materi & modul pembelajaran Anda.";
+
+            $studentIds = \App\Models\ClassStudent::where('class_id', $schedule->class_id)
+                ->where('status', 'ACTIVE')
+                ->pluck('student_id');
+
+            foreach ($studentIds as $sId) {
+                \App\Services\NotificationService::sendInAppNotification($sId, $notifTitle, $notifMessage);
+            }
+        } catch (\Throwable $err) {
+            \Log::warning("Gagal mengirim notifikasi terbit jurnal ke siswa: " . $err->getMessage());
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Jurnal berhasil diterbitkan',
@@ -842,7 +864,7 @@ class JournalController extends Controller
             // 2. Ambil seluruh jurnal mengajar untuk kelas siswa secara aman
             $journals = collect();
             try {
-                $withRelations = ['schedule.subject', 'schedule.teacher', 'teacher', 'subject'];
+                $withRelations = ['schedule.subject', 'schedule.teacher', 'schedule.class', 'teacher', 'subject'];
                 if (\Illuminate\Support\Facades\Schema::hasTable('journal_tasks')) {
                     $withRelations[] = 'tasks';
                 }
@@ -958,11 +980,14 @@ class JournalController extends Controller
                     'id' => $journal->id,
                     'schedule_id' => $journal->schedule_id,
                     'type' => 'journal',
+                    'status' => $journal->status ?: 'Aktif',
                     'topic' => $journal->topic_material,
                     'description' => $journal->description ?: $journal->topic_material,
                     'created_at' => $journal->created_at ? $journal->created_at->toIso8601String() : null,
                     'teaching_date' => $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : null,
                     'subject' => $subjectName,
+                    'class_name' => $sched?->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas',
+                    'class_id' => $sched?->class_id ?? $journal->class_id,
                     'teacher' => $teacherName,
                     'teacher_image' => $teacher?->profile_picture ?? null,
                     'start_time' => $startTime,

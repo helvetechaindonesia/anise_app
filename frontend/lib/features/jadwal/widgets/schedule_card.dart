@@ -14,10 +14,13 @@ class ScheduleCard extends StatefulWidget {
   final String timeRange;
   final String uploadTime;
   final String subjectName;
+  final String? className;
   final String teacherName;
   final String? teacherImage;
   final String teacherRole;
+  final String? topicTitle;
   final String description;
+  final String? classNotes;
   final bool hasFileAttachment;
   final String? fileName;
   final String? fileSize;
@@ -31,6 +34,7 @@ class ScheduleCard extends StatefulWidget {
   final bool hasRated;
   final int? userRating;
   final bool isPublisher;
+  final Widget? customActionWidget;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final ValueChanged<int>? onRatingChanged;
@@ -47,10 +51,13 @@ class ScheduleCard extends StatefulWidget {
     required this.timeRange,
     required this.uploadTime,
     required this.subjectName,
+    this.className,
     required this.teacherName,
     this.teacherImage,
     required this.teacherRole,
+    this.topicTitle,
     required this.description,
+    this.classNotes,
     this.hasFileAttachment = false,
     this.fileName,
     this.fileSize,
@@ -60,6 +67,7 @@ class ScheduleCard extends StatefulWidget {
     this.isLiked = false,
     this.isSaved = false,
     this.isPublisher = false,
+    this.customActionWidget,
     this.onEdit,
     this.onDelete,
     required this.comments,
@@ -209,16 +217,40 @@ class _ScheduleCardState extends State<ScheduleCard> {
           // KONTEN: Mata Pelajaran & Waktu Kelas
           PostTitleWidget(
             subjectName: widget.subjectName,
+            className: widget.className,
             timeRange: widget.timeRange,
             isLive: false,
           ),
           SizedBox(height: 12.h(context)),
           
-          // DESKRIPSI (Caption)
+          // DESKRIPSI (Caption & Topik Materi)
+          if (widget.topicTitle != null && widget.topicTitle!.trim().isNotEmpty) ...[
+            Text(
+              widget.topicTitle!,
+              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 6.h(context)),
+          ],
           Text(
             widget.description,
             style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
           ),
+          
+          if (widget.classNotes != null && widget.classNotes!.trim().isNotEmpty) ...[
+            SizedBox(height: 10.h(context)),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(10.w(context)),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(10.w(context)),
+              ),
+              child: Text(
+                'Catatan KBM: "${widget.classNotes}"',
+                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
           
           // ATTACHMENTS
           if (widget.hasFileAttachment) ...[
@@ -243,9 +275,9 @@ class _ScheduleCardState extends State<ScheduleCard> {
               onRatingChanged: widget.onRatingChanged,
             ),
           ],
-          if (isLive) ...[
+          if (widget.customActionWidget != null) ...[
             SizedBox(height: 16.h(context)),
-            const LiveActionWidget(),
+            widget.customActionWidget!,
           ],
 
           SizedBox(height: 16.h(context)),

@@ -107,12 +107,14 @@ class TeacherHeaderWidget extends StatelessWidget {
 
 class PostTitleWidget extends StatelessWidget {
   final String subjectName;
+  final String? className;
   final String timeRange;
   final bool isLive;
 
   const PostTitleWidget({
     Key? key,
     required this.subjectName,
+    this.className,
     required this.timeRange,
     this.isLive = false,
   }) : super(key: key);
@@ -125,11 +127,34 @@ class PostTitleWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          subjectName,
-          style: AppTextStyles.bodyMedium(context, color: textColor, fontWeight: FontWeight.w700),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                subjectName,
+                style: AppTextStyles.bodyMedium(context, color: textColor, fontWeight: FontWeight.w700),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (className != null && className!.trim().isNotEmpty) ...[
+              SizedBox(width: 8.w(context)),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 3.h(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(6.w(context)),
+                ),
+                child: Text(
+                  className!,
+                  style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
         SizedBox(height: 4.h(context)),
         Row(
