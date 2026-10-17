@@ -105,8 +105,9 @@ class FileDownloadHelper {
         },
       );
 
+      Response response;
       try {
-        await dio.download(
+        response = await dio.download(
           absoluteUrl,
           savePath,
           options: options,
@@ -116,7 +117,7 @@ class FileDownloadHelper {
         if (dioErr.toString().contains('PathAccessException') || dioErr is FileSystemException) {
           final fallbackDir = await getApplicationDocumentsDirectory();
           savePath = '${fallbackDir.path}/$fileName';
-          await dio.download(
+          response = await dio.download(
             absoluteUrl,
             savePath,
             options: options,
@@ -126,8 +127,41 @@ class FileDownloadHelper {
         }
       }
 
+      // Periksa Header Content-Disposition dari server untuk penamaan presisi
+      try {
+        final contentDisposition = response.headers.value('content-disposition');
+        if (contentDisposition != null && contentDisposition.isNotEmpty) {
+          String? extractedName;
+          final filenameMatch = RegExp(r'''filename[^;=\n]*=((['"]).*?\2|[^;\n]*)''').firstMatch(contentDisposition);
+          if (filenameMatch != null && filenameMatch.group(1) != null) {
+            extractedName = filenameMatch.group(1)!.replaceAll('"', '').replaceAll("'", '').trim();
+          }
+
+          if (extractedName != null && extractedName.isNotEmpty) {
+            final parentDirPath = File(savePath).parent.path;
+            String newSavePath = '$parentDirPath/$extractedName';
+            int c = 1;
+            final ext = extractedName.contains('.') ? '.${extractedName.split('.').last}' : '';
+            final bName = extractedName.contains('.') ? extractedName.substring(0, extractedName.lastIndexOf('.')) : extractedName;
+
+            while (await File(newSavePath).exists()) {
+              newSavePath = '$parentDirPath/${bName}_($c)$ext';
+              c++;
+            }
+
+            final currentFile = File(savePath);
+            if (await currentFile.exists() && savePath != newSavePath) {
+              await currentFile.rename(newSavePath);
+              savePath = newSavePath;
+            }
+          }
+        }
+      } catch (renameErr) {
+        debugPrint('File rename error: $renameErr');
+      }
+
       // Trigger Push Notifikasi Sistem (Bisa diklik langsung buka berkas)
-      final downloadedFileName = savePath.split('/').last;
+      final downloadedFileName = savePath.split(Platform.isWindows ? '\\' : '/').last;
       LocalNotificationHelper.showDownloadCompleteNotification(
         filePath: savePath,
         fileName: downloadedFileName,

@@ -34,7 +34,11 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
                 SizedBox(width: 8.w(context)),
                 tasksAsync.when(
                   data: (tasks) {
-                    final activeCount = tasks.where((t) => DateTime.parse(t['due_date']).isAfter(DateTime.now())).length;
+                    final activeCount = tasks.where((t) {
+                      if (t['is_cangkang'] == true || t['due_date'] == null) return false;
+                      final due = DateTime.tryParse(t['due_date'].toString());
+                      return due != null && due.isAfter(DateTime.now());
+                    }).length;
                     if (activeCount == 0) return const SizedBox();
                     return Container(
                       padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
@@ -68,7 +72,11 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
         tasksAsync.when(
           data: (tasks) {
             final now = DateTime.now();
-            final activeTasks = tasks.where((t) => DateTime.parse(t['due_date']).isAfter(now)).take(3).toList();
+            final activeTasks = tasks.where((t) {
+              if (t['is_cangkang'] == true || t['due_date'] == null) return false;
+              final due = DateTime.tryParse(t['due_date'].toString());
+              return due != null && due.isAfter(now);
+            }).take(3).toList();
             
             if (activeTasks.isEmpty) {
               return Container(
@@ -99,18 +107,18 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
                 final tugas = entry.value;
                 final isLast = index == activeTasks.length - 1;
                 
-                final due = DateTime.parse(tugas['due_date']);
-                final dateStr = DateFormat('dd MMM yyyy HH:mm').format(due);
+                final due = DateTime.tryParse(tugas['due_date']?.toString() ?? '');
+                final dateStr = due != null ? DateFormat('dd MMM yyyy HH:mm').format(due) : (tugas['due_date_formatted']?.toString() ?? '-');
                 
-                final submitted = tugas['submitted_count'] as int;
-                final total = tugas['total_students'] as int;
+                final submitted = (tugas['submitted_count'] ?? 0) as int;
+                final total = (tugas['total_students'] ?? 0) as int;
 
                 return Column(
                   children: [
                     TugasItemCard(
-                      subject: tugas['subject_name'],
-                      teacher: tugas['class_name'], // Show class name instead of teacher for Guru view
-                      title: tugas['title'],
+                      subject: tugas['subject_name']?.toString() ?? 'Mata Pelajaran',
+                      teacher: tugas['class_name']?.toString() ?? 'Kelas', // Show class name instead of teacher for Guru view
+                      title: tugas['title']?.toString() ?? 'Tugas',
                       timeInfo: 'Tenggat: $dateStr',
                       statusText: '$submitted / $total Terkumpul',
                       statusColor: AppColors.primary,
@@ -123,9 +131,9 @@ class GuruPantauPenugasanWidget extends ConsumerWidget {
                           MaterialPageRoute(
                             builder: (context) => GuruTugasPenilaianScreen(
                               taskId: tugas['id']?.toString() ?? '',
-                              title: tugas['title'],
-                              subject: tugas['subject_name'],
-                              className: tugas['class_name'],
+                              title: tugas['title']?.toString() ?? 'Tugas',
+                              subject: tugas['subject_name']?.toString() ?? 'Mata Pelajaran',
+                              className: tugas['class_name']?.toString() ?? 'Kelas',
                             ),
                           ),
                         );
