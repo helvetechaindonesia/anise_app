@@ -128,6 +128,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::get('/submissions/{submissionId}/download', [AssignmentController::class, 'downloadSubmissionAttachment']);
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
+            Route::get('/siswa/{id}', [AssignmentController::class, 'getTaskDetailForSiswa']);
             Route::post('/submit', [AssignmentController::class, 'submitTask']);
         });
         Route::middleware('role:GURU')->group(function () {

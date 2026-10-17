@@ -479,11 +479,15 @@ class AssignmentController extends Controller
 
     /**
      * Endpoint unduh berkas lampiran penugasan secara langsung dan aman
+     * Format nama berkas: namaTugas_namaUserPenerbit_tanggal_bulan_tahun.{ext}
      */
     public function downloadTaskAttachment($attachmentId)
     {
         try {
-            $attachment = JournalTaskAttachment::findOrFail($attachmentId);
+            $attachment = JournalTaskAttachment::with([
+                'journalTask.journal.teacher',
+                'journalTask.journal.schedule.teacher'
+            ])->findOrFail($attachmentId);
             $url = $attachment->attachment_url ?? $attachment->file_url;
 
             if (empty($url)) {
@@ -497,7 +501,18 @@ class AssignmentController extends Controller
             }
 
             $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
-            $fileName = $attachment->attachment_name ?? $attachment->file_name ?? basename($fullPath);
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'pdf';
+
+            // Parameter nama: namaTugas_namaUserPenerbit_tanggal_bulan_tahun
+            $task = $attachment->journalTask;
+            $taskTitle = $task?->title ?? 'Tugas';
+            $teacher = $task?->journal?->teacher ?? $task?->journal?->schedule?->teacher;
+            $teacherName = $teacher ? ($teacher->full_name ?: $teacher->username) : 'Guru';
+            $dateFormatted = Carbon::parse($attachment->created_at ?? $task?->created_at ?? now())->format('d_m_Y');
+
+            $slugTask = \Illuminate\Support\Str::slug($taskTitle, '_');
+            $slugTeacher = \Illuminate\Support\Str::slug($teacherName, '_');
+            $fileName = "{$slugTask}_{$slugTeacher}_{$dateFormatted}.{$ext}";
 
             return response()->download($fullPath, $fileName, [
                 'Access-Control-Expose-Headers' => 'Content-Disposition',
@@ -509,11 +524,12 @@ class AssignmentController extends Controller
 
     /**
      * Endpoint unduh berkas jawaban tugas siswa secara langsung dan aman
+     * Format nama berkas: namaUserYangMengumpulkan_namaTugas_tanggal_bulan_tahun.{ext}
      */
     public function downloadSubmissionAttachment($submissionId)
     {
         try {
-            $submission = StudentTaskSubmission::with(['student'])->findOrFail($submissionId);
+            $submission = StudentTaskSubmission::with(['student', 'journalTask'])->findOrFail($submissionId);
             $url = $submission->attachment_url;
 
             if (empty($url)) {
@@ -527,10 +543,16 @@ class AssignmentController extends Controller
             }
 
             $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
-            $studentName = $submission->student?->full_name ?: ($submission->student?->username ?? 'siswa');
-            $sanitizedName = \Illuminate\Support\Str::slug($studentName);
             $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'pdf';
-            $fileName = "Jawaban_{$sanitizedName}.{$ext}";
+
+            // Parameter nama: namaUserYangMengumpulkan_namaTugas_tanggal_bulan_tahun
+            $studentName = $submission->student?->full_name ?: ($submission->student?->username ?? 'Siswa');
+            $taskTitle = $submission->journalTask?->title ?? 'Tugas';
+            $dateFormatted = Carbon::parse($submission->submitted_at ?? $submission->updated_at ?? now())->format('d_m_Y');
+
+            $slugStudent = \Illuminate\Support\Str::slug($studentName, '_');
+            $slugTask = \Illuminate\Support\Str::slug($taskTitle, '_');
+            $fileName = "{$slugStudent}_{$slugTask}_{$dateFormatted}.{$ext}";
 
             return response()->download($fullPath, $fileName, [
                 'Access-Control-Expose-Headers' => 'Content-Disposition',
@@ -755,8 +777,29 @@ class AssignmentController extends Controller
                 'journal.schedule.subject'
             ])->findOrFail($request->journal_task_id);
 
+            // Cek apakah sudah dinilai
+            $existingSubmission = StudentTaskSubmission::where('journal_task_id', $task->id)
+                ->where('student_id', $user->id)
+                ->with('grade')
+                ->first();
+
+            if ($existingSubmission && ($existingSubmission->grade !== null || $existingSubmission->status === 'GRADED')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tugas ini sudah dinilai oleh guru dan tidak dapat diperbarui lagi.'
+                ], 422);
+            }
+
             $attachmentUrl = null;
             if ($request->hasFile('attachment')) {
+                // Hapus berkas jawaban lama jika ada
+                if ($existingSubmission && !empty($existingSubmission->attachment_url)) {
+                    $oldPath = ltrim(str_replace('/storage/', '', $existingSubmission->attachment_url), '/');
+                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($oldPath)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
+                    }
+                }
+
                 $user->loadMissing('siswaProfile');
                 $path = FileStorageService::storeTaskSubmission($request->file('attachment'), $task, $user);
                 $attachmentUrl = '/storage/' . $path;
@@ -784,6 +827,80 @@ class AssignmentController extends Controller
                 'status' => 'success',
                 'message' => 'Tugas berhasil dikumpulkan!',
                 'data' => $submission
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $ve->getMessage(),
+                'errors' => $ve->errors()
+            ], 422);
+        } catch (\Throwable $e) {
+            \Log::error('Gagal submitTask: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Mengambil detail 1 tugas untuk Siswa secara realtime
+     */
+    public function getTaskDetailForSiswa($id)
+    {
+        try {
+            $user = Auth::user();
+            $task = JournalTask::with([
+                'journal.schedule.class',
+                'journal.schedule.subject',
+                'journal.schedule.teacher',
+                'attachments',
+                'submissions' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id)->with('grade');
+                }
+            ])->findOrFail($id);
+
+            $sched = $task->journal->schedule ?? null;
+            $teacher = $sched?->teacher;
+            $teacherName = $teacher ? ($teacher->full_name ?: $teacher->username) : 'Guru Pengampu';
+            $submission = $task->submissions->first();
+            $isSubmitted = $submission !== null;
+            $dueDate = Carbon::parse($task->due_date);
+            $now = now();
+
+            if ($isSubmitted) {
+                $status = 'Selesai Dikerjakan';
+            } elseif ($now->gt($dueDate)) {
+                $status = 'Terlewat';
+            } else {
+                $status = 'Belum Dikerjakan';
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'description' => $task->description ?? '',
+                    'due_date' => $task->due_date,
+                    'due_date_formatted' => $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                    'subject' => $sched?->subject?->name ?? 'Mata Pelajaran',
+                    'teacher' => $teacherName,
+                    'status' => $status,
+                    'is_submitted' => $isSubmitted,
+                    'submission' => $submission ? [
+                        'id' => $submission->id,
+                        'status' => $submission->status,
+                        'answer_text' => $submission->answer_text,
+                        'attachment_url' => $submission->attachment_url,
+                        'submitted_at' => $submission->submitted_at ? Carbon::parse($submission->submitted_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                        'score' => $submission->grade ? (float) $submission->grade->score : null,
+                        'feedback' => $submission->grade?->feedback ?? null,
+                    ] : null,
+                    'attachments' => $task->attachments->map(fn($a) => [
+                        'id' => $a->id,
+                        'name' => $a->attachment_name ?? $a->file_name ?? 'Lampiran_Materi.pdf',
+                        'url' => $a->attachment_url ?? $a->file_url ?? '',
+                    ]),
+                    'created_at' => $task->created_at,
+                ]
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

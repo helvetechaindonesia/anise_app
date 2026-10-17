@@ -1426,11 +1426,12 @@ class JournalController extends Controller
     /**
      * Endpoint unduh berkas lampiran jurnal secara langsung dan aman
      * Menjamin berkas tetap dapat diunduh baik via storage symlink maupun direct response
+     * Format nama berkas: namaJurnal_mapel_namaUserPenerbit_tanggal_bulan_tahun.{ext}
      */
     public function downloadAttachment($journalId)
     {
         try {
-            $journal = Journal::findOrFail($journalId);
+            $journal = Journal::with(['subject', 'schedule.subject', 'teacher', 'schedule.teacher'])->findOrFail($journalId);
 
             if (empty($journal->attachment_url)) {
                 return response()->json(['status' => 'error', 'message' => 'Jurnal ini tidak memiliki berkas lampiran.'], 404);
@@ -1444,7 +1445,20 @@ class JournalController extends Controller
             }
 
             $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
-            $fileName = basename($fullPath);
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'pdf';
+
+            // Parameter nama: namaJurnal_mapel_namaUserPenerbit_tanggal_bulan_tahun
+            $journalName = $journal->topic_material ?: 'Jurnal';
+            $subject = $journal->subject?->name ?? $journal->schedule?->subject?->name ?? 'Mapel';
+            $teacher = $journal->teacher ?? $journal->schedule?->teacher;
+            $teacherName = $teacher ? ($teacher->full_name ?: $teacher->username) : 'Guru';
+            $date = $journal->teaching_date ?? $journal->created_at ?? now();
+            $dateFormatted = \Carbon\Carbon::parse($date)->format('d_m_Y');
+
+            $slugJournal = \Illuminate\Support\Str::slug($journalName, '_');
+            $slugSubject = \Illuminate\Support\Str::slug($subject, '_');
+            $slugTeacher = \Illuminate\Support\Str::slug($teacherName, '_');
+            $fileName = "{$slugJournal}_{$slugSubject}_{$slugTeacher}_{$dateFormatted}.{$ext}";
 
             return response()->download($fullPath, $fileName, [
                 'Access-Control-Expose-Headers' => 'Content-Disposition',

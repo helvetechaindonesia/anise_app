@@ -73,6 +73,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
     File? pickedFile;
     String? pickedFileName;
     bool isSubmitting = false;
+    double uploadProgress = 0.0;
 
     showModalBottomSheet(
       context: context,
@@ -232,11 +233,69 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                         ),
                       ),
                     ),
+
+                    // Progress Bar saat mengunggah berkas
+                    if (isSubmitting) ...[
+                      SizedBox(height: 16.h(context)),
+                      Container(
+                        padding: EdgeInsets.all(12.w(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12.w(context)),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 14.w(context),
+                                      height: 14.w(context),
+                                      child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                                    ),
+                                    SizedBox(width: 8.w(context)),
+                                    Text(
+                                      uploadProgress > 0 && uploadProgress < 1.0
+                                          ? 'Mengunggah Berkas...'
+                                          : 'Menyimpan Jawaban ke Server...',
+                                      style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  '${(uploadProgress * 100).toInt()}%',
+                                  style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8.h(context)),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6.w(context)),
+                              child: LinearProgressIndicator(
+                                value: uploadProgress > 0 ? uploadProgress : null,
+                                backgroundColor: AppColors.outline.withValues(alpha: 0.15),
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                minHeight: 6.h(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     SizedBox(height: 24.h(context)),
 
                     // Tombol Submit
                     AniseButton(
-                      text: isSubmitting ? 'Mengirim Tugas...' : (_isSubmitted ? 'Perbarui Jawaban Sekarang' : 'Kirim Tugas Sekarang'),
+                      text: isSubmitting
+                          ? (uploadProgress > 0 && uploadProgress < 1.0
+                              ? 'Mengunggah Berkas (${(uploadProgress * 100).toInt()}%)...'
+                              : 'Mengirim Tugas...')
+                          : (_isSubmitted ? 'Perbarui Jawaban Sekarang' : 'Kirim Tugas Sekarang'),
                       isLoading: isSubmitting,
                       icon: PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.bold),
                       onPressed: isSubmitting
@@ -254,12 +313,18 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
 
                               setModalState(() {
                                 isSubmitting = true;
+                                uploadProgress = 0.05;
                               });
 
                               final success = await ref.read(tugasProvider.notifier).submitTugas(
                                     taskId: widget.taskId,
                                     answerText: textController.text.trim(),
                                     attachment: pickedFile,
+                                    onProgress: (progress) {
+                                      setModalState(() {
+                                        uploadProgress = progress;
+                                      });
+                                    },
                                   );
 
                               setModalState(() {
@@ -268,6 +333,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
 
                               if (success) {
                                 ref.invalidate(getTasksProvider);
+                                ref.invalidate(siswaTaskDetailProvider(widget.taskId));
                                 if (bottomSheetContext.mounted) {
                                   Navigator.pop(bottomSheetContext);
                                 }
@@ -292,7 +358,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Gagal mengirim tugas. Periksa koneksi internet.'),
+                                      content: Text('Gagal mengirim tugas. Periksa koneksi internet atau ukuran berkas.'),
                                       backgroundColor: AppColors.error,
                                     ),
                                   );
@@ -312,9 +378,23 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasScore = _submission != null && _submission!['score'] != null;
-    final score = hasScore ? _submission!['score'] : null;
-    final feedback = _submission?['feedback']?.toString();
+    // Sinkronisasi realtime data tugas & nilai siswa
+    final taskDetailAsync = ref.watch(siswaTaskDetailProvider(widget.taskId));
+    final liveData = taskDetailAsync.asData?.value;
+
+    final currentSubmission = liveData?['submission'] ?? _submission;
+    final currentIsSubmitted = liveData?['is_submitted'] ?? _isSubmitted;
+    final currentStatus = liveData?['status'] ?? widget.status;
+    final currentTimeInfo = liveData?['due_date_formatted'] ?? widget.timeInfo;
+    final currentDescription = liveData?['description'] ?? widget.description;
+    final currentAttachments = liveData?['attachments'] ?? widget.attachments;
+    final currentTeacher = liveData?['teacher'] ?? widget.teacher;
+    final currentSubject = liveData?['subject'] ?? widget.subject;
+    final currentTitle = liveData?['title'] ?? widget.title;
+
+    final hasScore = currentSubmission != null && currentSubmission['score'] != null;
+    final score = hasScore ? currentSubmission['score'] : null;
+    final feedback = currentSubmission?['feedback']?.toString();
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -346,14 +426,14 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                     borderRadius: BorderRadius.circular(8.w(context)),
                   ),
                   child: Text(
-                    widget.subject,
+                    currentSubject,
                     style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
                 SizedBox(width: 10.w(context)),
                 Expanded(
                   child: Text(
-                    'Guru: ${widget.teacher}',
+                    'Guru: $currentTeacher',
                     style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -365,7 +445,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
 
             // Judul Tugas
             Text(
-              widget.title,
+              currentTitle,
               style: AppTextStyles.titleLarge(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16.h(context)),
@@ -424,16 +504,16 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
             Container(
               padding: EdgeInsets.all(14.w(context)),
               decoration: BoxDecoration(
-                color: _isSubmitted
+                color: currentIsSubmitted
                     ? AppColors.secondary.withValues(alpha: 0.1)
-                    : (widget.status == 'Terlewat'
+                    : (currentStatus == 'Terlewat'
                         ? AppColors.error.withValues(alpha: 0.1)
                         : AppColors.primaryContainer.withValues(alpha: 0.4)),
                 borderRadius: BorderRadius.circular(14.w(context)),
                 border: Border.all(
-                  color: _isSubmitted
+                  color: currentIsSubmitted
                       ? AppColors.secondary.withValues(alpha: 0.3)
-                      : (widget.status == 'Terlewat'
+                      : (currentStatus == 'Terlewat'
                           ? AppColors.error.withValues(alpha: 0.3)
                           : AppColors.primary.withValues(alpha: 0.2)),
                 ),
@@ -441,12 +521,12 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
               child: Row(
                 children: [
                   Icon(
-                    _isSubmitted
+                    currentIsSubmitted
                         ? PhosphorIcons.checkCircle(PhosphorIconsStyle.bold)
-                        : (widget.status == 'Terlewat' ? PhosphorIcons.warningCircle(PhosphorIconsStyle.bold) : PhosphorIcons.timer(PhosphorIconsStyle.bold)),
-                    color: _isSubmitted
+                        : (currentStatus == 'Terlewat' ? PhosphorIcons.warningCircle(PhosphorIconsStyle.bold) : PhosphorIcons.timer(PhosphorIconsStyle.bold)),
+                    color: currentIsSubmitted
                         ? AppColors.secondary
-                        : (widget.status == 'Terlewat' ? AppColors.error : AppColors.primary),
+                        : (currentStatus == 'Terlewat' ? AppColors.error : AppColors.primary),
                     size: 22.w(context),
                   ),
                   SizedBox(width: 12.w(context)),
@@ -455,19 +535,19 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _isSubmitted
+                          currentIsSubmitted
                               ? 'Status: Selesai Dikerjakan'
-                              : (widget.status == 'Terlewat' ? 'Status: Terlewat' : 'Batas Waktu Pengumpulan'),
+                              : (currentStatus == 'Terlewat' ? 'Status: Terlewat' : 'Batas Waktu Pengumpulan'),
                           style: AppTextStyles.labelMedium(
                             context,
-                            color: _isSubmitted
+                            color: currentIsSubmitted
                                 ? AppColors.secondary
-                                : (widget.status == 'Terlewat' ? AppColors.error : AppColors.primary),
+                                : (currentStatus == 'Terlewat' ? AppColors.error : AppColors.primary),
                           ).copyWith(fontWeight: FontWeight.w700),
                         ),
                         SizedBox(height: 2.h(context)),
                         Text(
-                          widget.timeInfo,
+                          currentTimeInfo,
                           style: AppTextStyles.bodySmall(context, color: AppColors.onSurface),
                         ),
                       ],
@@ -493,8 +573,8 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                 border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
               ),
               child: Text(
-                widget.description.isNotEmpty
-                    ? widget.description
+                currentDescription.isNotEmpty
+                    ? currentDescription
                     : 'Tidak ada catatan instruksi tambahan dari guru pengajar untuk tugas ini.',
                 style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
               ),
@@ -502,13 +582,13 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
             SizedBox(height: 20.h(context)),
 
             // Lampiran Materi dari Guru
-            if (widget.attachments != null && widget.attachments!.isNotEmpty) ...[
+            if (currentAttachments != null && currentAttachments.isNotEmpty) ...[
               Text(
                 'Lampiran Tugas dari Guru',
                 style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8.h(context)),
-              ...widget.attachments!.map((att) {
+              ...currentAttachments.map((att) {
                 final attMap = att is Map ? att : {};
                 final fileName = attMap['name']?.toString() ?? 'Lampiran_Tugas.pdf';
                 final fileUrl = attMap['url']?.toString() ?? '';
@@ -567,7 +647,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
             ],
 
             // Rincian Jawaban yang telah dikirim oleh Siswa
-            if (_isSubmitted && _submission != null) ...[
+            if (currentIsSubmitted && currentSubmission != null) ...[
               Text(
                 'Jawaban Anda yang Terkirim',
                 style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.bold),
@@ -589,12 +669,12 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                         Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 18.w(context)),
                         SizedBox(width: 8.w(context)),
                         Text(
-                          'Tugas Telah Dikumpulkan' + (_submission!['submitted_at'] != null ? ' (${_submission!['submitted_at']})' : ''),
+                          'Tugas Telah Dikumpulkan' + (currentSubmission['submitted_at'] != null ? ' (${currentSubmission['submitted_at']})' : ''),
                           style: AppTextStyles.labelMedium(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
-                    if (_submission!['answer_text'] != null && _submission!['answer_text'].toString().isNotEmpty) ...[
+                    if (currentSubmission['answer_text'] != null && currentSubmission['answer_text'].toString().isNotEmpty) ...[
                       SizedBox(height: 10.h(context)),
                       Text(
                         'Catatan Jawaban:',
@@ -602,17 +682,17 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                       ),
                       SizedBox(height: 2.h(context)),
                       Text(
-                        _submission!['answer_text'].toString(),
+                        currentSubmission['answer_text'].toString(),
                         style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                       ),
                     ],
-                    if (_submission!['attachment_url'] != null && _submission!['attachment_url'].toString().isNotEmpty) ...[
+                    if (currentSubmission['attachment_url'] != null && currentSubmission['attachment_url'].toString().isNotEmpty) ...[
                       SizedBox(height: 12.h(context)),
                       GestureDetector(
                         onTap: () => _downloadAttachment(
-                          _submission!['attachment_url'].toString(), 
+                          currentSubmission['attachment_url'].toString(), 
                           'Jawaban_Saya.pdf',
-                          submissionId: _submission!['id']?.toString(),
+                          submissionId: currentSubmission['id']?.toString(),
                         ),
                         child: Container(
                           padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
@@ -682,10 +762,10 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
               AniseButton(
                 text: hasScore
                     ? 'Tugas Sudah Dinilai (Terkunci)'
-                    : (_isSubmitted ? 'Perbarui Jawaban Tugas' : 'Kumpulkan Tugas Sekarang'),
+                    : (currentIsSubmitted ? 'Perbarui Jawaban Tugas' : 'Kumpulkan Tugas Sekarang'),
                 icon: hasScore
                     ? PhosphorIcons.lockKey(PhosphorIconsStyle.bold)
-                    : (_isSubmitted ? PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold) : PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold)),
+                    : (currentIsSubmitted ? PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold) : PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold)),
                 onPressed: hasScore ? null : () => _showSubmitModal(context),
               ),
             ],

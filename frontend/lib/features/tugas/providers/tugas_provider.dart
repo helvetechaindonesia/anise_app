@@ -18,15 +18,49 @@ final journalsBySubjectProvider = FutureProvider.family<List<dynamic>, String>((
   }
 });
 
-/// Mengambil daftar siswa dan status submission untuk 1 tugas (Halaman Penilaian Guru)
+/// Mengambil daftar siswa dan status submission untuk 1 tugas (Halaman Penilaian Guru) secara realtime
 final taskSubmissionsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, taskId) async {
   final dio = ref.watch(dioProvider);
+
+  // Sinkronisasi realtime otomatis setiap 4 detik saat halaman penilaian guru aktif
+  final timer = Stream.periodic(const Duration(seconds: 4)).listen((_) {
+    ref.invalidateSelf();
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+  });
+
   try {
     final response = await dio.get('/assignments/$taskId/submissions');
     if (response.data['status'] == 'success') {
       return response.data['data'] as Map<String, dynamic>;
     }
     return {'task': {}, 'students': []};
+  } catch (e) {
+    throw Exception(e.toString());
+  }
+});
+
+/// Mengambil detail 1 tugas untuk Siswa (Halaman Detail Tugas Siswa) secara realtime
+final siswaTaskDetailProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, taskId) async {
+  final dio = ref.watch(dioProvider);
+
+  // Sinkronisasi realtime otomatis setiap 4 detik saat halaman detail tugas siswa aktif
+  final timer = Stream.periodic(const Duration(seconds: 4)).listen((_) {
+    ref.invalidateSelf();
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+  });
+
+  try {
+    final response = await dio.get('/assignments/siswa/$taskId');
+    if (response.data['status'] == 'success') {
+      return response.data['data'] as Map<String, dynamic>;
+    }
+    return {};
   } catch (e) {
     throw Exception(e.toString());
   }
