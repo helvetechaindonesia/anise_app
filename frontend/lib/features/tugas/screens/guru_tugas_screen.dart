@@ -5,6 +5,10 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/widgets/anise_insight_card.dart';
+import '../../../core/widgets/anise_time_filter_dropdowns.dart';
+import '../../../core/widgets/anise_capsule_tab_bar.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import 'guru_tugas_penilaian_screen.dart';
 import 'guru_input_tugas_screen.dart';
 import '../providers/tugas_provider.dart';
@@ -65,43 +69,35 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
     super.dispose();
   }
 
-  void _showDeleteConfirmDialog(BuildContext context, String taskId, String taskTitle) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
-        title: Text('Hapus Tugas', style: AppTextStyles.titleMedium(context, color: AppColors.error)),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus tugas "$taskTitle"? Data pengumpulan dan nilai siswa yang berkaitan juga akan terhapus.',
-          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Batal', style: AppTextStyles.labelLarge(context, color: AppColors.onSurfaceVariant)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final success = await ref.read(tugasProvider.notifier).deleteTugas(taskId: taskId);
-              if (success && mounted) {
-                ref.invalidate(getTasksProvider);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Tugas berhasil dihapus!'), backgroundColor: AppColors.secondary),
-                );
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Gagal menghapus tugas.'), backgroundColor: AppColors.error),
-                );
-              }
-            },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+  void _showDeleteConfirmDialog(BuildContext context, String taskId, String taskTitle) async {
+    final confirmed = await AniseFeedbackDialog.showConfirm(
+      context,
+      title: 'Hapus Tugas',
+      message: 'Apakah Anda yakin ingin menghapus tugas "$taskTitle"? Data pengumpulan dan nilai siswa yang berkaitan juga akan terhapus.',
+      confirmText: 'Ya, Hapus',
+      cancelText: 'Batal',
+      isDestructive: true,
     );
+
+    if (confirmed == true && mounted) {
+      final success = await ref.read(tugasProvider.notifier).deleteTugas(taskId: taskId);
+      if (mounted) {
+        if (success) {
+          ref.invalidate(getTasksProvider);
+          AniseFeedbackDialog.showSuccess(
+            context,
+            title: 'Tugas Dihapus',
+            message: 'Tugas "$taskTitle" beserta data pengumpulan siswa berhasil dihapus.',
+          );
+        } else {
+          AniseFeedbackDialog.showError(
+            context,
+            title: 'Gagal Menghapus',
+            message: 'Terjadi kendala saat menghapus tugas. Silakan periksa koneksi internet Anda.',
+          );
+        }
+      }
+    }
   }
 
   void _showEditTaskModal(BuildContext context, Map<String, dynamic> task) {
@@ -200,8 +196,10 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                                   ref.invalidate(getTasksProvider);
                                   if (ctx.mounted) Navigator.pop(ctx);
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Tugas berhasil diperbarui!'), backgroundColor: AppColors.secondary),
+                                    AniseFeedbackDialog.showSuccess(
+                                      context,
+                                      title: 'Tugas Diperbarui',
+                                      message: 'Perubahan judul, deskripsi, dan tenggat waktu tugas berhasil disimpan.',
                                     );
                                   }
                                 }
@@ -287,102 +285,67 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
               children: [
                 Spacing.custom(context, 16),
 
-                // 1. Filter Dropdown Waktu
+                // 1. Standarisasi Filter Dropdown Waktu
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 2.h(context)),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12.w(context)),
-                            border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedMonth,
-                              isExpanded: true,
-                              icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurfaceVariant, size: 16.w(context)),
-                              dropdownColor: AppColors.surface,
-                              style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedMonth = newValue;
-                                  });
-                                }
-                              },
-                              items: _months.map<DropdownMenuItem<String>>((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value, overflow: TextOverflow.ellipsis),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
+                  child: AniseTimeFilterDropdowns(
+                    selectedMonth: _selectedMonth,
+                    selectedYear: _selectedYear,
+                    months: _months,
+                    years: _years,
+                    onMonthChanged: (newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedMonth = newValue;
+                        });
+                      }
+                    },
+                    onYearChanged: (newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedYear = newValue;
+                          if (!_months.contains(_selectedMonth)) {
+                            _selectedMonth = 'Semua Bulan';
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ),
+                Spacing.custom(context, 16),
+
+                // 2. Standarisasi Card Insight Metrik
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                  child: AniseInsightCard(
+                    items: [
+                      AniseInsightItemData(
+                        label: 'Belum Terbit',
+                        value: pendingCount.toString(),
+                        icon: PhosphorIcons.hourglass(PhosphorIconsStyle.fill),
+                        color: const Color(0xFFF59E0B),
                       ),
-                      SizedBox(width: 12.w(context)),
-                      Expanded(
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 2.h(context)),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12.w(context)),
-                            border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedYear,
-                              isExpanded: true,
-                              icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurfaceVariant, size: 16.w(context)),
-                              dropdownColor: AppColors.surface,
-                              style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedYear = newValue;
-                                    if (!_months.contains(_selectedMonth)) {
-                                      _selectedMonth = 'Semua Bulan';
-                                    }
-                                  });
-                                }
-                              },
-                              items: _years.map<DropdownMenuItem<String>>((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value, overflow: TextOverflow.ellipsis),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
+                      AniseInsightItemData(
+                        label: 'Tugas Aktif',
+                        value: activeCount.toString(),
+                        icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
+                        color: AppColors.primary,
+                      ),
+                      AniseInsightItemData(
+                        label: 'Selesai',
+                        value: completedCount.toString(),
+                        icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                        color: AppColors.secondary,
                       ),
                     ],
                   ),
                 ),
                 Spacing.custom(context, 16),
 
-                // 2. Poin 4: Card Insight Statistik
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-                  child: _buildInsightCard(
-                    context,
-                    pendingCount: pendingCount,
-                    activeCount: activeCount,
-                    completedCount: completedCount,
-                  ),
-                ),
-                Spacing.custom(context, 16),
-
-                // 3. Poin 3: Filter Tab Bar (3 Tab)
-                _buildTabBar(
-                  context,
-                  pendingCount: pendingCount,
-                  activeCount: activeCount,
-                  completedCount: completedCount,
+                // 3. Standarisasi Filter Jenis (Capsule Tab Bar)
+                AniseCapsuleTabBar(
+                  controller: _tabController,
+                  tabTitles: const ['Belum', 'Aktif', 'Selesai'],
                 ),
                 Spacing.custom(context, 12),
 
@@ -419,125 +382,6 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Poin 4: Widget Card Insight di bawah dropdown waktu dan di atas tab filter
-  Widget _buildInsightCard(
-    BuildContext context, {
-    required int pendingCount,
-    required int activeCount,
-    required int completedCount,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildInsightItem(
-            context,
-            count: pendingCount,
-            label: 'Belum Terbit',
-            icon: PhosphorIcons.hourglass(PhosphorIconsStyle.fill),
-            color: const Color(0xFFF59E0B), // Amber / Oranye
-          ),
-          Container(width: 1, height: 32.h(context), color: AppColors.outline.withValues(alpha: 0.15)),
-          _buildInsightItem(
-            context,
-            count: activeCount,
-            label: 'Tugas Aktif',
-            icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-            color: AppColors.primary,
-          ),
-          Container(width: 1, height: 32.h(context), color: AppColors.outline.withValues(alpha: 0.15)),
-          _buildInsightItem(
-            context,
-            count: completedCount,
-            label: 'Selesai',
-            icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
-            color: AppColors.secondary,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInsightItem(
-    BuildContext context, {
-    required int count,
-    required String label,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 16.w(context)),
-            SizedBox(width: 6.w(context)),
-            Text(
-              '$count',
-              style: AppTextStyles.titleLarge(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-        SizedBox(height: 2.h(context)),
-        Text(
-          label,
-          style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
-        ),
-      ],
-    );
-  }
-
-  /// Poin 3: TabBar 3 Jenis (Belum Terbit, Tugas Aktif, Tugas Selesai)
-  Widget _buildTabBar(
-    BuildContext context, {
-    required int pendingCount,
-    required int activeCount,
-    required int completedCount,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-      child: Container(
-        height: 44.h(context),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-        ),
-        child: TabBar(
-          controller: _tabController,
-          indicator: BoxDecoration(
-            color: AppColors.onSurface,
-            borderRadius: BorderRadius.circular(100),
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          dividerColor: Colors.transparent,
-          labelColor: AppColors.surface,
-          unselectedLabelColor: AppColors.onSurface.withValues(alpha: 0.6),
-          labelStyle: AppTextStyles.labelMedium(context).copyWith(fontWeight: FontWeight.w700),
-          unselectedLabelStyle: AppTextStyles.labelMedium(context),
-          tabs: const [
-            Tab(text: 'Belum'),
-            Tab(text: 'Aktif'),
-            Tab(text: 'Selesai'),
-          ],
         ),
       ),
     );

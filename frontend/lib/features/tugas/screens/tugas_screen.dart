@@ -5,6 +5,9 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/widgets/anise_insight_card.dart';
+import '../../../core/widgets/anise_time_filter_dropdowns.dart';
+import '../../../core/widgets/anise_capsule_tab_bar.dart';
 import '../widgets/tugas_list_tab.dart';
 import '../providers/tugas_provider.dart';
 
@@ -146,20 +149,75 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
                   return [
                     _buildAppBar(context),
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(height: 12.h(context)),
-                            _buildHeader(context),
-                            SizedBox(height: 20.h(context)),
-                            _buildStatsCard(context, belumCount: belumCount, selesaiCount: selesaiCount, terlewatCount: terlewatCount),
-                            SizedBox(height: 20.h(context)),
-                            _buildCustomTabBar(context, belumCount: belumCount, selesaiCount: selesaiCount, terlewatCount: terlewatCount),
-                            SizedBox(height: 16.h(context)),
-                          ],
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 12.h(context)),
+
+                          // 1. Standarisasi Filter Waktu (Dropdown Bulan & Tahun)
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                            child: AniseTimeFilterDropdowns(
+                              selectedMonth: _selectedMonth,
+                              selectedYear: _selectedYear,
+                              months: _months,
+                              years: _years,
+                              onMonthChanged: (newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _selectedMonth = newValue;
+                                  });
+                                }
+                              },
+                              onYearChanged: (newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _selectedYear = newValue;
+                                    if (!_months.contains(_selectedMonth)) {
+                                      _selectedMonth = 'Semua Bulan';
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 16.h(context)),
+
+                          // 2. Standarisasi Card Insight Metrik
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                            child: AniseInsightCard(
+                              items: [
+                                AniseInsightItemData(
+                                  label: 'Belum',
+                                  value: belumCount.toString(),
+                                  icon: PhosphorIcons.hourglass(PhosphorIconsStyle.fill),
+                                  color: const Color(0xFFF59E0B),
+                                ),
+                                AniseInsightItemData(
+                                  label: 'Selesai',
+                                  value: selesaiCount.toString(),
+                                  icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                                  color: AppColors.secondary,
+                                ),
+                                AniseInsightItemData(
+                                  label: 'Terlewat',
+                                  value: terlewatCount.toString(),
+                                  icon: PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
+                                  color: const Color(0xFFEF4444),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 16.h(context)),
+
+                          // 3. Standarisasi Filter Jenis (Capsule Tab Bar)
+                          AniseCapsuleTabBar(
+                            controller: _tabController,
+                            tabTitles: const ['Belum', 'Selesai', 'Terlewat'],
+                          ),
+                          SizedBox(height: 16.h(context)),
+                        ],
                       ),
                     ),
                   ];
@@ -211,156 +269,6 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
       title: Text(
         'Tugas & Evaluasi',
         style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 2.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12.w(context)),
-              border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedMonth,
-                isExpanded: true,
-                icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurfaceVariant, size: 16.w(context)),
-                dropdownColor: AppColors.surface,
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedMonth = newValue;
-                    });
-                  }
-                },
-                items: _months.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(width: 12.w(context)),
-        Expanded(
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 2.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12.w(context)),
-              border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedYear,
-                isExpanded: true,
-                icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onSurfaceVariant, size: 16.w(context)),
-                dropdownColor: AppColors.surface,
-                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedYear = newValue;
-                      if (!_months.contains(_selectedMonth)) {
-                        _selectedMonth = 'Semua Bulan';
-                      }
-                    });
-                  }
-                },
-                items: _years.map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatsCard(BuildContext context, {required int belumCount, required int selesaiCount, required int terlewatCount}) {
-    return Container(
-      padding: EdgeInsets.all(18.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(20.w(context)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.onBackground.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(context, belumCount.toString(), 'Belum', PhosphorIcons.hourglass(PhosphorIconsStyle.fill), AppColors.onPrimaryContainer),
-          Container(width: 1, height: 36.h(context), color: AppColors.onPrimaryContainer.withValues(alpha: 0.2)),
-          _buildStatItem(context, selesaiCount.toString(), 'Selesai', PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), AppColors.secondary),
-          Container(width: 1, height: 36.h(context), color: AppColors.onPrimaryContainer.withValues(alpha: 0.2)),
-          _buildStatItem(context, terlewatCount.toString(), 'Terlewat', PhosphorIcons.warningCircle(PhosphorIconsStyle.fill), AppColors.error),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(BuildContext context, String value, String label, IconData icon, Color iconColor) {
-    return Column(
-      children: [
-        Icon(icon, color: iconColor, size: 22.w(context)),
-        SizedBox(height: 6.h(context)),
-        Text(
-          value,
-          style: AppTextStyles.headlineMedium(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w800),
-        ),
-        SizedBox(height: 2.h(context)),
-        Text(
-          label,
-          style: AppTextStyles.labelMedium(context, color: AppColors.onPrimaryContainer.withValues(alpha: 0.8)),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCustomTabBar(BuildContext context, {required int belumCount, required int selesaiCount, required int terlewatCount}) {
-    return Container(
-      height: 44.h(context),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          color: AppColors.onSurface,
-          borderRadius: BorderRadius.circular(100),
-        ),
-        labelColor: AppColors.surface,
-        unselectedLabelColor: AppColors.onSurface.withValues(alpha: 0.6),
-        labelStyle: AppTextStyles.labelMedium(context).copyWith(fontWeight: FontWeight.w700),
-        unselectedLabelStyle: AppTextStyles.labelMedium(context),
-        dividerColor: AppColors.transparent,
-        indicatorSize: TabBarIndicatorSize.tab,
-        splashBorderRadius: BorderRadius.circular(100),
-        tabs: const [
-          Tab(text: 'Belum'),
-          Tab(text: 'Selesai'),
-          Tab(text: 'Terlewat'),
-        ],
       ),
     );
   }
