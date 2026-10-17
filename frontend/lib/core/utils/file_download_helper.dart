@@ -55,13 +55,25 @@ class FileDownloadHelper {
       Directory? targetDir;
 
       if (Platform.isAndroid) {
-        // Folder Download publik di Android: /storage/emulated/0/Download
-        final downloadDir = Directory('/storage/emulated/0/Download');
-        if (await downloadDir.exists()) {
-          targetDir = downloadDir;
+        // Coba direktori Download publik terlebih dahulu
+        final publicDownloadDir = Directory('/storage/emulated/0/Download');
+        bool canWritePublic = false;
+        try {
+          if (await publicDownloadDir.exists()) {
+            final testFile = File('${publicDownloadDir.path}/.test_anise_perm');
+            await testFile.writeAsString('test');
+            await testFile.delete();
+            canWritePublic = true;
+          }
+        } catch (_) {
+          canWritePublic = false;
+        }
+
+        if (canWritePublic) {
+          targetDir = publicDownloadDir;
         } else {
-          // Fallback ke getExternalStorageDirectory
-          targetDir = await getExternalStorageDirectory();
+          // Fallback resmi Android (Scoped Storage aman tanpa izin khusus)
+          targetDir = await getExternalStorageDirectory() ?? await getApplicationDocumentsDirectory();
         }
       } else if (Platform.isIOS) {
         targetDir = await getApplicationDocumentsDirectory();
@@ -71,7 +83,7 @@ class FileDownloadHelper {
       }
 
       if (targetDir == null) {
-        throw Exception('Direktori penyimpanan unduhan tidak ditemukan.');
+        targetDir = await getApplicationDocumentsDirectory();
       }
 
       // Pastikan nama file unik jika sudah ada file dengan nama yang sama
@@ -92,11 +104,27 @@ class FileDownloadHelper {
           if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
         },
       );
-      await dio.download(
-        absoluteUrl,
-        savePath,
-        options: options,
-      );
+
+      try {
+        await dio.download(
+          absoluteUrl,
+          savePath,
+          options: options,
+        );
+      } catch (dioErr) {
+        // Jika gagal karena izin path di download, coba fallback ke application documents
+        if (dioErr.toString().contains('PathAccessException') || dioErr is FileSystemException) {
+          final fallbackDir = await getApplicationDocumentsDirectory();
+          savePath = '${fallbackDir.path}/$fileName';
+          await dio.download(
+            absoluteUrl,
+            savePath,
+            options: options,
+          );
+        } else {
+          rethrow;
+        }
+      }
 
       // Trigger Push Notifikasi Sistem (Bisa diklik langsung buka berkas)
       final downloadedFileName = savePath.split('/').last;

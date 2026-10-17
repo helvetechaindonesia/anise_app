@@ -304,22 +304,16 @@ class _ScheduleCardState extends State<ScheduleCard> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
+                          PhosphorIcons.plusCircle(PhosphorIconsStyle.bold),
                           color: AppColors.primary,
                           size: 18.w(context),
                         ),
                         SizedBox(width: 8.w(context)),
                         Text(
-                          'Ada Tugas • Kelola / Buat Tugas Terkait',
+                          'Buat Tugas',
                           style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
                             fontWeight: FontWeight.w700,
                           ),
-                        ),
-                        SizedBox(width: 4.w(context)),
-                        Icon(
-                          PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-                          color: AppColors.primary,
-                          size: 14.w(context),
                         ),
                       ],
                     ),
