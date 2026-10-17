@@ -21,6 +21,7 @@ class ScheduleCard extends StatefulWidget {
   final bool hasFileAttachment;
   final String? fileName;
   final String? fileSize;
+  final String? attachmentUrl;
   final bool hasImages;
   final int likes;
   final bool isLiked;
@@ -53,6 +54,7 @@ class ScheduleCard extends StatefulWidget {
     this.hasFileAttachment = false,
     this.fileName,
     this.fileSize,
+    this.attachmentUrl,
     this.hasImages = false,
     required this.likes,
     this.isLiked = false,
@@ -225,6 +227,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
               isLive: false,
               fileName: widget.fileName,
               fileSize: widget.fileSize,
+              attachmentUrl: widget.attachmentUrl,
             ),
           ],
           if (widget.hasImages) ...[

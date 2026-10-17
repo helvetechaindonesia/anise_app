@@ -337,6 +337,7 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                     hasFileAttachment: hasTask,
                     fileName: fileName,
                     fileSize: hasTask ? '1.5 MB' : null,
+                    attachmentUrl: j['attachment_url'] as String?,
                     likes: likes,
                     isLiked: isLiked,
                     isSaved: isSaved,

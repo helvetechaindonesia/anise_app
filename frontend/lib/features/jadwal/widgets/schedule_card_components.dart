@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/api_constants.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 
@@ -150,13 +152,62 @@ class FileAttachmentWidget extends StatelessWidget {
   final bool isLive;
   final String? fileName;
   final String? fileSize;
+  final String? attachmentUrl;
+  final VoidCallback? onDownload;
 
   const FileAttachmentWidget({
     Key? key,
     required this.isLive,
     this.fileName,
     this.fileSize,
+    this.attachmentUrl,
+    this.onDownload,
   }) : super(key: key);
+
+  Future<void> _handleDownload(BuildContext context) async {
+    if (onDownload != null) {
+      onDownload!();
+      return;
+    }
+
+    if (attachmentUrl == null || attachmentUrl!.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tautan berkas lampiran tidak tersedia.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    String finalUrl = attachmentUrl!.trim();
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      final base = ApiConstants.baseUrl.replaceAll('/api', '');
+      if (!finalUrl.startsWith('/')) {
+        finalUrl = '/$finalUrl';
+      }
+      finalUrl = '$base$finalUrl';
+    }
+
+    try {
+      final uri = Uri.parse(finalUrl);
+      final canLaunch = await canLaunchUrl(uri);
+      if (canLaunch) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuka berkas: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -166,50 +217,58 @@ class FileAttachmentWidget extends StatelessWidget {
     Color bgColor = isLive ? AppColors.onPrimaryContainer.withValues(alpha: 0.1) : AppColors.backgroundLight;
     Color iconBgColor = isLive ? AppColors.onPrimaryContainer.withValues(alpha: 0.2) : AppColors.onSurface.withValues(alpha: 0.1);
 
-    return Container(
-      padding: EdgeInsets.all(12.w(context)),
-      decoration: BoxDecoration(
-        color: bgColor,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12.w(context)),
+      child: InkWell(
+        onTap: () => _handleDownload(context),
         borderRadius: BorderRadius.circular(12.w(context)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(8.w(context)),
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(8.w(context)),
-            ),
-            child: Icon(PhosphorIcons.filePdf(PhosphorIconsStyle.bold), color: iconColor, size: 20.w(context)),
+        child: Container(
+          padding: EdgeInsets.all(12.w(context)),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12.w(context)),
           ),
-          SizedBox(width: 12.w(context)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fileName ?? 'Lampiran_Dokumen.pdf',
-                  style: AppTextStyles.bodySmall(context, color: textColor),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.w(context)),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(8.w(context)),
                 ),
-                SizedBox(height: 2.h(context)),
-                Text(
-                  fileSize ?? '1.2 MB',
-                  style: AppTextStyles.labelSmall(context, color: mutedTextColor),
+                child: Icon(PhosphorIcons.filePdf(PhosphorIconsStyle.bold), color: iconColor, size: 20.w(context)),
+              ),
+              SizedBox(width: 12.w(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fileName ?? 'Lampiran_Dokumen.pdf',
+                      style: AppTextStyles.bodySmall(context, color: textColor).copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 2.h(context)),
+                    Text(
+                      fileSize ?? 'Ketuk untuk unduh',
+                      style: AppTextStyles.labelSmall(context, color: mutedTextColor),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Container(
+                padding: EdgeInsets.all(8.w(context)),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: iconColor, size: 16.w(context)),
+              ),
+            ],
           ),
-          Container(
-            padding: EdgeInsets.all(8.w(context)),
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: iconColor, size: 16.w(context)),
-          ),
-        ],
+        ),
       ),
     );
   }
