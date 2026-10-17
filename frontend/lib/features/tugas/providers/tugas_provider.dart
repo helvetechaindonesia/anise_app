@@ -88,16 +88,30 @@ class TugasNotifier extends StateNotifier<AsyncValue<void>> {
     required String title,
     required String description,
     required String dueDate,
+    File? attachment,
   }) async {
     state = const AsyncValue.loading();
     try {
-      final response = await _dio.put(
-        '/assignments/$taskId',
-        data: {
-          'title': title,
-          'description': description,
-          'due_date': dueDate,
-        },
+      final formData = FormData.fromMap({
+        'title': title,
+        'description': description,
+        'due_date': dueDate,
+      });
+
+      if (attachment != null) {
+        String fileName = attachment.path.split('/').last;
+        if (Platform.isWindows) {
+          fileName = attachment.path.split('\\').last;
+        }
+        formData.files.add(MapEntry(
+          'attachment',
+          await MultipartFile.fromFile(attachment.path, filename: fileName),
+        ));
+      }
+
+      final response = await _dio.post(
+        '/assignments/$taskId/update',
+        data: formData,
       );
       state = const AsyncValue.data(null);
       return response.data['status'] == 'success';
@@ -193,6 +207,15 @@ final getTasksProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final user = ref.watch(authProvider).user;
   
   if (user == null) return [];
+
+  // Sinkronisasi realtime otomatis setiap 4 detik saat halaman tugas/penugasan aktif
+  final timer = Stream.periodic(const Duration(seconds: 4)).listen((_) {
+    ref.invalidateSelf();
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+  });
 
   final endpoint = user.role == UserRole.siswa ? '/assignments/siswa' : '/assignments';
 

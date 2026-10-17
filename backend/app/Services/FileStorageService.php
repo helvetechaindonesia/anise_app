@@ -38,14 +38,19 @@ class FileStorageService
      */
     public static function storeTaskSubmission(UploadedFile $file, JournalTask $task, User $user): string
     {
+        $journal = $task->journal;
+        $schedule = $journal?->schedule;
+        $classObj = $journal?->class ?? $schedule?->class;
+        $subjectObj = $journal?->subject ?? $schedule?->subject;
+
         // 1. Tahun Ajaran
-        $academicYear = $task->journal?->class?->academicYear?->name ?? date('Y');
+        $academicYear = $classObj?->academicYear?->name ?? date('Y');
         $academicYearSlug = Str::slug($academicYear);
 
-        $classCode = Str::upper(Str::slug($task->journal?->class?->code ?? $task->journal?->class?->name ?? 'UMUM'));
+        $classCode = Str::upper(Str::slug($classObj?->code ?? ($classObj ? ($classObj->grade_level . '_' . $classObj->name) : 'UMUM')));
 
         // 3. Kode Mapel
-        $subjectCode = Str::upper(Str::slug($task->journal?->subject?->code ?? $task->journal?->subject?->name ?? 'MAPEL'));
+        $subjectCode = Str::upper(Str::slug($subjectObj?->code ?? $subjectObj?->name ?? 'MAPEL'));
 
         // 4. Folder Tugas (task_{short_uuid})
         $taskFolder = 'task_' . substr($task->id, 0, 8);
@@ -71,11 +76,16 @@ class FileStorageService
      */
     public static function storeTaskAttachment(UploadedFile $file, JournalTask $task): string
     {
-        $academicYear = $task->journal?->class?->academicYear?->name ?? date('Y');
+        $journal = $task->journal;
+        $schedule = $journal?->schedule;
+        $classObj = $journal?->class ?? $schedule?->class;
+        $subjectObj = $journal?->subject ?? $schedule?->subject;
+
+        $academicYear = $classObj?->academicYear?->name ?? date('Y');
         $academicYearSlug = Str::slug($academicYear);
 
-        $classCode = Str::upper(Str::slug($task->journal?->class?->code ?? $task->journal?->class?->name ?? 'UMUM'));
-        $subjectCode = Str::upper(Str::slug($task->journal?->subject?->code ?? $task->journal?->subject?->name ?? 'MAPEL'));
+        $classCode = Str::upper(Str::slug($classObj?->code ?? ($classObj ? ($classObj->grade_level . '_' . $classObj->name) : 'UMUM')));
+        $subjectCode = Str::upper(Str::slug($subjectObj?->code ?? $subjectObj?->name ?? 'MAPEL'));
         $taskFolder = 'task_' . substr($task->id, 0, 8);
 
         $ext = $file->getClientOriginalExtension() ?: 'bin';

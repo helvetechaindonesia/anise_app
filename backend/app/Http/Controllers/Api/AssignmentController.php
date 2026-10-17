@@ -424,12 +424,13 @@ class AssignmentController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
-            'due_date' => 'required|date'
+            'due_date' => 'required|date',
+            'attachment' => 'nullable|file|max:20480'
         ]);
 
         try {
             $user = Auth::user();
-            $task = JournalTask::with('journal.schedule')->findOrFail($id);
+            $task = JournalTask::with(['journal.schedule.class.academicYear', 'journal.subject', 'attachments'])->findOrFail($id);
 
             $journalTeacherId = $task->journal?->teacher_id;
             $scheduleTeacherId = $task->journal?->schedule?->teacher_id;
@@ -445,6 +446,27 @@ class AssignmentController extends Controller
                 'due_date' => $request->due_date
             ]);
 
+            // Jika ada lampiran baru yang diunggah saat edit tugas
+            if ($request->hasFile('attachment')) {
+                // Hapus lampiran lama
+                foreach ($task->attachments as $oldAtt) {
+                    $oldPath = ltrim(str_replace('/storage/', '', $oldAtt->attachment_url ?? $oldAtt->file_url ?? ''), '/');
+                    if (!empty($oldPath) && \Illuminate\Support\Facades\Storage::disk('public')->exists($oldPath)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
+                    }
+                    $oldAtt->delete();
+                }
+
+                $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
+                JournalTaskAttachment::create([
+                    'journal_task_id' => $task->id,
+                    'attachment_name' => $request->file('attachment')->getClientOriginalName(),
+                    'attachment_url' => '/storage/' . $path
+                ]);
+            }
+
+            $task->load('attachments');
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Tugas berhasil diperbarui.',
@@ -456,13 +478,43 @@ class AssignmentController extends Controller
     }
 
     /**
+     * Endpoint unduh berkas lampiran penugasan secara langsung dan aman
+     */
+    public function downloadTaskAttachment($attachmentId)
+    {
+        try {
+            $attachment = JournalTaskAttachment::findOrFail($attachmentId);
+            $url = $attachment->attachment_url ?? $attachment->file_url;
+
+            if (empty($url)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas lampiran tidak ditemukan.'], 404);
+            }
+
+            $relativePath = ltrim(str_replace('/storage/', '', $url), '/');
+
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($relativePath)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas fisik tidak ditemukan di server.'], 404);
+            }
+
+            $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
+            $fileName = $attachment->attachment_name ?? $attachment->file_name ?? basename($fullPath);
+
+            return response()->download($fullPath, $fileName, [
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengunduh berkas: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Guru menghapus tugas (mengembalikan tugas ke card cangkang / belum terbit)
      */
     public function deleteTask($id)
     {
         try {
             $user = Auth::user();
-            $task = JournalTask::with(['journal.schedule', 'attachments'])->findOrFail($id);
+            $task = JournalTask::with(['journal.schedule', 'attachments', 'submissions.grade'])->findOrFail($id);
 
             $journalTeacherId = $task->journal?->teacher_id;
             $scheduleTeacherId = $task->journal?->schedule?->teacher_id;
@@ -474,8 +526,29 @@ class AssignmentController extends Controller
 
             $journalId = $task->journal_id;
             
-            // Hapus lampiran tugas terlebih dahulu
+            // 1. Hapus berkas fisik lampiran materi tugas
+            foreach ($task->attachments as $att) {
+                $attPath = ltrim(str_replace('/storage/', '', $att->attachment_url ?? $att->file_url ?? ''), '/');
+                if (!empty($attPath) && \Illuminate\Support\Facades\Storage::disk('public')->exists($attPath)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($attPath);
+                }
+            }
             $task->attachments()->delete();
+
+            // 2. Hapus pengumpulan tugas siswa (submissions), nilai & berkas fisiknya di storage cloud
+            foreach ($task->submissions as $sub) {
+                if (!empty($sub->attachment_url)) {
+                    $subPath = ltrim(str_replace('/storage/', '', $sub->attachment_url), '/');
+                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($subPath)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($subPath);
+                    }
+                }
+                if ($sub->grade) {
+                    $sub->grade()->delete();
+                }
+                $sub->delete();
+            }
+
             $task->delete();
 
             // Poin 2: Kembalikan status jurnal ke cangkang (has_task = true)

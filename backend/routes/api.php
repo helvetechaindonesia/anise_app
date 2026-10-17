@@ -120,17 +120,19 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 5. PENUGASAN (ASSIGNMENTS)
     // ==========================================
     Route::prefix('assignments')->group(function () {
+        Route::get('/attachments/{attachmentId}/download', [AssignmentController::class, 'downloadTaskAttachment']);
+        Route::middleware('role:SISWA')->group(function () {
+            Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
+            Route::post('/submit', [AssignmentController::class, 'submitTask']);
+        });
         Route::middleware('role:GURU')->group(function () {
             Route::post('/', [AssignmentController::class, 'storeTask']);
             Route::get('/', [AssignmentController::class, 'getTasks']);
             Route::get('/{taskId}/submissions', [AssignmentController::class, 'getTaskSubmissions']);
             Route::post('/submissions/{submissionId}/grade', [AssignmentController::class, 'gradeSubmission']);
+            Route::post('/{id}/update', [AssignmentController::class, 'updateTask']);
             Route::put('/{id}', [AssignmentController::class, 'updateTask']);
             Route::delete('/{id}', [AssignmentController::class, 'deleteTask']);
-        });
-        Route::middleware('role:SISWA')->group(function () {
-            Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
-            Route::post('/submit', [AssignmentController::class, 'submitTask']);
         });
     });
 

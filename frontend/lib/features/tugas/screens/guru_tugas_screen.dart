@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/utils/file_download_helper.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_empty_state.dart';
@@ -110,6 +113,8 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
     DateTime dueDateTime = DateTime.tryParse(task['due_date']?.toString() ?? '') ?? DateTime.now().add(const Duration(days: 1));
 
     bool isSubmitting = false;
+    File? selectedFile;
+    String? fileName;
 
     showModalBottomSheet(
       context: context,
@@ -172,6 +177,71 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
                       ),
                     ),
+                    SizedBox(height: 16.h(context)),
+
+                    // Edit File Lampiran Soal / Materi
+                    Text('Lampiran File (Opsional)', style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold)),
+                    SizedBox(height: 6.h(context)),
+                    InkWell(
+                      onTap: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: ['png', 'jpg', 'jpeg', 'pdf', 'docx', 'xlsx', 'ppt', 'pptx', 'zip'],
+                        );
+                        if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+                          final file = File(result.files.first.path!);
+                          if (file.lengthSync() / (1024 * 1024) > 20) {
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(content: Text('Ukuran berkas maksimal 20 MB'), backgroundColor: AppColors.error),
+                              );
+                            }
+                            return;
+                          }
+                          setModalState(() {
+                            selectedFile = file;
+                            fileName = result.files.first.name;
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12.w(context)),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius: BorderRadius.circular(12.w(context)),
+                          border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              selectedFile != null ? PhosphorIcons.fileCheck(PhosphorIconsStyle.bold) : PhosphorIcons.paperclip(PhosphorIconsStyle.bold),
+                              color: selectedFile != null ? AppColors.primary : AppColors.onSurfaceVariant,
+                              size: 20.w(context),
+                            ),
+                            SizedBox(width: 10.w(context)),
+                            Expanded(
+                              child: Text(
+                                fileName ?? 'Pilih file lampiran baru untuk tugas ini',
+                                style: AppTextStyles.bodySmall(context, color: AppColors.onSurface),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (selectedFile != null)
+                              IconButton(
+                                icon: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.error),
+                                onPressed: () {
+                                  setModalState(() {
+                                    selectedFile = null;
+                                    fileName = null;
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                     SizedBox(height: 20.h(context)),
 
                     SizedBox(
@@ -193,6 +263,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                                   title: titleController.text.trim(),
                                   description: descController.text.trim(),
                                   dueDate: dueDateTime.toIso8601String(),
+                                  attachment: selectedFile,
                                 );
 
                                 setModalState(() => isSubmitting = false);
@@ -203,7 +274,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                                     AniseFeedbackDialog.showSuccess(
                                       context,
                                       title: 'Tugas Diperbarui',
-                                      message: 'Perubahan judul, deskripsi, dan tenggat waktu tugas berhasil disimpan.',
+                                      message: 'Perubahan tugas dan berkas lampiran berhasil disimpan.',
                                     );
                                   }
                                 }
@@ -456,7 +527,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
     
     final submitted = (data['submitted_count'] ?? 0) as int;
     final graded = (data['graded_count'] ?? 0) as int;
-    final total = (data['total_students'] ?? 0) as int;
+    final attachments = data['attachments'] as List<dynamic>?;
 
     return AniseGuruTaskCard(
       taskId: taskId,
@@ -465,6 +536,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
       title: title,
       description: description,
       dueDateFormatted: dueDateFormatted,
+      attachments: attachments,
       submittedCount: submitted,
       gradedCount: graded,
       totalStudents: total,
@@ -472,6 +544,18 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
       isPublisher: isPublisher,
       onEdit: () => _showEditTaskModal(context, data),
       onDelete: () => _showDeleteConfirmDialog(context, taskId, title),
+      onDownloadAttachment: (fileUrl, fileName) {
+        String fullUrl = fileUrl;
+        if (!fileUrl.startsWith('http')) {
+          final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
+          fullUrl = '$baseUrl$fileUrl';
+        }
+        FileDownloadHelper.downloadFile(
+          context: context,
+          fileUrl: fullUrl,
+          preferredFileName: fileName,
+        );
+      },
       onPenilaian: () {
         Navigator.push(
           context,

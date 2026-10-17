@@ -56,7 +56,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
     if (rawUrl.isEmpty) return;
     String fullUrl = rawUrl;
     if (!rawUrl.startsWith('http')) {
-      final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '');
+      final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
       fullUrl = '$baseUrl$rawUrl';
     }
 

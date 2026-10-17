@@ -14,6 +14,7 @@ class AniseGuruTaskCard extends StatelessWidget {
   final String title;
   final String description;
   final String dueDateFormatted;
+  final List<dynamic>? attachments;
   final int submittedCount;
   final int gradedCount;
   final int totalStudents;
@@ -22,6 +23,7 @@ class AniseGuruTaskCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onPenilaian;
+  final Function(String url, String name)? onDownloadAttachment;
 
   const AniseGuruTaskCard({
     super.key,
@@ -31,6 +33,7 @@ class AniseGuruTaskCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.dueDateFormatted,
+    this.attachments,
     required this.submittedCount,
     required this.gradedCount,
     required this.totalStudents,
@@ -39,6 +42,7 @@ class AniseGuruTaskCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onPenilaian,
+    this.onDownloadAttachment,
   });
 
   @override
@@ -184,6 +188,63 @@ class AniseGuruTaskCard extends StatelessWidget {
               ),
             ],
           ),
+
+          // Lampiran Materi / Soal (bila ada)
+          if (attachments != null && attachments!.isNotEmpty) ...[
+            SizedBox(height: 10.h(context)),
+            ...attachments!.map((att) {
+              final attMap = att is Map ? att : {};
+              final attName = attMap['name']?.toString() ?? 'Lampiran_Tugas.pdf';
+              final attUrl = attMap['url']?.toString() ?? '';
+
+              return Container(
+                margin: EdgeInsets.only(bottom: 6.h(context)),
+                padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.fileText(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
+                    SizedBox(width: 8.w(context)),
+                    Expanded(
+                      child: Text(
+                        attName,
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (attUrl.isNotEmpty)
+                      InkWell(
+                        onTap: () {
+                          if (onDownloadAttachment != null) {
+                            onDownloadAttachment!(attUrl, attName);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(6.w(context)),
+                        child: Padding(
+                          padding: EdgeInsets.all(4.w(context)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
+                              SizedBox(width: 4.w(context)),
+                              Text(
+                                'Unduh',
+                                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ],
 
           Spacing.custom(context, 12),
 

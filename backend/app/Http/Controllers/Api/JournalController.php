@@ -278,9 +278,39 @@ class JournalController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Anda bukan guru penerbit jurnal ini.'], 403);
             }
 
+            // Hapus file fisik lampiran jurnal jika ada
+            if (!empty($journal->attachment_url)) {
+                $journalFile = ltrim(str_replace('/storage/', '', $journal->attachment_url), '/');
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($journalFile)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($journalFile);
+                }
+            }
+
             if ($journal->tasks) {
                 foreach ($journal->tasks as $task) {
+                    // 1. Hapus berkas fisik lampiran materi tugas
+                    foreach ($task->attachments as $att) {
+                        $attPath = ltrim(str_replace('/storage/', '', $att->attachment_url ?? $att->file_url ?? ''), '/');
+                        if (!empty($attPath) && \Illuminate\Support\Facades\Storage::disk('public')->exists($attPath)) {
+                            \Illuminate\Support\Facades\Storage::disk('public')->delete($attPath);
+                        }
+                    }
                     $task->attachments()->delete();
+
+                    // 2. Hapus berkas fisik pengumpulan tugas siswa (submissions) & nilai
+                    foreach ($task->submissions as $sub) {
+                        if (!empty($sub->attachment_url)) {
+                            $subPath = ltrim(str_replace('/storage/', '', $sub->attachment_url), '/');
+                            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($subPath)) {
+                                \Illuminate\Support\Facades\Storage::disk('public')->delete($subPath);
+                            }
+                        }
+                        if ($sub->grade) {
+                            $sub->grade()->delete();
+                        }
+                        $sub->delete();
+                    }
+
                     $task->delete();
                 }
             }
