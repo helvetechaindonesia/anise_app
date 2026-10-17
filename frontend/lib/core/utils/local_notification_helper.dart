@@ -90,4 +90,46 @@ class LocalNotificationHelper {
       debugPrint('Error showing local notification: $e');
     }
   }
+
+  /// Tampilkan Push Notifikasi umum (misal terbit jurnal atau tugas baru)
+  static Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      if (!_isInitialized) {
+        await initialize();
+      }
+
+      const androidDetails = AndroidNotificationDetails(
+        'general_channel',
+        'Notifikasi Umum',
+        channelDescription: 'Pemberitahuan aktivitas pembelajaran & materi sekolah',
+        importance: Importance.max,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const darwinDetails = DarwinNotificationDetails();
+
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: darwinDetails,
+      );
+
+      final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      await _notificationsPlugin.show(
+        id,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing general notification: $e');
+    }
+  }
 }

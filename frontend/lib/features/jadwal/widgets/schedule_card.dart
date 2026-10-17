@@ -3,6 +3,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../tugas/screens/guru_input_tugas_screen.dart';
 import 'schedule_card_components.dart';
 import 'schedule_share_modal.dart';
 
@@ -22,6 +23,8 @@ class ScheduleCard extends StatefulWidget {
   final String description;
   final String? classNotes;
   final bool hasFileAttachment;
+  final bool hasTask;
+  final String? subjectId;
   final String? fileName;
   final String? fileSize;
   final String? attachmentUrl;
@@ -59,6 +62,8 @@ class ScheduleCard extends StatefulWidget {
     required this.description,
     this.classNotes,
     this.hasFileAttachment = false,
+    this.hasTask = false,
+    this.subjectId,
     this.fileName,
     this.fileSize,
     this.attachmentUrl,
@@ -263,6 +268,64 @@ class _ScheduleCardState extends State<ScheduleCard> {
               journalId: widget.journalId,
             ),
           ],
+
+          // TOMBOL "ADA TUGAS" (Khusus Tampilan Pengajar/Publisher)
+          if (widget.isPublisher && (widget.hasTask || widget.hasFileAttachment)) ...[
+            SizedBox(height: 12.h(context)),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GuruInputTugasScreen(
+                        initialSubjectId: widget.subjectId,
+                        initialJournalId: widget.journalId,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12.w(context)),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 11.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.35),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
+                        color: AppColors.secondary,
+                        size: 18.w(context),
+                      ),
+                      SizedBox(width: 8.w(context)),
+                      Text(
+                        'Ada Tugas • Kelola / Buat Tugas Terkait',
+                        style: AppTextStyles.labelMedium(context, color: AppColors.secondary).copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(width: 4.w(context)),
+                      Icon(
+                        PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                        color: AppColors.secondary,
+                        size: 14.w(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+
           if (widget.hasImages) ...[
             SizedBox(height: 16.h(context)),
             const ImageGridWidget(isLive: false),

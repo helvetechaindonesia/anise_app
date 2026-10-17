@@ -10,7 +10,7 @@ import '../../../core/widgets/decorative_background.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../auth/models/user_model.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../widgets/guru_identity_card_3d_widget.dart';
+import '../../../core/widgets/anise_identity_card_3d.dart';
 import '../widgets/guru_layanan_cepat_widget.dart';
 import '../widgets/bimbingan_mentor_widget.dart';
 import '../widgets/guru_jurnal_mengajar_widget.dart';
@@ -86,7 +86,7 @@ class _GuruHomeScreenState extends ConsumerState<GuruHomeScreen> {
   }
 
   Widget _buildIdentityCard(UserModel? user) {
-    return GuruIdentityCard3DWidget(user: user);
+    return AniseIdentityCard3D(user: user);
   }
 }
 

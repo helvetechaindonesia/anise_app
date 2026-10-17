@@ -61,6 +61,9 @@ Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXl
 // Hari Nonaktif & Kalender Akademik Sekolah (Dapat diakses publik/authenticated)
 Route::get('/journals/off-days', [JournalController::class, 'getOffDays']);
 
+// Unduh Lampiran Berkas Jurnal (Dapat diakses semua pengguna / browser / downloader)
+Route::get('/journals/{journalId}/download', [JournalController::class, 'downloadAttachment']);
+
 Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     
     // ==========================================

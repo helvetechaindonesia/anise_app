@@ -6,7 +6,7 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/utils/time_helper.dart';
 import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/main_header.dart';
-import '../../home/widgets/guru_identity_card_3d_widget.dart';
+import '../../../core/widgets/anise_identity_card_3d.dart';
 import '../widgets/tu_layanan_cepat_widget.dart';
 import '../widgets/tu_ringkasan_surat_widget.dart';
 import '../widgets/tu_pengajuan_dispensasi_widget.dart';
@@ -48,7 +48,7 @@ class _TuHomeScreenState extends ConsumerState<TuHomeScreen> {
                       style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground), 
                     ),
                     Spacing.custom(context, 20),
-                    GuruIdentityCard3DWidget(user: user),
+                    AniseIdentityCard3D(user: user),
                     Spacing.custom(context, 20),
                     TuLayananCepatWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 24),

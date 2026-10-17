@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/responsive.dart';
+import 'anise_card.dart';
 
-/// CardInfo - Standar kartu ringkasan metrik & statistik (Hadir, Terlambat, Poin, Tugas)
+/// CardInfo (also known as AniseStatCard) - Standar kartu ringkasan metrik & statistik
+/// Berbasis AniseCard untuk konsistensi desain sistem (elevation, border, splash effect)
 class CardInfo extends StatelessWidget {
   final String title;
   final String value;
@@ -35,19 +37,10 @@ class CardInfo extends StatelessWidget {
     final effectiveTitleColor = titleColor ?? AppColors.onSurface.withValues(alpha: 0.7);
     final effectiveValueColor = valueColor ?? AppColors.onSurface;
 
-    Widget cardContent = Container(
+    return AniseCard(
       padding: EdgeInsets.all(12.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.onBackground.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      borderRadius: 16.w(context),
+      onTap: onTap,
       child: Row(
         children: [
           // 1. Icon Container
@@ -112,15 +105,8 @@ class CardInfo extends StatelessWidget {
         ],
       ),
     );
-
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16.w(context)),
-        child: cardContent,
-      );
-    }
-
-    return cardContent;
   }
 }
+
+/// Type alias agar nama AniseStatCard juga bisa digunakan sesuai konvensi Anise*
+typedef AniseStatCard = CardInfo;

@@ -22,8 +22,7 @@ import '../../berkas/screens/berkas_saya_screen.dart';
 import '../../jadwal/screens/jadwal_guru_detail_screen.dart';
 import '../../jadwal/screens/semua_pengajar_screen.dart';
 import '../../tugas/screens/tugas_detail_screen.dart';
-import '../../tugas/widgets/tugas_item_card.dart';
-import '../widgets/identity_card_3d_widget.dart';
+import '../../../core/widgets/anise_identity_card_3d.dart';
 import '../widgets/layanan_cepat_widget.dart';
 import '../widgets/bimbingan_mentor_widget.dart';
 import '../widgets/tugas_mendatang_widget.dart';
@@ -115,7 +114,7 @@ class _SiswaHomeScreenState extends ConsumerState<SiswaHomeScreen> {
 
 
   Widget _buildIdentityCard(UserModel? user) {
-    return IdentityCard3DWidget(user: user);
+    return AniseIdentityCard3D(user: user);
   }
 }
 

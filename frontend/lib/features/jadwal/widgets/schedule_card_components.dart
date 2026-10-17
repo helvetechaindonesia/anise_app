@@ -122,48 +122,38 @@ class PostTitleWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color textColor = isLive ? AppColors.onPrimaryContainer : AppColors.onSurface;
-    Color subtitleColor = isLive ? AppColors.onPrimaryContainer : AppColors.onSurface;
+    Color subtitleColor = isLive ? AppColors.onPrimaryContainer.withValues(alpha: 0.8) : AppColors.onSurfaceVariant;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                subjectName,
-                style: AppTextStyles.bodyMedium(context, color: textColor, fontWeight: FontWeight.w700),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (className != null && className!.trim().isNotEmpty) ...[
-              SizedBox(width: 8.w(context)),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 3.h(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(6.w(context)),
-                ),
-                child: Text(
-                  className!,
-                  style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        Text(
+          subjectName,
+          style: AppTextStyles.titleMedium(context, color: textColor).copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        SizedBox(height: 4.h(context)),
+        if (className != null && className!.trim().isNotEmpty) ...[
+          SizedBox(height: 3.h(context)),
+          Text(
+            className!,
+            style: AppTextStyles.bodySmall(context, color: subtitleColor).copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        SizedBox(height: 6.h(context)),
         Row(
           children: [
             Icon(PhosphorIcons.clock(PhosphorIconsStyle.bold), size: 14.w(context), color: subtitleColor),
             SizedBox(width: 4.w(context)),
             Text(
               timeRange,
-              style: AppTextStyles.bodyMedium(context, color: subtitleColor),
+              style: AppTextStyles.labelSmall(context, color: subtitleColor),
             ),
           ],
         ),

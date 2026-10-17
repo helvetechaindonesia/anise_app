@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:math' as math;
-import '../../../core/constants/colors.dart';
-import '../../../core/utils/responsive.dart';
-import '../../../features/auth/models/user_model.dart';
+import '../constants/colors.dart';
+import '../theme/app_text_styles.dart';
+import '../utils/responsive.dart';
+import '../../features/auth/models/user_model.dart';
 
-class IdentityCard3DWidget extends StatefulWidget {
+/// AniseIdentityCard3D - Komponen baku universal kartu identitas digital 3D holographic.
+/// Mendukung seluruh role (Siswa, Guru, BK, TU, Kepala Sekolah) secara adaptif.
+/// Dilengkapi efek ambient floating tilt (gyro simulation) dan holographic shimmer overlay.
+class AniseIdentityCard3D extends StatefulWidget {
   final UserModel? user;
-  const IdentityCard3DWidget({Key? key, required this.user}) : super(key: key);
+
+  const AniseIdentityCard3D({
+    super.key,
+    required this.user,
+  });
 
   @override
-  State<IdentityCard3DWidget> createState() => _IdentityCard3DWidgetState();
+  State<AniseIdentityCard3D> createState() => _AniseIdentityCard3DState();
 }
 
-class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with TickerProviderStateMixin {
+class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerProviderStateMixin {
   late AnimationController _idleController;
   late AnimationController _shimmerController;
   late Animation<double> _shimmerAnim;
@@ -22,20 +29,22 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
   @override
   void initState() {
     super.initState();
-    // Auto tilt animation (Ambient floating effect) - Diperlambat agar lebih elegan
+    // Auto tilt animation (Ambient floating effect) - Kecepatan santai dan elegan
     _idleController = AnimationController(vsync: this, duration: const Duration(seconds: 12));
     _idleController.repeat();
 
-    // Shimmer animation
+    // Shimmer holographic sweep animation
     _shimmerController = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000));
-    _shimmerAnim = Tween<double>(begin: -1.5, end: 1.5).animate(CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut));
-    
+    _shimmerAnim = Tween<double>(begin: -1.5, end: 1.5).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+
     _startShimmerLoop();
   }
 
   void _startShimmerLoop() async {
     while (mounted) {
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 4));
       if (mounted) {
         await _shimmerController.forward(from: 0.0);
       }
@@ -54,9 +63,9 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
     return AnimatedBuilder(
       animation: _idleController,
       builder: (context, child) {
-        double progress = _idleController.value * 2 * math.pi;
-        double xRotation = math.sin(progress) * 0.08;
-        double yRotation = math.cos(progress * 2) * 0.08;
+        final double progress = _idleController.value * 2 * math.pi;
+        final double xRotation = math.sin(progress) * 0.07;
+        final double yRotation = math.cos(progress * 2) * 0.07;
 
         return Transform(
           transform: Matrix4.identity()
@@ -64,7 +73,7 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
             ..rotateX(xRotation)
             ..rotateY(yRotation),
           alignment: FractionalOffset.center,
-          child: child, // child is wrapped in RepaintBoundary for performance
+          child: child,
         );
       },
       child: RepaintBoundary(
@@ -75,10 +84,10 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
 
   Widget _buildCardContent(BuildContext context) {
     final bool isSiswa = widget.user?.role == UserRole.siswa;
-    final userName = widget.user?.fullName ?? (isSiswa ? 'Siswa' : 'Bpk. Guru');
+    final userName = widget.user?.fullName ?? (isSiswa ? 'Siswa' : 'Tenaga Pendidik');
 
-    String idText = 'NISN/NIS: 0074829103 / 22231008';
-    String secondaryText = 'KELAS: XII M2';
+    String idText = 'NISN/NIS: -';
+    String secondaryText = 'KELAS: -';
 
     if (isSiswa) {
       if (widget.user != null) {
@@ -92,7 +101,7 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
           idText = 'NIS: $nis';
         }
       }
-      final className = widget.user?.className ?? 'XII M2';
+      final className = widget.user?.className ?? 'XII';
       secondaryText = 'KELAS: $className';
     } else {
       if (widget.user != null) {
@@ -100,10 +109,10 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
         if (nip != null && nip.isNotEmpty) {
           idText = 'NIP: $nip';
         } else {
-          idText = 'NUPTK/NIP: 19890123 201404 1 001';
+          idText = 'NUPTK/NIP: -';
         }
       } else {
-        idText = 'NUPTK/NIP: 19890123 201404 1 001';
+        idText = 'NUPTK/NIP: -';
       }
 
       String peranLabel = 'GURU MAPEL';
@@ -120,26 +129,25 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
     }
 
     return AspectRatio(
-      aspectRatio: 1.58, // Standar rasio ID card / credit card
+      aspectRatio: 1.58, // Standard credit / ID card aspect ratio
       child: Container(
         decoration: BoxDecoration(
-          // Premium Gradient Background
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primary.withValues(alpha: 0.9),
+              AppColors.primary.withValues(alpha: 0.95),
               AppColors.primaryDark,
             ],
           ),
           borderRadius: BorderRadius.circular(20.w(context)),
           border: Border.all(
-            color: AppColors.onPrimary.withValues(alpha: 0.2), // Glass border
+            color: AppColors.onPrimary.withValues(alpha: 0.25),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.3),
+              color: AppColors.primary.withValues(alpha: 0.28),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -150,7 +158,7 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Abstrak Decorative Elements (Soft Circles / Concentric Rings)
+              // 1. Decorative Concentric Circles
               Positioned(
                 top: -60.w(context),
                 right: -40.w(context),
@@ -177,8 +185,8 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                   ),
                 ),
               ),
-              
-              // Watermark Halus
+
+              // 2. School Watermark
               Positioned(
                 bottom: -20.w(context),
                 right: -20.w(context),
@@ -194,13 +202,13 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                 ),
               ),
 
-              // Main Content
+              // 3. Card Content
               Padding(
                 padding: EdgeInsets.all(20.w(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // HEADER
+                    // Header Bar
                     Row(
                       children: [
                         Image.asset(
@@ -218,11 +226,14 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                             children: [
                               Text(
                                 'KARTU IDENTITAS DIGITAL',
-                                style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary.withValues(alpha: 0.7)).copyWith(letterSpacing: 1.5),
+                                style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary.withValues(alpha: 0.75))
+                                    .copyWith(letterSpacing: 1.4),
                               ),
                               Text(
                                 'SMA N 1 Peunaron',
-                                style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary),
+                                style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary).copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ],
                           ),
@@ -230,7 +241,7 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                         Container(
                           padding: EdgeInsets.all(4.w(context)),
                           decoration: BoxDecoration(
-                            color: AppColors.onPrimary.withValues(alpha: 0.1),
+                            color: AppColors.onPrimary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20.w(context)),
                           ),
                           child: Image.asset(
@@ -240,19 +251,23 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                             fit: BoxFit.contain,
                             filterQuality: FilterQuality.high,
                             isAntiAlias: true,
-                            errorBuilder: (context, error, stackTrace) => Icon(PhosphorIcons.image(PhosphorIconsStyle.bold), color: AppColors.onPrimary.withValues(alpha: 0.5), size: 28.w(context)),
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              PhosphorIcons.image(PhosphorIconsStyle.bold),
+                              color: AppColors.onPrimary.withValues(alpha: 0.5),
+                              size: 28.w(context),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    
-                    Spacer(),
-                    
-                    // USER PROFILE & DETAILS
+
+                    const Spacer(),
+
+                    // User Profile & Details
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar Bulat Premium
+                        // Avatar
                         Stack(
                           alignment: Alignment.bottomRight,
                           children: [
@@ -262,9 +277,13 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(20.w(context)),
                                 color: AppColors.onPrimary.withValues(alpha: 0.15),
-                                border: Border.all(color: AppColors.onPrimary.withValues(alpha: 0.3), width: 2),
+                                border: Border.all(color: AppColors.onPrimary.withValues(alpha: 0.35), width: 2),
                               ),
-                              child: Icon(PhosphorIcons.user(PhosphorIconsStyle.fill), color: AppColors.onPrimary, size: 36.w(context)),
+                              child: Icon(
+                                PhosphorIcons.user(PhosphorIconsStyle.fill),
+                                color: AppColors.onPrimary,
+                                size: 36.w(context),
+                              ),
                             ),
                             Container(
                               transform: Matrix4.translationValues(4, 4, 0),
@@ -274,12 +293,16 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                                 borderRadius: BorderRadius.circular(20.w(context)),
                                 border: Border.all(color: AppColors.onPrimary, width: 2),
                               ),
-                              child: Icon(PhosphorIcons.check(PhosphorIconsStyle.bold), color: AppColors.onPrimary, size: 12.w(context)),
+                              child: Icon(
+                                PhosphorIcons.check(PhosphorIconsStyle.bold),
+                                color: AppColors.onPrimary,
+                                size: 12.w(context),
+                              ),
                             ),
                           ],
                         ),
-                        SizedBox(width: 20.w(context)),
-                        
+                        SizedBox(width: 18.w(context)),
+
                         // User Details
                         Expanded(
                           child: Column(
@@ -288,11 +311,13 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                             children: [
                               Text(
                                 userName.toUpperCase(),
-                                style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary),
+                                style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary).copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              SizedBox(height: 6.h(context)),
+                              SizedBox(height: 5.h(context)),
                               Text(
                                 idText,
                                 style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary.withValues(alpha: 0.85)),
@@ -303,7 +328,7 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                               Text(
                                 secondaryText,
                                 style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -316,8 +341,8 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                   ],
                 ),
               ),
-              
-              // Optimized Holographic Shimmer Effect Overlay (Top Layer)
+
+              // 4. Holographic Shimmer Effect Overlay (Top Layer)
               Positioned.fill(
                 child: IgnorePointer(
                   child: AnimatedBuilder(
@@ -337,9 +362,9 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
                           colors: [
                             Colors.white.withValues(alpha: 0.0),
                             Colors.white.withValues(alpha: 0.0),
-                            Colors.purpleAccent.withValues(alpha: 0.05), // Sedikit efek hologram
-                            Colors.white.withValues(alpha: 0.3), // Pantulan kilap utama
-                            Colors.cyanAccent.withValues(alpha: 0.05), // Sedikit efek hologram
+                            Colors.purpleAccent.withValues(alpha: 0.06),
+                            Colors.white.withValues(alpha: 0.35),
+                            Colors.cyanAccent.withValues(alpha: 0.06),
                             Colors.white.withValues(alpha: 0.0),
                             Colors.white.withValues(alpha: 0.0),
                           ],
@@ -358,6 +383,6 @@ class _IdentityCard3DWidgetState extends State<IdentityCard3DWidget> with Ticker
   }
 }
 
-
-
-
+/// Backwards compatibility aliases
+typedef IdentityCard3DWidget = AniseIdentityCard3D;
+typedef GuruIdentityCard3DWidget = AniseIdentityCard3D;

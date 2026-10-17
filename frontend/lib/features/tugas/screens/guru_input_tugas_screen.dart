@@ -11,7 +11,14 @@ import '../providers/tugas_provider.dart';
 import 'package:intl/intl.dart';
 
 class GuruInputTugasScreen extends ConsumerStatefulWidget {
-  const GuruInputTugasScreen({Key? key}) : super(key: key);
+  final String? initialSubjectId;
+  final String? initialJournalId;
+
+  const GuruInputTugasScreen({
+    Key? key,
+    this.initialSubjectId,
+    this.initialJournalId,
+  }) : super(key: key);
 
   @override
   ConsumerState<GuruInputTugasScreen> createState() => _GuruInputTugasScreenState();
@@ -36,6 +43,8 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedMapel = widget.initialSubjectId;
+    _selectedJurnal = widget.initialJournalId;
     Future.microtask(() => ref.read(jurnalProvider.notifier).fetchTerbitOptions());
   }
 

@@ -4,9 +4,8 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/decorative_background.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import '../../auth/models/user_model.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../widgets/guru_identity_card_3d_widget.dart';
+import '../../../core/widgets/anise_identity_card_3d.dart';
 import '../../../core/widgets/main_header.dart';
 import '../widgets/bk_layanan_cepat_widget.dart';
 import '../widgets/bk_bimbingan_widget.dart';
@@ -56,7 +55,7 @@ class _BkHomeScreenState extends ConsumerState<BkHomeScreen> {
                     Spacing.custom(context, 20),
                     
                     // 3. Kartu Identitas Digital Guru (Bisa dipake ulang)
-                    GuruIdentityCard3DWidget(user: user),
+                    AniseIdentityCard3D(user: user),
                     Spacing.custom(context, 20),
                     
                     // 4. Layanan Cepat Grid BK
