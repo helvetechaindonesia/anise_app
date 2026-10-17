@@ -46,7 +46,7 @@ class AssignmentController extends Controller
             }
 
             if ($request->hasFile('attachment')) {
-                $task->load(['journal.class.academicYear', 'journal.subject']);
+                $task->load(['journal.class.academicYear', 'journal.schedule.class.academicYear', 'journal.subject', 'journal.schedule.subject']);
                 $path = FileStorageService::storeTaskAttachment($request->file('attachment'), $task);
                 JournalTaskAttachment::create([
                     'journal_task_id' => $task->id,
@@ -508,6 +508,39 @@ class AssignmentController extends Controller
     }
 
     /**
+     * Endpoint unduh berkas jawaban tugas siswa secara langsung dan aman
+     */
+    public function downloadSubmissionAttachment($submissionId)
+    {
+        try {
+            $submission = StudentTaskSubmission::with(['student'])->findOrFail($submissionId);
+            $url = $submission->attachment_url;
+
+            if (empty($url)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas jawaban siswa tidak ditemukan.'], 404);
+            }
+
+            $relativePath = ltrim(str_replace('/storage/', '', $url), '/');
+
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($relativePath)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas fisik jawaban tidak ditemukan di server.'], 404);
+            }
+
+            $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($relativePath);
+            $studentName = $submission->student?->full_name ?: ($submission->student?->username ?? 'siswa');
+            $sanitizedName = \Illuminate\Support\Str::slug($studentName);
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'pdf';
+            $fileName = "Jawaban_{$sanitizedName}.{$ext}";
+
+            return response()->download($fullPath, $fileName, [
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengunduh berkas jawaban: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Guru menghapus tugas (mengembalikan tugas ke card cangkang / belum terbit)
      */
     public function deleteTask($id)
@@ -715,7 +748,12 @@ class AssignmentController extends Controller
 
         try {
             $user = Auth::user();
-            $task = JournalTask::with(['journal.class.academicYear', 'journal.subject'])->findOrFail($request->journal_task_id);
+            $task = JournalTask::with([
+                'journal.class.academicYear', 
+                'journal.schedule.class.academicYear', 
+                'journal.subject', 
+                'journal.schedule.subject'
+            ])->findOrFail($request->journal_task_id);
 
             $attachmentUrl = null;
             if ($request->hasFile('attachment')) {

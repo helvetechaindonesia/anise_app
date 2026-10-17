@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/file_download_helper.dart';
 import '../providers/tugas_provider.dart';
@@ -246,21 +245,21 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
     );
   }
 
-  void _downloadStudentFile(String rawUrl, String studentName) {
-    if (rawUrl.isEmpty) return;
-    String fullUrl = rawUrl;
-    if (!rawUrl.startsWith('http')) {
-      final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '');
-      fullUrl = '$baseUrl$rawUrl';
+  void _downloadStudentFile(String rawUrl, String studentName, {String? submissionId}) {
+    String targetUrl = rawUrl.trim();
+    if (submissionId != null && submissionId.isNotEmpty) {
+      targetUrl = '/assignments/submissions/$submissionId/download';
     }
+
+    if (targetUrl.isEmpty) return;
 
     final sanitizedName = studentName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
     final ext = rawUrl.contains('.') ? rawUrl.split('.').last.split('?').first : 'pdf';
-    final customFileName = 'Tugas_${sanitizedName}.$ext';
+    final customFileName = 'Tugas_$sanitizedName.$ext';
 
     FileDownloadHelper.downloadFile(
       context: context,
-      fileUrl: fullUrl,
+      fileUrl: targetUrl,
       preferredFileName: customFileName,
     );
   }
@@ -595,7 +594,11 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
           if (attachmentUrl != null && attachmentUrl.isNotEmpty) ...[
             SizedBox(height: 10.h(context)),
             InkWell(
-              onTap: () => _downloadStudentFile(attachmentUrl, student['name'] ?? 'Siswa'),
+              onTap: () => _downloadStudentFile(
+                attachmentUrl, 
+                student['name'] ?? 'Siswa',
+                submissionId: student['submission_id']?.toString(),
+              ),
               borderRadius: BorderRadius.circular(10.w(context)),
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),

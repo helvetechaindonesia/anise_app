@@ -5,7 +5,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/file_download_helper.dart';
 import '../../../core/widgets/anise_button.dart';
@@ -52,13 +51,15 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
     _submission = widget.submission;
   }
 
-  void _downloadAttachment(String rawUrl, String fallbackName) {
-    if (rawUrl.isEmpty) return;
-    String fullUrl = rawUrl;
-    if (!rawUrl.startsWith('http')) {
-      final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
-      fullUrl = '$baseUrl$rawUrl';
+  void _downloadAttachment(String rawUrl, String fallbackName, {String? attachmentId, String? submissionId}) {
+    String fullUrl = rawUrl.trim();
+    if (attachmentId != null && attachmentId.isNotEmpty) {
+      fullUrl = '/assignments/attachments/$attachmentId/download';
+    } else if (submissionId != null && submissionId.isNotEmpty) {
+      fullUrl = '/assignments/submissions/$submissionId/download';
     }
+
+    if (fullUrl.isEmpty) return;
 
     FileDownloadHelper.downloadFile(
       context: context,
@@ -552,7 +553,11 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                       if (fileUrl.isNotEmpty)
                         IconButton(
                           icon: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
-                          onPressed: () => _downloadAttachment(fileUrl, fileName),
+                          onPressed: () => _downloadAttachment(
+                            fileUrl, 
+                            fileName,
+                            attachmentId: attMap['id']?.toString(),
+                          ),
                         ),
                     ],
                   ),
@@ -604,7 +609,11 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                     if (_submission!['attachment_url'] != null && _submission!['attachment_url'].toString().isNotEmpty) ...[
                       SizedBox(height: 12.h(context)),
                       GestureDetector(
-                        onTap: () => _downloadAttachment(_submission!['attachment_url'].toString(), 'Jawaban_Saya.pdf'),
+                        onTap: () => _downloadAttachment(
+                          _submission!['attachment_url'].toString(), 
+                          'Jawaban_Saya.pdf',
+                          submissionId: _submission!['id']?.toString(),
+                        ),
                         child: Container(
                           padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
                           decoration: BoxDecoration(
@@ -643,10 +652,43 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
           ),
         ),
         child: SafeArea(
-          child: AniseButton(
-            text: _isSubmitted ? 'Perbarui Jawaban Tugas' : 'Kumpulkan Tugas Sekarang',
-            icon: _isSubmitted ? PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold) : PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold),
-            onPressed: () => _showSubmitModal(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasScore) ...[
+                Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 12.h(context)),
+                  padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10.w(context)),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.lockKey(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.secondary),
+                      SizedBox(width: 10.w(context)),
+                      Expanded(
+                        child: Text(
+                          'Tugas ini sudah dinilai oleh guru (Nilai: $score). Jawaban tidak dapat diperbarui lagi.',
+                          style: AppTextStyles.bodySmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              AniseButton(
+                text: hasScore
+                    ? 'Tugas Sudah Dinilai (Terkunci)'
+                    : (_isSubmitted ? 'Perbarui Jawaban Tugas' : 'Kumpulkan Tugas Sekarang'),
+                icon: hasScore
+                    ? PhosphorIcons.lockKey(PhosphorIconsStyle.bold)
+                    : (_isSubmitted ? PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold) : PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold)),
+                onPressed: hasScore ? null : () => _showSubmitModal(context),
+              ),
+            ],
           ),
         ),
       ),

@@ -221,7 +221,11 @@ class AniseGuruTaskCard extends StatelessWidget {
                       InkWell(
                         onTap: () {
                           if (onDownloadAttachment != null) {
-                            onDownloadAttachment!(attUrl, attName);
+                            final attId = attMap['id']?.toString();
+                            final effectiveUrl = (attId != null && attId.isNotEmpty)
+                                ? '/assignments/attachments/$attId/download'
+                                : attUrl;
+                            onDownloadAttachment!(effectiveUrl, attName);
                           }
                         },
                         borderRadius: BorderRadius.circular(6.w(context)),

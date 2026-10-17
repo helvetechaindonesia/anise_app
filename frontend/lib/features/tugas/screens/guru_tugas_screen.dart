@@ -546,14 +546,9 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
       onEdit: () => _showEditTaskModal(context, data),
       onDelete: () => _showDeleteConfirmDialog(context, taskId, title),
       onDownloadAttachment: (fileUrl, fileName) {
-        String fullUrl = fileUrl;
-        if (!fileUrl.startsWith('http')) {
-          final baseUrl = ApiConstants.baseUrl.replaceAll('/api/v1', '').replaceAll('/api', '');
-          fullUrl = '$baseUrl$fileUrl';
-        }
         FileDownloadHelper.downloadFile(
           context: context,
-          fileUrl: fullUrl,
+          fileUrl: fileUrl,
           preferredFileName: fileName,
         );
       },

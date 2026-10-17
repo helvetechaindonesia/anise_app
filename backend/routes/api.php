@@ -64,6 +64,10 @@ Route::get('/journals/off-days', [JournalController::class, 'getOffDays']);
 // Unduh Lampiran Berkas Jurnal (Dapat diakses semua pengguna / browser / downloader)
 Route::get('/journals/{journalId}/download', [JournalController::class, 'downloadAttachment']);
 
+// Unduh Lampiran Berkas Tugas & Jawaban Siswa (Dapat diakses semua pengguna / browser / downloader)
+Route::get('/assignments/attachments/{attachmentId}/download', [AssignmentController::class, 'downloadTaskAttachment']);
+Route::get('/assignments/submissions/{submissionId}/download', [AssignmentController::class, 'downloadSubmissionAttachment']);
+
 Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     
     // ==========================================
@@ -121,6 +125,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // ==========================================
     Route::prefix('assignments')->group(function () {
         Route::get('/attachments/{attachmentId}/download', [AssignmentController::class, 'downloadTaskAttachment']);
+        Route::get('/submissions/{submissionId}/download', [AssignmentController::class, 'downloadSubmissionAttachment']);
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
             Route::post('/submit', [AssignmentController::class, 'submitTask']);
