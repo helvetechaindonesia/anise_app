@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/utils/file_download_helper.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 
@@ -113,31 +112,10 @@ class GuruJurnalDetailScreen extends StatelessWidget {
               AniseCard(
                 padding: EdgeInsets.all(16.w(context)),
                 onTap: () async {
-                  String finalUrl = attachmentUrl.toString().trim();
-                  if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                    final base = ApiConstants.baseUrl.replaceAll('/api', '');
-                    if (!finalUrl.startsWith('/')) {
-                      finalUrl = '/$finalUrl';
-                    }
-                    finalUrl = '$base$finalUrl';
-                  }
-                  try {
-                    final uri = Uri.parse(finalUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    } else {
-                      await launchUrl(uri, mode: LaunchMode.platformDefault);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Gagal membuka berkas: $e'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  }
+                  await FileDownloadHelper.downloadFile(
+                    context: context,
+                    fileUrl: attachmentUrl.toString(),
+                  );
                 },
                 child: Row(
                   children: [

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/colors.dart';
-import '../../../../core/constants/api_constants.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/file_download_helper.dart';
 
 class TeacherHeaderWidget extends StatelessWidget {
   final bool isLive;
@@ -180,33 +179,11 @@ class FileAttachmentWidget extends StatelessWidget {
       return;
     }
 
-    String finalUrl = attachmentUrl!.trim();
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      final base = ApiConstants.baseUrl.replaceAll('/api', '');
-      if (!finalUrl.startsWith('/')) {
-        finalUrl = '/$finalUrl';
-      }
-      finalUrl = '$base$finalUrl';
-    }
-
-    try {
-      final uri = Uri.parse(finalUrl);
-      final canLaunch = await canLaunchUrl(uri);
-      if (canLaunch) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal membuka berkas: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+    await FileDownloadHelper.downloadFile(
+      context: context,
+      fileUrl: attachmentUrl!,
+      preferredFileName: fileName,
+    );
   }
 
   @override
