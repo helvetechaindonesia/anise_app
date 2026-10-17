@@ -236,6 +236,72 @@ class JournalController extends Controller
         ]);
     }
 
+    public function updateJournal(Request $request, $journalId)
+    {
+        $request->validate([
+            'topic_material' => 'required|string',
+            'description' => 'nullable|string',
+            'has_task' => 'nullable',
+            'attachment' => 'nullable|file|max:20480'
+        ]);
+
+        try {
+            $user = Auth::user();
+            $journal = Journal::with(['class.academicYear', 'subject', 'tasks'])->findOrFail($journalId);
+
+            if ($journal->teacher_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Anda bukan guru penerbit jurnal ini.'], 403);
+            }
+
+            $hasTask = $request->boolean('has_task');
+
+            $journal->topic_material = $request->topic_material;
+            $journal->description = $request->description;
+            $journal->has_task = $hasTask;
+
+            // Simpan lampiran baru jika diunggah
+            if ($request->hasFile('attachment')) {
+                $path = FileStorageService::storeJournalAttachment($request->file('attachment'), $journal);
+                $journal->attachment_url = '/storage/' . $path;
+            }
+
+            $journal->save();
+
+            // Sinkronisasi status penugasan
+            if ($hasTask) {
+                $existingTask = JournalTask::where('journal_id', $journal->id)->first();
+                if (!$existingTask) {
+                    $task = JournalTask::create([
+                        'journal_id' => $journal->id,
+                        'title' => 'Tugas: ' . $journal->topic_material,
+                        'description' => $journal->description,
+                        'due_date' => now()->addDays(7)
+                    ]);
+                    if ($journal->attachment_url && $request->hasFile('attachment')) {
+                        JournalTaskAttachment::create([
+                            'journal_task_id' => $task->id,
+                            'attachment_name' => $request->file('attachment')->getClientOriginalName(),
+                            'attachment_url' => $journal->attachment_url
+                        ]);
+                    }
+                } else {
+                    $existingTask->update([
+                        'title' => 'Tugas: ' . $journal->topic_material,
+                        'description' => $journal->description,
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jurnal berhasil diperbarui.',
+                'data' => $journal
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal memperbarui jurnal: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function deleteJournal($journalId)
     {
         try {
@@ -1199,34 +1265,34 @@ class JournalController extends Controller
                 }
                 $journalId = $journal->id;
             } else {
-                Journal::findOrFail($journalId);
+                $journal = Journal::findOrFail($journalId);
             }
+
+            $isPublisher = $user && ($journal->teacher_id === $user->id);
 
             $comments = JournalComment::where('journal_id', $journalId)
                 ->with(['user.siswaProfile', 'user.guruProfile', 'user.role'])
                 ->orderBy('created_at', 'asc')
                 ->get()
-                ->map(function ($c) use ($user) {
+                ->map(function ($c) use ($user, $isPublisher) {
                     $isMe = $user && $c->user_id === $user->id;
                     $role = $c->user?->role?->name ?? ($c->user?->role_type ?? 'SISWA');
                     $rawName = $c->user?->siswaProfile?->full_name 
                         ?: ($c->user?->guruProfile?->full_name 
                             ?: ($c->user?->full_name ?: ($c->user?->username ?? 'Pengguna')));
 
-                    $authorName = $isMe ? 'Saya' : $rawName;
-
                     return [
                         'id' => $c->id,
                         'journal_id' => $c->journal_id,
                         'user_id' => $c->user_id,
-                        'author_name' => $authorName,
+                        'author_name' => $rawName,
                         'raw_author_name' => $rawName,
                         'author_role' => $role,
                         'author_avatar' => $c->user?->profile_picture ?? null,
                         'comment_text' => $c->comment_text,
                         'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
                         'is_me' => $isMe,
-                        'can_delete' => $isMe || ($user && ($user->role_type === 'GURU' || $user->role?->name === 'GURU')),
+                        'can_delete' => $isMe || $isPublisher,
                     ];
                 });
 
@@ -1250,6 +1316,8 @@ class JournalController extends Controller
                     return response()->json(['status' => 'error', 'message' => 'Not found'], 404);
                 }
                 $journalId = $journal->id;
+            } else {
+                $journal = Journal::findOrFail($journalId);
             }
 
             $comment = JournalComment::where('journal_id', $journalId)
@@ -1257,10 +1325,11 @@ class JournalController extends Controller
                 ->firstOrFail();
 
             $isOwner = $comment->user_id === $user->id;
-            $isTeacher = ($user->role_type === 'GURU' || $user->role?->name === 'GURU');
+            $isPublisher = $journal->teacher_id === $user->id;
 
-            if (!$isOwner && !$isTeacher) {
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+            // Hanya pemilik komentar atau guru penerbit jurnal yang diizinkan menghapus
+            if (!$isOwner && !$isPublisher) {
+                return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak untuk menghapus komentar ini.'], 403);
             }
 
             $comment->delete();

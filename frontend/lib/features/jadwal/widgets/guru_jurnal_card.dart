@@ -211,12 +211,22 @@ class GuruJurnalCard extends ConsumerWidget {
             selectedDateStr,
           ),
           onEdit: () async {
-            final res = await GuruIsiJurnalDialog.show(
+            final res = await Navigator.push(
               context,
-              journalId: jId,
-              subjectName: subjectName,
-              className: className,
-              timeRange: timeRange,
+              MaterialPageRoute(
+                builder: (context) => GuruTerbitJurnalScreen(
+                  isEditMode: true,
+                  editJournalId: jId,
+                  initialScheduleId: journal['schedule_id']?.toString(),
+                  initialSubjectId: journal['subject_id']?.toString(),
+                  initialTeachingDate: journal['teaching_date']?.toString() ?? selectedDateStr,
+                  initialTopic: journal['topic'] as String?,
+                  initialDescription: journal['description'] as String?,
+                  initialHasTask: journal['has_task'] == true,
+                  initialClassName: className,
+                  initialSubjectName: subjectName,
+                ),
+              ),
             );
             if (res == true) {
               onRefresh();
@@ -278,11 +288,11 @@ class GuruJurnalCard extends ConsumerWidget {
                       }
                     }
                   }
-                  final isMe = item['is_me'] == true || item['can_delete'] == true;
-                  final authorName = item['author_name'] ?? (isMe ? 'Saya' : 'Siswa');
+                  final isMe = item['is_me'] == true;
+                  final authorName = item['raw_author_name'] ?? item['author_name'] ?? 'Pengguna';
                   return {
                     'id': item['id'],
-                    'user': isMe ? 'Saya' : authorName,
+                    'user': authorName,
                     'text': item['comment_text'] ?? '',
                     'time': timeStr,
                     'is_me': isMe,
@@ -724,17 +734,6 @@ class GuruJurnalCard extends ConsumerWidget {
             ),
           ],
         ),
-        if (journal['has_task'] == true)
-          Row(
-            children: [
-              Icon(PhosphorIcons.clipboardText(PhosphorIconsStyle.fill), size: 14.w(context), color: AppColors.primary),
-              SizedBox(width: 4.w(context)),
-              Text(
-                'Ada Tugas',
-                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
       ],
     );
   }

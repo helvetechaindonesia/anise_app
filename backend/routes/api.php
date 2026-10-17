@@ -94,6 +94,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
             Route::get('/guru', [JournalController::class, 'getGuruJournals']);
             Route::get('/terbit-options', [JournalController::class, 'getTerbitOptions']);
             Route::post('/terbit', [JournalController::class, 'store']);
+            Route::match(['post', 'put'], '/{journalId}/update', [JournalController::class, 'updateJournal']);
             Route::post('/', [JournalController::class, 'submitJournal']);
             Route::post('/{journalId}/check-in-cam', [JournalController::class, 'checkInCam']);
             Route::get('/{journalId}/class-students', [JournalController::class, 'getClassStudents']);

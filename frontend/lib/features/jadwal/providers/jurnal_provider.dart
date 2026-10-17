@@ -68,6 +68,47 @@ class JurnalNotifier extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
     }
   }
 
+  Future<bool> updateJournal({
+    required String journalId,
+    required String topicMaterial,
+    String? description,
+    required bool hasTask,
+    dart_io.File? attachment,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'topic_material': topicMaterial,
+        'description': description ?? '',
+        'has_task': hasTask ? 1 : 0,
+      });
+
+      if (attachment != null) {
+        String fileName = attachment.path.split('/').last;
+        if (dart_io.Platform.isWindows) {
+          fileName = attachment.path.split('\\').last;
+        }
+        formData.files.add(MapEntry(
+          'attachment',
+          await MultipartFile.fromFile(attachment.path, filename: fileName),
+        ));
+      }
+
+      final response = await _dio.post(
+        '/journals/$journalId/update',
+        data: formData,
+        onSendProgress: (count, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(count / total);
+          }
+        },
+      );
+      return response.data['status'] == 'success';
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> deleteJournal(String journalId) async {
     try {
       final response = await _dio.delete('/journals/$journalId');

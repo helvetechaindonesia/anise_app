@@ -272,54 +272,57 @@ class _ScheduleCardState extends State<ScheduleCard> {
           // TOMBOL "ADA TUGAS" (Khusus Tampilan Pengajar/Publisher)
           if (widget.isPublisher && (widget.hasTask || widget.hasFileAttachment)) ...[
             SizedBox(height: 12.h(context)),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => GuruInputTugasScreen(
-                        initialSubjectId: widget.subjectId,
-                        initialJournalId: widget.journalId,
-                      ),
-                    ),
-                  );
-                },
+            SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(12.w(context)),
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 11.h(context)),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12.w(context)),
-                    border: Border.all(
-                      color: AppColors.secondary.withValues(alpha: 0.35),
-                      width: 1.2,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
-                        color: AppColors.secondary,
-                        size: 18.w(context),
-                      ),
-                      SizedBox(width: 8.w(context)),
-                      Text(
-                        'Ada Tugas • Kelola / Buat Tugas Terkait',
-                        style: AppTextStyles.labelMedium(context, color: AppColors.secondary).copyWith(
-                          fontWeight: FontWeight.w700,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GuruInputTugasScreen(
+                          initialSubjectId: widget.subjectId,
+                          initialJournalId: widget.journalId,
                         ),
                       ),
-                      SizedBox(width: 4.w(context)),
-                      Icon(
-                        PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-                        color: AppColors.secondary,
-                        size: 14.w(context),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12.w(context)),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12.w(context)),
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 1.5,
                       ),
-                    ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
+                          color: AppColors.primary,
+                          size: 18.w(context),
+                        ),
+                        SizedBox(width: 8.w(context)),
+                        Text(
+                          'Ada Tugas • Kelola / Buat Tugas Terkait',
+                          style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(width: 4.w(context)),
+                        Icon(
+                          PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                          color: AppColors.primary,
+                          size: 14.w(context),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -811,10 +814,10 @@ class _ScheduleCardState extends State<ScheduleCard> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  item['user'] ?? 'Siswa',
-                                                  style: AppTextStyles.labelMedium(context, color: (item['is_me'] == true || item['user'] == 'Saya') ? AppColors.primary : AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                                  item['user'] ?? 'Pengguna',
+                                                  style: AppTextStyles.labelMedium(context, color: item['is_me'] == true ? AppColors.primary : AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
                                                 ),
-                                                if (item['is_me'] == true || item['user'] == 'Saya') ...[
+                                                if (item['is_me'] == true) ...[
                                                   SizedBox(width: 6.w(context)),
                                                   Container(
                                                     padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),

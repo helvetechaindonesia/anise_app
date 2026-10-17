@@ -20,12 +20,26 @@ class GuruTerbitJurnalScreen extends ConsumerStatefulWidget {
   final String? initialScheduleId;
   final String? initialSubjectId;
   final String? initialTeachingDate;
+  final bool isEditMode;
+  final String? editJournalId;
+  final String? initialTopic;
+  final String? initialDescription;
+  final bool? initialHasTask;
+  final String? initialClassName;
+  final String? initialSubjectName;
 
   const GuruTerbitJurnalScreen({
     super.key,
     this.initialScheduleId,
     this.initialSubjectId,
     this.initialTeachingDate,
+    this.isEditMode = false,
+    this.editJournalId,
+    this.initialTopic,
+    this.initialDescription,
+    this.initialHasTask,
+    this.initialClassName,
+    this.initialSubjectName,
   });
 
   @override
@@ -54,6 +68,12 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
     _selectedMapel = widget.initialSubjectId;
     if (widget.initialScheduleId != null && widget.initialTeachingDate != null) {
       _selectedJadwal = "${widget.initialScheduleId}|${widget.initialTeachingDate}";
+    }
+
+    if (widget.isEditMode) {
+      _judulController.text = widget.initialTopic ?? '';
+      _deskripsiController.text = widget.initialDescription ?? '';
+      _isAdaTugas = widget.initialHasTask ?? false;
     }
 
     // Panggil fetchTerbitOptions segera setelah build pertama selesai
@@ -145,8 +165,8 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const AniseAppBar(
-        title: 'Terbitkan Jurnal',
+      appBar: AniseAppBar(
+        title: widget.isEditMode ? 'Edit Jurnal Mengajar' : 'Terbitkan Jurnal',
       ),
       body: SafeArea(
         child: jurnalState.when(
@@ -258,30 +278,66 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                             context,
                             icon: PhosphorIcons.calendar(PhosphorIconsStyle.bold),
                             title: 'Jadwal & Mata Pelajaran',
-                            subtitle: 'Pilih mata pelajaran dan sesi jadwal mengajar Anda.',
+                            subtitle: widget.isEditMode
+                                ? 'Mata pelajaran, kelas, dan jadwal KBM dikunci saat mode edit.'
+                                : 'Pilih mata pelajaran dan sesi jadwal mengajar Anda.',
                           ),
                           SizedBox(height: 16.h(context)),
-                          TerbitJurnalMapelDropdown(
-                            selectedMapel: _selectedMapel,
-                            subjects: subjects,
-                            onChanged: (val) {
-                              setState(() {
-                                _selectedMapel = val;
-                                _selectedJadwal = null;
-                              });
-                            },
-                          ),
-                          SizedBox(height: 16.h(context)),
-                          TerbitJurnalJadwalDropdown(
-                            selectedJadwal: _selectedJadwal,
-                            schedules: availableSchedules,
-                            selectedMapel: _selectedMapel,
-                            onChanged: (val) {
-                              setState(() {
-                                _selectedJadwal = val;
-                              });
-                            },
-                          ),
+                          if (widget.isEditMode) ...[
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(14.w(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.backgroundLight,
+                                borderRadius: BorderRadius.circular(12.w(context)),
+                                border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(PhosphorIcons.lock(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
+                                      SizedBox(width: 8.w(context)),
+                                      Expanded(
+                                        child: Text(
+                                          widget.initialSubjectName ?? 'Mata Pelajaran',
+                                          style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4.h(context)),
+                                  Text(
+                                    'Kelas & Jadwal: ${widget.initialClassName ?? 'Kelas Terpilih'}',
+                                    style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            TerbitJurnalMapelDropdown(
+                              selectedMapel: _selectedMapel,
+                              subjects: subjects,
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedMapel = val;
+                                  _selectedJadwal = null;
+                                });
+                              },
+                            ),
+                            SizedBox(height: 16.h(context)),
+                            TerbitJurnalJadwalDropdown(
+                              selectedJadwal: _selectedJadwal,
+                              schedules: availableSchedules,
+                              selectedMapel: _selectedMapel,
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedJadwal = val;
+                                });
+                              },
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -587,7 +643,7 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                       return;
                     }
 
-                    if (_selectedMapel == null || _selectedJadwal == null) {
+                    if (!widget.isEditMode && (_selectedMapel == null || _selectedJadwal == null)) {
                       AniseFeedbackDialog.showError(
                         context,
                         title: 'Jadwal Belum Dipilih',
@@ -601,21 +657,39 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                       _uploadProgress = 0.0;
                     });
 
-                    final success = await ref.read(jurnalProvider.notifier).terbitJurnal(
-                          scheduleId: _selectedJadwal!,
-                          subjectId: _selectedMapel!,
-                          topicMaterial: _judulController.text.trim(),
-                          description: _deskripsiController.text.trim(),
-                          hasTask: _isAdaTugas,
-                          attachment: _selectedFile,
-                          onProgress: (progress) {
-                            if (mounted) {
-                              setState(() {
-                                _uploadProgress = progress;
-                              });
-                            }
-                          },
-                        );
+                    final bool success;
+                    if (widget.isEditMode && widget.editJournalId != null) {
+                      success = await ref.read(jurnalProvider.notifier).updateJournal(
+                            journalId: widget.editJournalId!,
+                            topicMaterial: _judulController.text.trim(),
+                            description: _deskripsiController.text.trim(),
+                            hasTask: _isAdaTugas,
+                            attachment: _selectedFile,
+                            onProgress: (progress) {
+                              if (mounted) {
+                                setState(() {
+                                  _uploadProgress = progress;
+                                });
+                              }
+                            },
+                          );
+                    } else {
+                      success = await ref.read(jurnalProvider.notifier).terbitJurnal(
+                            scheduleId: _selectedJadwal!,
+                            subjectId: _selectedMapel!,
+                            topicMaterial: _judulController.text.trim(),
+                            description: _deskripsiController.text.trim(),
+                            hasTask: _isAdaTugas,
+                            attachment: _selectedFile,
+                            onProgress: (progress) {
+                              if (mounted) {
+                                setState(() {
+                                  _uploadProgress = progress;
+                                });
+                              }
+                            },
+                          );
+                    }
 
                     if (mounted) {
                       setState(() {
@@ -630,8 +704,10 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
 
                       await AniseFeedbackDialog.showSuccess(
                         context,
-                        title: 'Jurnal Berhasil Diterbitkan',
-                        message: 'Rencana Pelaksanaan Pembelajaran (Micro-RPP) berhasil disimpan dan dapat diakses oleh siswa di kelas terkait.',
+                        title: widget.isEditMode ? 'Jurnal Berhasil Diperbarui' : 'Jurnal Berhasil Diterbitkan',
+                        message: widget.isEditMode
+                            ? 'Pembaruan materi dan rencana pembelajaran berhasil disimpan.'
+                            : 'Rencana Pelaksanaan Pembelajaran (Micro-RPP) berhasil disimpan dan dapat diakses oleh siswa di kelas terkait.',
                         buttonText: 'Selesai',
                         onConfirm: () {
                           Navigator.pop(context, true);
@@ -640,8 +716,8 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                     } else if (mounted) {
                       AniseFeedbackDialog.showError(
                         context,
-                        title: 'Gagal Menerbitkan Jurnal',
-                        message: 'Terjadi kendala saat menerbitkan jurnal mengajar. Silakan periksa koneksi internet Anda dan coba lagi.',
+                        title: widget.isEditMode ? 'Gagal Memperbarui Jurnal' : 'Gagal Menerbitkan Jurnal',
+                        message: 'Terjadi kendala saat memproses jurnal mengajar. Silakan periksa koneksi internet Anda dan coba lagi.',
                       );
                     }
                   },
@@ -653,10 +729,14 @@ class _GuruTerbitJurnalScreenState extends ConsumerState<GuruTerbitJurnalScreen>
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.onPrimary),
+                      Icon(
+                        widget.isEditMode ? PhosphorIcons.floppyDisk(PhosphorIconsStyle.bold) : PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.bold),
+                        size: 18.w(context),
+                        color: AppColors.onPrimary,
+                      ),
                       SizedBox(width: 8.w(context)),
                       Text(
-                        'Terbitkan Jurnal Sekarang',
+                        widget.isEditMode ? 'Simpan Perubahan' : 'Terbitkan Jurnal Sekarang',
                         style: AppTextStyles.titleMedium(context, color: AppColors.onPrimary).copyWith(
                           fontWeight: FontWeight.w700,
                         ),

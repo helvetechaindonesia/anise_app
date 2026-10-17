@@ -412,11 +412,11 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
                                   }
                                 }
                               }
-                              final isMe = item['is_me'] == true || item['can_delete'] == true;
-                              final authorName = item['author_name'] ?? (isMe ? 'Saya' : 'Siswa');
+                              final isMe = item['is_me'] == true;
+                              final authorName = item['raw_author_name'] ?? item['author_name'] ?? 'Pengguna';
                               return {
                                 'id': item['id'],
-                                'user': isMe ? 'Saya' : authorName,
+                                'user': authorName,
                                 'text': item['comment_text'] ?? '',
                                 'time': timeStr,
                                 'is_me': isMe,
