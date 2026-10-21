@@ -770,8 +770,8 @@ class JournalController extends Controller
                 $classId = $sched?->class_id ?? $journal->class_id;
 
                 // Server-Authoritative Time Calculation
-                // Jam server menentukan apakah KBM sedang Aktif / Terlewat / Selesai
-                $serverNow = Carbon::now();
+                // Jam server menentukan apakah KBM sedang Aktif / Terlewat / Selesai (Mendukung Virtual Time Travel)
+                $serverNow = \App\Helpers\AppTime::now();
                 $teachingDateStr = $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : $serverNow->format('Y-m-d');
                 $isTodayOnServer = $serverNow->format('Y-m-d') === $teachingDateStr;
                 

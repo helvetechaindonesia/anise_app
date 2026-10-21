@@ -19,7 +19,7 @@ class CheckKbmRemindersCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kbm:check-reminders {--force : Jalankan pemindaian tanpa batas filter}';
+    protected $signature = 'kbm:check-reminders {--force : Jalankan pemindaian tanpa batas filter} {--time= : Waktu custom spesifik (YYYY-MM-DD HH:mm:ss)}';
 
     /**
      * The console command description.
@@ -34,8 +34,15 @@ class CheckKbmRemindersCommand extends Command
     public function handle(): int
     {
         $this->info("=== MEMULAI PEMINDAIAN JADWAL KBM & NOTIFIKASI ===");
-        $now = Carbon::now();
-        $this->info("Waktu saat ini: " . $now->toDateTimeString());
+        
+        $customTime = $this->option('time');
+        if (!empty($customTime)) {
+            $now = Carbon::parse($customTime);
+            $this->warn("Menggunakan waktu manual parameter: " . $now->toDateTimeString());
+        } else {
+            $now = \App\Helpers\AppTime::now();
+            $this->info("Waktu saat ini (AppTime): " . $now->toDateTimeString());
+        }
 
         $daysMap = [
             1 => 'Senin',
