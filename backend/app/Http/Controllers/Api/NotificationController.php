@@ -21,7 +21,8 @@ class NotificationController extends Controller
 
         $notifications = Notification::where('user_id', $userId)
             ->orderBy('created_at', 'desc')
-            ->limit(50)
+            ->orderBy('updated_at', 'desc')
+            ->limit(100)
             ->get();
 
         return $this->success($notifications);

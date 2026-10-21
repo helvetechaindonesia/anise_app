@@ -107,10 +107,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         try {
           final aDate = DateTime.parse(aTimeStr);
           final bDate = DateTime.parse(bTimeStr);
-          return bDate.compareTo(aDate); // Descending (terbaru di paling atas)
-        } catch (_) {
-          return bTimeStr.compareTo(aTimeStr);
-        }
+          final cmp = bDate.compareTo(aDate); // Descending (terbaru di paling atas)
+          if (cmp != 0) return cmp;
+        } catch (_) {}
+        return bTimeStr.compareTo(aTimeStr);
       });
 
       if (mounted) {

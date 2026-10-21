@@ -286,7 +286,15 @@ class CheckKbmRemindersCommand extends Command
 
                 if (!$alreadyNotified) {
                     $notifMessage = "Batas waktu pengumpulan tugas \"{$task->title}\" ({$subjectName}) telah terlewat pada {$dueDateFormatted} WIB. Silakan ajukan permohonan mengumpulkan kepada guru pengampu jika masih ingin mengumpulkan.\n<!--DATA:" . json_encode($notifData) . "-->";
-                    NotificationService::sendInAppNotification($studentId, $notifTitle, $notifMessage);
+                    $taskDueDate = Carbon::parse($task->due_date);
+                    Notification::create([
+                        'user_id' => $studentId,
+                        'title' => $notifTitle,
+                        'message' => $notifMessage,
+                        'is_read' => false,
+                        'created_at' => $taskDueDate,
+                        'updated_at' => $taskDueDate,
+                    ]);
                     $expiredNotifiedCount++;
                 }
             }

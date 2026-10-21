@@ -848,7 +848,17 @@ class AssignmentController extends Controller
                                 'due_date_formatted' => $dueDateFormatted,
                             ];
                             $notifMessage = "Batas waktu pengumpulan tugas \"{$task->title}\" ({$subjectName}) telah terlewat pada {$dueDateFormatted} WIB. Silakan ajukan permohonan mengumpulkan kepada guru pengampu jika masih ingin mengumpulkan.\n<!--DATA:" . json_encode($notifData) . "-->";
-                            NotificationService::sendInAppNotification($user->id, $notifTitle, $notifMessage);
+                            
+                            // Pasang created_at sesuai waktu saat tugas tersebut terlewat (tenggat waktu)
+                            // agar notifikasi terlewat tidak mendahului notifikasi aksi terbaru (seperti permohonan disetujui / nilai)
+                            Notification::create([
+                                'user_id' => $user->id,
+                                'title' => $notifTitle,
+                                'message' => $notifMessage,
+                                'is_read' => false,
+                                'created_at' => $dueDate,
+                                'updated_at' => $dueDate,
+                            ]);
                         }
                     } catch (\Throwable $notifErr) {
                         \Log::warning("Gagal auto-sync notif terlewat: " . $notifErr->getMessage());
