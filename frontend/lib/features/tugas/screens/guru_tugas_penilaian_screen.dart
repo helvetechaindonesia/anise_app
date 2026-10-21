@@ -778,16 +778,36 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
       margin: EdgeInsets.only(bottom: 12.h(context)),
       padding: EdgeInsets.all(16.w(context)),
       decoration: BoxDecoration(
-        color: isHighlighted ? AppColors.primaryContainer.withValues(alpha: 0.25) : AppColors.surface,
+        color: AppColors.surface, // Background tetap bersih / putih / surface agar teks mudah dibaca
         borderRadius: BorderRadius.circular(16.w(context)),
         border: Border.all(
           color: isHighlighted
-              ? AppColors.primary
+              ? AppColors.secondary
               : (hasScore
                   ? AppColors.primary.withValues(alpha: 0.3)
                   : (isSubmitted ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.outline.withValues(alpha: 0.15))),
           width: isHighlighted ? 2.0 : 1.0,
         ),
+        boxShadow: isHighlighted
+            ? [
+                BoxShadow(
+                  color: AppColors.secondary.withValues(alpha: 0.4),
+                  blurRadius: 14,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
