@@ -49,24 +49,24 @@ async function startWhatsApp() {
 
         if (qr) {
             currentQR = qr;
+            console.log('[WA Gateway] QR Code baru siap untuk di-scan!');
         }
 
         if (connection === 'close') {
             isConnected = false;
             botUser = null;
             const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            console.log(`[WA Gateway] Koneksi terputus (Status: ${statusCode})`);
 
-            console.log(`[WA Gateway] Koneksi terputus (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
-
-            if (shouldReconnect) {
-                setTimeout(startWhatsApp, 3000);
-            } else {
-                console.log('[WA Gateway] Perangkat keluar (Logged Out). Hapus folder session dan scan ulang.');
+            // Jika status 500 atau 401 atau session corrupt, bersihkan session agar generate QR baru
+            if (statusCode === 500 || statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+                console.log('[WA Gateway] Session korup / kedaluwarsa. Membersihkan session folder untuk QR baru...');
                 try {
                     fs.rmSync(SESSION_DIR, { recursive: true, force: true });
                     fs.mkdirSync(SESSION_DIR, { recursive: true });
                 } catch (_) {}
+                setTimeout(startWhatsApp, 2000);
+            } else {
                 setTimeout(startWhatsApp, 3000);
             }
         } else if (connection === 'open') {
