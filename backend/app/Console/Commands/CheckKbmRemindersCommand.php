@@ -149,43 +149,79 @@ class CheckKbmRemindersCommand extends Command
         $this->info("Selesai H-24 check: {$h24NotifiedCount} guru dikirim peringatan.");
 
         // ========================================================
-        // 2. CEK TOLERANSI 15 MENIT PRESENSI CAM KBM AKTIF HARI INI
-        // Guru wajib presensi cam maksimal toleransi 15 menit dari start_time
+        // 2. CEK JADWAL KBM HARI INI: H-1 JAM, START TIME, & TOLERANSI 20 MENIT TERLAMBAT
         // ========================================================
-        $this->info("\n[2] Memeriksa jadwal KBM hari ini ({$todayDayName}, {$todayDateStr}) yang sedang aktif...");
+        $this->info("\n[2] Memeriksa status KBM hari ini ({$todayDayName}, {$todayDateStr})...");
 
-        $activeSchedules = Schedule::where('day_of_week', $todayDayName)
+        $todaySchedules = Schedule::where('day_of_week', $todayDayName)
             ->whereNotNull('subject_id')
             ->whereNull('activity_name')
-            ->where('start_time', '<=', $currentTimeStr)
-            ->where('end_time', '>=', $currentTimeStr)
             ->with(['teacher.guruProfile', 'subject', 'class'])
             ->get()
             ->filter(function ($sched) {
-                // Abaikan kegiatan non-mapel (KEG)
                 return $sched->subject && $sched->subject->code !== 'KEG' && empty($sched->activity_name);
             });
 
-        $camNotifiedCount = 0;
-        foreach ($activeSchedules as $sched) {
-            // Ambil jurnal yang sudah diterbitkan untuk jadwal hari ini
+        $kbmNotifiedCount = 0;
+        foreach ($todaySchedules as $sched) {
             $journal = Journal::where('schedule_id', $sched->id)
                 ->whereDate('teaching_date', $todayDateStr)
                 ->first();
 
-            // Jika ada jurnal tapi guru BELUM melakukan presensi cam
-            if ($journal && empty($journal->check_in_time)) {
-                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$todayDateStr} {$sched->start_time}");
-                $minutesElapsed = (int)$startDateTime->diffInMinutes($now, false);
+            // Hanya proses jika jurnal sudah diterbitkan
+            if (!$journal) continue;
 
-                if ($minutesElapsed >= 10) {
-                    $this->warn(" -> Guru belum presensi cam ({$minutesElapsed} menit berjalan): {$sched->subject?->name} - Guru: {$sched->teacher?->username}");
+            $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$todayDateStr} {$sched->start_time}");
+            $endDateTime = $sched->end_time ? Carbon::createFromFormat('Y-m-d H:i:s', "{$todayDateStr} {$sched->end_time}") : null;
+
+            // 2a. PENGINGAT H-1 JAM SEBELUM KBM DIMULAI (antara 50 s/d 65 menit sebelum start)
+            $minutesUntilStart = (int)$now->diffInMinutes($startDateTime, false);
+            if ($minutesUntilStart >= 50 && $minutesUntilStart <= 65) {
+                $alreadyNotifiedH1 = \App\Models\Notification::where('user_id', $sched->teacher_id)
+                    ->where('title', 'like', '%1 Jam Lagi%')
+                    ->where('message', 'like', "%{$sched->subject?->name}%")
+                    ->where('created_at', '>=', $now->copy()->subHours(2))
+                    ->exists();
+
+                if (!$alreadyNotifiedH1 || $force) {
+                    NotificationService::notifyGuruH1Journal($sched, $now);
+                    $this->warn(" -> Terkirim notifikasi H-1 Jam ke Guru {$sched->teacher?->username} ({$sched->subject?->name})");
+                    $kbmNotifiedCount++;
+                }
+            }
+
+            // 2b. NOTIFIKASI KBM TEPAT DIMULAI (Start Time: antara menit ke-0 s/d menit ke-5)
+            $minutesElapsed = (int)$startDateTime->diffInMinutes($now, false);
+            if ($minutesElapsed >= 0 && $minutesElapsed <= 5 && empty($journal->check_in_time)) {
+                $alreadyNotifiedStart = \App\Models\Notification::where('user_id', $sched->teacher_id)
+                    ->where('title', 'like', '%KBM Dimulai%')
+                    ->where('message', 'like', "%{$sched->subject?->name}%")
+                    ->where('created_at', '>=', $now->copy()->subHours(1))
+                    ->exists();
+
+                if (!$alreadyNotifiedStart || $force) {
+                    NotificationService::notifyGuruKbmStart($sched, $journal);
+                    $this->warn(" -> Terkirim notifikasi KBM Dimulai (Presensi Aktif) ke Guru {$sched->teacher?->username}");
+                    $kbmNotifiedCount++;
+                }
+            }
+
+            // 2c. PERINGATAN TOLERANSI 20 MENIT HABIS (Presensi Terlambat / Tombol Merah)
+            if ($minutesElapsed > 20 && ($endDateTime === null || $now->lt($endDateTime)) && empty($journal->check_in_time)) {
+                $alreadyNotifiedLate = \App\Models\Notification::where('user_id', $sched->teacher_id)
+                    ->where('title', 'like', '%Presensi Jurnal Terlambat%')
+                    ->where('message', 'like', "%{$sched->subject?->name}%")
+                    ->where('created_at', '>=', $now->copy()->subHours(2))
+                    ->exists();
+
+                if (!$alreadyNotifiedLate || $force) {
                     NotificationService::notifyGuruPresensiCamLate($sched, $journal, $minutesElapsed);
-                    $camNotifiedCount++;
+                    $this->warn(" -> Terkirim peringatan Toleransi 20 Menit Habis (Terlambat +{$minutesElapsed}m) ke Guru {$sched->teacher?->username}");
+                    $kbmNotifiedCount++;
                 }
             }
         }
-        $this->info("Selesai Presensi Cam check: {$camNotifiedCount} guru dikirim peringatan keterlambatan.");
+        $this->info("Selesai KBM Notif check: {$kbmNotifiedCount} notifikasi terkirim.");
 
         // ========================================================
         // 3. PENGINGAT H-6 JAM SEBELUM TENGGAT TUGAS SISWA

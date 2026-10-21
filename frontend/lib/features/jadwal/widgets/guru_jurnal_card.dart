@@ -212,6 +212,10 @@ class GuruJurnalCard extends ConsumerWidget {
             className,
             timeRange,
             selectedDateStr,
+            isToday: isToday,
+            currentMinutes: currentMinutes,
+            startMinutes: startMinutes,
+            endMinutes: endMinutes,
           ),
           onEdit: () async {
             final res = await Navigator.push(
@@ -449,7 +453,22 @@ class GuruJurnalCard extends ConsumerWidget {
           SizedBox(height: 12.h(context)),
 
           // 3. ACTION AREA BERDASARKAN STATUS
-          _buildActionArea(context, status, isScheduleOnly, isCheckedIn, isFilled, jId, subjectName, className, timeRange, selectedDateStr),
+          _buildActionArea(
+            context,
+            status,
+            isScheduleOnly,
+            isCheckedIn,
+            isFilled,
+            jId,
+            subjectName,
+            className,
+            timeRange,
+            selectedDateStr,
+            isToday: isToday,
+            currentMinutes: currentMinutes,
+            startMinutes: startMinutes,
+            endMinutes: endMinutes,
+          ),
         ],
       ),
     );
@@ -465,8 +484,12 @@ class GuruJurnalCard extends ConsumerWidget {
     String subjectName,
     String className,
     String timeRange,
-    String selectedDateStr,
-  ) {
+    String selectedDateStr, {
+    required bool isToday,
+    required int currentMinutes,
+    required int startMinutes,
+    required int endMinutes,
+  }) {
     // KASUS 1: TERLEWAT
     if (status == 'Terlewat') {
       return Container(
@@ -548,121 +571,8 @@ class GuruJurnalCard extends ConsumerWidget {
       );
     }
 
-    // KASUS 3: KBM AKTIF
-    if (status == 'Aktif') {
-      if (!isCheckedIn) {
-        return Column(
-          children: [
-            Container(
-              margin: EdgeInsets.only(bottom: 12.h(context)),
-              padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10.w(context)),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(PhosphorIcons.camera(PhosphorIconsStyle.fill), color: AppColors.error, size: 18.w(context)),
-                  SizedBox(width: 8.w(context)),
-                  Expanded(
-                    child: Text(
-                      'KBM Aktif! Anda wajib Presensi Cam (Toleransi 15 menit dari jam mulai).',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final res = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => PresensiCameraScreen(
-                        journalId: jId,
-                        kbmTitle: '$subjectName ($className)',
-                      ),
-                    ),
-                  );
-                  if (res == true) {
-                    onRefresh();
-                  }
-                },
-                icon: Icon(PhosphorIcons.camera(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onPrimary),
-                label: Text(
-                  'Presensi Cam Jurnal',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary).copyWith(fontWeight: FontWeight.w800),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
-                ),
-              ),
-            ),
-          ],
-        );
-      } else {
-        return Column(
-          children: [
-            Container(
-              margin: EdgeInsets.only(bottom: 12.h(context)),
-              padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10.w(context)),
-                border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 18.w(context)),
-                  SizedBox(width: 8.w(context)),
-                  Expanded(
-                    child: Text(
-                      'Presensi Cam terverifikasi (${journal['check_in_time'] ?? 'OK'}). Silakan isi jurnal.',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final res = await GuruIsiJurnalDialog.show(
-                    context,
-                    journalId: jId,
-                    subjectName: subjectName,
-                    className: className,
-                    timeRange: timeRange,
-                  );
-                  if (res == true) {
-                    onRefresh();
-                  }
-                },
-                icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimary),
-                label: Text(
-                  'Isi Laporan Jurnal KBM',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary).copyWith(fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
-                ),
-              ),
-            ),
-          ],
-        );
-      }
-    }
-
-    // KASUS 4: KBM SELESAI
-    if (status == 'Selesai') {
+    // KASUS 3: KBM SELESAI
+    if (status == 'Selesai' || (isToday && currentMinutes > endMinutes)) {
       if (!isFilled) {
         return SizedBox(
           width: double.infinity,
@@ -723,22 +633,144 @@ class GuruJurnalCard extends ConsumerWidget {
       }
     }
 
-    // KASUS 5: JURNAL TERBIT TAPI MENUNGGU JAM KBM
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(PhosphorIcons.hourglass(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.onSurfaceVariant),
-            SizedBox(width: 6.w(context)),
-            Text(
-              'Materi terbit (Menunggu jam KBM)',
-              style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.w600),
+    // KASUS 4: JURNAL SUDAH TERBIT (Menunggu KBM atau Sedang Berlangsung)
+    // REVISI USER:
+    // 1. Tombol Presensi Jurnal TIDAK MUNCUL sebelum waktu start dimulai (bukan disabled, melainkan completely hidden).
+    // 2. Tepat saat waktu start dimulai (isToday && currentMinutes >= startMinutes), tombol baru muncul.
+    // 3. Toleransi 20 menit:
+    //    - 0-20 menit dari start_time: Tombol Hijau ("Presensi Jurnal")
+    //    - > 20 menit dari start_time: Tombol Merah ("Presensi Terlambat")
+    // 4. Setelah presensi sukses (isCheckedIn), tombol berubah jadi "Isi Jurnal" / "Edit Laporan Jurnal KBM".
+    final bool hasStarted = isToday && (currentMinutes >= startMinutes);
+    final int minutesSinceStart = isToday ? (currentMinutes - startMinutes) : -1;
+    final bool isLateTolerance = minutesSinceStart > 20;
+
+    if (!isCheckedIn) {
+      // Jika KBM belum mulai, tombol Presensi Jurnal TIDAK DIMUNCULKAN (SizedBox.shrink)
+      if (!hasStarted) {
+        return const SizedBox.shrink();
+      }
+
+      // Selama rentang waktu KBM berjalan:
+      final Color buttonColor = isLateTolerance ? AppColors.error : const Color(0xFF10B981);
+      final String buttonLabel = isLateTolerance ? 'Presensi Terlambat' : 'Presensi Jurnal';
+      final String bannerText = isLateTolerance
+          ? 'KBM sedang berlangsung. Waktu toleransi 20 menit terlewati (Terlambat).'
+          : 'KBM Aktif! Silakan lakukan Presensi Jurnal (Toleransi 20 menit).';
+
+      return Column(
+        children: [
+          Container(
+            margin: EdgeInsets.only(bottom: 12.h(context)),
+            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+            decoration: BoxDecoration(
+              color: buttonColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10.w(context)),
+              border: Border.all(color: buttonColor.withValues(alpha: 0.3)),
             ),
-          ],
-        ),
-      ],
-    );
+            child: Row(
+              children: [
+                Icon(
+                  isLateTolerance ? PhosphorIcons.warning(PhosphorIconsStyle.fill) : PhosphorIcons.camera(PhosphorIconsStyle.fill),
+                  color: buttonColor,
+                  size: 18.w(context),
+                ),
+                SizedBox(width: 8.w(context)),
+                Expanded(
+                  child: Text(
+                    bannerText,
+                    style: AppTextStyles.labelSmall(context, color: buttonColor).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final res = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PresensiCameraScreen(
+                      journalId: jId,
+                      kbmTitle: '$subjectName ($className)',
+                    ),
+                  ),
+                );
+                if (res == true) {
+                  onRefresh();
+                }
+              },
+              icon: Icon(PhosphorIcons.camera(PhosphorIconsStyle.fill), size: 18.w(context), color: AppColors.onPrimary),
+              label: Text(
+                buttonLabel,
+                style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary).copyWith(fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: buttonColor,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Sudah presensi (isCheckedIn == true) -> Muncul tombol "Isi Jurnal"
+      return Column(
+        children: [
+          Container(
+            margin: EdgeInsets.only(bottom: 12.h(context)),
+            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10.w(context)),
+              border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 18.w(context)),
+                SizedBox(width: 8.w(context)),
+                Expanded(
+                  child: Text(
+                    'Presensi Cam terverifikasi (${journal['check_in_time'] ?? 'OK'}). Silakan isi jurnal.',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                final res = await GuruIsiJurnalDialog.show(
+                  context,
+                  journalId: jId,
+                  subjectName: subjectName,
+                  className: className,
+                  timeRange: timeRange,
+                );
+                if (res == true) {
+                  onRefresh();
+                }
+              },
+              icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimary),
+              label: Text(
+                isFilled ? 'Edit Laporan Jurnal KBM' : 'Isi Laporan Jurnal KBM',
+                style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary).copyWith(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
   }
 
   Widget _buildCardMenuButton(

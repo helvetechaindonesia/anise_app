@@ -363,14 +363,106 @@ class JournalController extends Controller
             $schedule = $journal->schedule;
             $now = Carbon::now();
 
-            // Cek batas toleransi 15 menit dari start_time
+            $lat = $request->input('lat', $request->input('latitude'));
+            $lng = $request->input('lng', $request->input('longitude'));
+
+            // Validasi Geofencing Lokasi Sekolah
+            if ($lat !== null && $lng !== null) {
+                $latFrom = deg2rad((float)$lat);
+                $lonFrom = deg2rad((float)$lng);
+                $earthRadius = 6371000; // meter
+                $hasMatched = false;
+                $minDistance = null;
+                $closestName = 'Sekolah';
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('geofence_locations')) {
+                    $activeLocations = \App\Models\GeofenceLocation::where('is_active', true)->get();
+                    if ($activeLocations->isNotEmpty()) {
+                        foreach ($activeLocations as $loc) {
+                            $latTo = deg2rad($loc->latitude);
+                            $lonTo = deg2rad($loc->longitude);
+                            $latDelta = $latTo - $latFrom;
+                            $lonDelta = $lonTo - $lonFrom;
+                            $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+                            $distance = $angle * $earthRadius;
+
+                            if ($minDistance === null || $distance < $minDistance) {
+                                $minDistance = $distance;
+                                $closestName = $loc->name;
+                            }
+
+                            if ($distance <= $loc->radius_meters) {
+                                $hasMatched = true;
+                                break;
+                            }
+                        }
+
+                        if (!$hasMatched) {
+                            return response()->json([
+                                'status' => 'error',
+                                'message' => 'Presensi ditolak! Anda berada di luar radius lokasi sekolah (' . round($minDistance) . ' meter dari ' . $closestName . ').'
+                            ], 400);
+                        }
+                    }
+                }
+
+                // Fallback ke school_settings jika geofence_locations belum ada
+                if (!$hasMatched && !(\Illuminate\Support\Facades\Schema::hasTable('geofence_locations') && \App\Models\GeofenceLocation::where('is_active', true)->exists())) {
+                    $settings = \Illuminate\Support\Facades\DB::table('school_settings')->whereIn('setting_key', ['geofence_lat', 'geofence_lng', 'geofence_radius'])->get()->pluck('setting_value', 'setting_key');
+                    $schoolLat = $settings['geofence_lat'] ?? null;
+                    $schoolLng = $settings['geofence_lng'] ?? null;
+                    $radius = (float)($settings['geofence_radius'] ?? 50);
+
+                    if ($schoolLat && $schoolLng) {
+                        $latTo = deg2rad((float)$schoolLat);
+                        $lonTo = deg2rad((float)$schoolLng);
+                        $latDelta = $latTo - $latFrom;
+                        $lonDelta = $lonTo - $lonFrom;
+                        $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) + cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+                        $distance = $angle * $earthRadius;
+                        if ($distance > $radius) {
+                            return response()->json([
+                                'status' => 'error',
+                                'message' => 'Presensi ditolak! Anda berada di luar radius sekolah (' . round($distance) . ' meter dari pusat sekolah).'
+                            ], 400);
+                        }
+                    }
+                }
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'GPS tidak terdeteksi. Harap nyalakan lokasi (GPS) pada perangkat Anda.'
+                ], 422);
+            }
+
+            // Validasi Waktu Mulai & Toleransi 20 Menit dari start_time
             $isLate = false;
             $minutesLate = 0;
             if ($schedule && $schedule->start_time && $journal->teaching_date) {
                 $teachingDateStr = Carbon::parse($journal->teaching_date)->format('Y-m-d');
                 $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} {$schedule->start_time}");
+                $endDateTime = $schedule->end_time ? Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} {$schedule->end_time}") : null;
+
+                // Cek apakah waktu saat ini sudah memasuki start_time
+                if ($now->lt($startDateTime)) {
+                    $diffEarly = (int)$now->diffInMinutes($startDateTime, false);
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Waktu KBM belum dimulai. Pembelajaran dimulai pada pukul {$schedule->start_time} WIB (kurang {$diffEarly} menit lagi)."
+                    ], 422);
+                }
+
+                // Cek apakah sudah melewati end_time
+                if ($endDateTime && $now->gt($endDateTime)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Waktu KBM untuk sesi ini telah berakhir pada pukul {$schedule->end_time} WIB."
+                    ], 422);
+                }
+
+                // Toleransi 20 menit dari start_time
                 $minutesDiff = (int)$startDateTime->diffInMinutes($now, false);
-                if ($minutesDiff > 15) {
+                if ($minutesDiff > 20) {
                     $isLate = true;
                     $minutesLate = $minutesDiff;
                 }
@@ -378,8 +470,8 @@ class JournalController extends Controller
 
             // Simpan data presensi cam
             $journal->check_in_time = $now;
-            $journal->latitude = $request->input('lat', $request->input('latitude'));
-            $journal->longitude = $request->input('lng', $request->input('longitude'));
+            $journal->latitude = $lat;
+            $journal->longitude = $lng;
 
             if ($request->hasFile('face_image')) {
                 $path = $request->file('face_image')->store('presensi_cam', 'public');
@@ -393,7 +485,7 @@ class JournalController extends Controller
 
             $msg = 'Presensi Cam Jurnal berhasil diverifikasi.';
             if ($isLate) {
-                $msg .= " Peringatan: Presensi tercatat terlambat {$minutesLate} menit dari jam mulai KBM.";
+                $msg = "Presensi Cam Jurnal berhasil dicatat (TERLAMBAT {$minutesLate} menit dari jam mulai KBM). Silakan lanjutkan pengisian jurnal.";
             }
 
             return response()->json([
