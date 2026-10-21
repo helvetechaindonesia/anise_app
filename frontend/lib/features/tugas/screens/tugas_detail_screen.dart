@@ -8,6 +8,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/file_download_helper.dart';
 import '../../../core/widgets/anise_button.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/tugas_provider.dart';
 
 class TugasDetailScreen extends ConsumerStatefulWidget {
@@ -302,11 +303,10 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                           ? null
                           : () async {
                               if (pickedFile == null && textController.text.trim().isEmpty && _submission == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Harap masukkan jawaban teks atau lampirkan berkas.'),
-                                    backgroundColor: AppColors.error,
-                                  ),
+                                AniseFeedbackDialog.showWarning(
+                                  context,
+                                  title: 'Jawaban Masih Kosong',
+                                  message: 'Harap masukkan jawaban teks atau lampirkan berkas jawaban.',
                                 );
                                 return;
                               }
@@ -347,20 +347,18 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                                       if (pickedFile != null) 'attachment_url': 'uploaded',
                                     };
                                   });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Tugas berhasil dikumpulkan!'),
-                                      backgroundColor: AppColors.secondary,
-                                    ),
+                                  AniseFeedbackDialog.showSuccess(
+                                    context,
+                                    title: 'Tugas Dikumpulkan',
+                                    message: 'Tugas Anda berhasil dikirimkan ke guru pengampu.',
                                   );
                                 }
                               } else {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Gagal mengirim tugas. Periksa koneksi internet atau ukuran berkas.'),
-                                      backgroundColor: AppColors.error,
-                                    ),
+                                  AniseFeedbackDialog.showError(
+                                    context,
+                                    title: 'Pengiriman Gagal',
+                                    message: 'Gagal mengirim tugas. Periksa koneksi internet atau ukuran berkas.',
                                   );
                                 }
                               }
@@ -416,8 +414,9 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mapel & Guru Header
-            Row(
+            // Mapel & Guru Header (Nama guru di bawah mapel)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
@@ -430,14 +429,20 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                     style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
-                SizedBox(width: 10.w(context)),
-                Expanded(
-                  child: Text(
-                    'Guru: $currentTeacher',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                SizedBox(height: 6.h(context)),
+                Row(
+                  children: [
+                    Icon(PhosphorIcons.user(PhosphorIconsStyle.regular), size: 14.w(context), color: AppColors.onBackground.withValues(alpha: 0.6)),
+                    SizedBox(width: 4.w(context)),
+                    Expanded(
+                      child: Text(
+                        'Guru Pengampu: $currentTeacher',
+                        style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -664,54 +669,105 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Status Pengumpulan & Waktu di bawahnya
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 18.w(context)),
+                        Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 20.w(context)),
                         SizedBox(width: 8.w(context)),
-                        Text(
-                          'Tugas Telah Dikumpulkan' + (currentSubmission['submitted_at'] != null ? ' (${currentSubmission['submitted_at']})' : ''),
-                          style: AppTextStyles.labelMedium(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tugas Telah Dikumpulkan',
+                                style: AppTextStyles.labelLarge(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              if (currentSubmission['submitted_at'] != null) ...[
+                                SizedBox(height: 2.h(context)),
+                                Text(
+                                  'Waktu kirim: ${currentSubmission['submitted_at']}',
+                                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
                     if (currentSubmission['answer_text'] != null && currentSubmission['answer_text'].toString().isNotEmpty) ...[
-                      SizedBox(height: 10.h(context)),
+                      SizedBox(height: 12.h(context)),
                       Text(
                         'Catatan Jawaban:',
-                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: 2.h(context)),
-                      Text(
-                        currentSubmission['answer_text'].toString(),
-                        style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                      SizedBox(height: 4.h(context)),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(12.w(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius: BorderRadius.circular(10.w(context)),
+                          border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
+                        ),
+                        child: Text(
+                          currentSubmission['answer_text'].toString(),
+                          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                        ),
                       ),
                     ],
                     if (currentSubmission['attachment_url'] != null && currentSubmission['attachment_url'].toString().isNotEmpty) ...[
-                      SizedBox(height: 12.h(context)),
-                      GestureDetector(
-                        onTap: () => _downloadAttachment(
-                          currentSubmission['attachment_url'].toString(), 
-                          'Jawaban_Saya.pdf',
-                          submissionId: currentSubmission['id']?.toString(),
+                      SizedBox(height: 14.h(context)),
+                      Text(
+                        'Berkas Jawaban Terkirim:',
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 6.h(context)),
+                      Container(
+                        padding: EdgeInsets.all(14.w(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundLight,
+                          borderRadius: BorderRadius.circular(14.w(context)),
+                          border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
                         ),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-                          decoration: BoxDecoration(
-                            color: AppColors.backgroundLight,
-                            borderRadius: BorderRadius.circular(8.w(context)),
-                            border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(PhosphorIcons.fileArrowDown(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
-                              SizedBox(width: 8.w(context)),
-                              Text(
-                                'Unduh Kembali Berkas Terkirim',
-                                style: AppTextStyles.bodySmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(10.w(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                borderRadius: BorderRadius.circular(10.w(context)),
                               ),
-                            ],
-                          ),
+                              child: Icon(PhosphorIcons.filePdf(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 20.w(context)),
+                            ),
+                            SizedBox(width: 12.w(context)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Berkas Jawaban Anda',
+                                    style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 2.h(context)),
+                                  Text(
+                                    'Jawaban Tugas Terlampir',
+                                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                              onPressed: () => _downloadAttachment(
+                                currentSubmission['attachment_url'].toString(), 
+                                'Jawaban_Saya.pdf',
+                                submissionId: currentSubmission['id']?.toString(),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/file_download_helper.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/tugas_provider.dart';
 
 class GuruTugasPenilaianScreen extends ConsumerStatefulWidget {
@@ -29,11 +30,10 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
   void _openGradeSheet(BuildContext context, Map<String, dynamic> student) {
     final submissionId = student['submission_id']?.toString();
     if (submissionId == null || submissionId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Siswa belum mengumpulkan tugas secara digital.'),
-          backgroundColor: AppColors.warning,
-        ),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Belum Ada Jawaban',
+        message: 'Siswa belum mengumpulkan tugas secara digital.',
       );
       return;
     }
@@ -172,11 +172,10 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                                 final text = scoreController.text.trim().replaceAll(',', '.');
                                 final score = double.tryParse(text);
                                 if (score == null || score < 0 || score > 100) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Masukkan skor nilai yang valid antara 0 sampai 100.'),
-                                      backgroundColor: AppColors.error,
-                                    ),
+                                  AniseFeedbackDialog.showWarning(
+                                    context,
+                                    title: 'Skor Tidak Valid',
+                                    message: 'Masukkan skor nilai yang valid antara 0 sampai 100.',
                                   );
                                   return;
                                 }
@@ -202,20 +201,18 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                                     Navigator.pop(ctx);
                                   }
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Nilai untuk ${student['name']} berhasil disimpan!'),
-                                        backgroundColor: AppColors.secondary,
-                                      ),
+                                    AniseFeedbackDialog.showSuccess(
+                                      context,
+                                      title: 'Nilai Tersimpan',
+                                      message: 'Nilai dan evaluasi untuk ${student['name']} berhasil disimpan.',
                                     );
                                   }
                                 } else {
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Gagal menyimpan nilai. Periksa koneksi server.'),
-                                        backgroundColor: AppColors.error,
-                                      ),
+                                    AniseFeedbackDialog.showError(
+                                      context,
+                                      title: 'Gagal Menyimpan',
+                                      message: 'Terjadi kendala saat menyimpan nilai. Periksa koneksi server Anda.',
                                     );
                                   }
                                 }
@@ -398,8 +395,9 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Header: Mapel & Tenggat Waktu di bawahnya
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
@@ -412,14 +410,22 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                   style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              if (dueDate.isNotEmpty)
-                Text(
-                  'Tenggat: $dueDate',
-                  style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+              if (dueDate.isNotEmpty) ...[
+                SizedBox(height: 6.h(context)),
+                Row(
+                  children: [
+                    Icon(PhosphorIcons.clock(PhosphorIconsStyle.regular), size: 14.w(context), color: AppColors.onSurfaceVariant),
+                    SizedBox(width: 4.w(context)),
+                    Text(
+                      'Tenggat: $dueDate',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
                 ),
+              ],
             ],
           ),
-          SizedBox(height: 8.h(context)),
+          SizedBox(height: 10.h(context)),
           Text(
             title,
             style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold),
@@ -590,36 +596,54 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
             ),
           ],
 
-          // Lampiran Berkas Siswa jika ada
+          // Lampiran Berkas Siswa jika ada (Standardized Card layout)
           if (attachmentUrl != null && attachmentUrl.isNotEmpty) ...[
             SizedBox(height: 10.h(context)),
-            InkWell(
-              onTap: () => _downloadStudentFile(
-                attachmentUrl, 
-                student['name'] ?? 'Siswa',
-                submissionId: student['submission_id']?.toString(),
+            Container(
+              padding: EdgeInsets.all(12.w(context)),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(12.w(context)),
+                border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
               ),
-              borderRadius: BorderRadius.circular(10.w(context)),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(10.w(context)),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(PhosphorIcons.fileArrowDown(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
-                    SizedBox(width: 8.w(context)),
-                    Expanded(
-                      child: Text(
-                        'Unduh Berkas Jawaban Siswa',
-                        style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
-                      ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8.w(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(8.w(context)),
                     ),
-                    Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
-                  ],
-                ),
+                    child: Icon(PhosphorIcons.filePdf(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 18.w(context)),
+                  ),
+                  SizedBox(width: 10.w(context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Berkas Jawaban Siswa',
+                          style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600, fontSize: 13.sp(context)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 2.h(context)),
+                        Text(
+                          'Ketuk unduh untuk memeriksa jawaban',
+                          style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontSize: 10.sp(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                    onPressed: () => _downloadStudentFile(
+                      attachmentUrl, 
+                      student['name'] ?? 'Siswa',
+                      submissionId: student['submission_id']?.toString(),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

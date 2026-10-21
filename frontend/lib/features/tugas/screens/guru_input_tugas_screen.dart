@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/tugas_provider.dart';
 import 'package:intl/intl.dart';
@@ -74,11 +75,10 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
 
       if (sizeInMb > 20) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ukuran file maksimal 20MB', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Ukuran Berkas Terlalu Besar',
+          message: 'Ukuran file lampiran maksimal adalah 20MB. Silakan pilih berkas yang lebih kecil.',
         );
         return;
       }
@@ -420,8 +420,10 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                           if (_formKey.currentState!.validate()) {
                             final effectiveJournalId = _selectedJurnal ?? widget.initialJournalId;
                             if (effectiveJournalId == null || effectiveJournalId.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Pilih jurnal mengajar terlebih dahulu!'), backgroundColor: AppColors.error),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Jurnal Belum Dipilih',
+                                message: 'Harap pilih jurnal mengajar yang sesuai terlebih dahulu!',
                               );
                               return;
                             }
@@ -432,8 +434,10 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                             );
 
                             if (dueDateTime.isBefore(DateTime.now())) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Tenggat waktu tidak boleh di masa lalu!'), backgroundColor: AppColors.error),
+                              AniseFeedbackDialog.showWarning(
+                                context,
+                                title: 'Tenggat Waktu Tidak Valid',
+                                message: 'Tenggat waktu pengumpulan tidak boleh diatur di masa lalu.',
                               );
                               return;
                             }
@@ -455,13 +459,19 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
                             
                             if (success && mounted) {
                               ref.invalidate(getTasksProvider);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Tugas berhasil diterbitkan untuk siswa!'), backgroundColor: AppColors.secondary),
+                              AniseFeedbackDialog.showSuccess(
+                                context,
+                                title: 'Tugas Diterbitkan',
+                                message: 'Tugas berhasil diterbitkan dan langsung dikirimkan ke seluruh siswa di kelas.',
+                                onConfirm: () {
+                                  Navigator.pop(context);
+                                },
                               );
-                              Navigator.pop(context);
                             } else if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Gagal menerbitkan tugas. Coba beberapa saat lagi.'), backgroundColor: AppColors.error),
+                              AniseFeedbackDialog.showError(
+                                context,
+                                title: 'Gagal Menerbitkan',
+                                message: 'Terjadi kendala saat menerbitkan tugas. Periksa koneksi internet Anda.',
                               );
                               setState(() {
                                 _uploadProgress = 0.0;

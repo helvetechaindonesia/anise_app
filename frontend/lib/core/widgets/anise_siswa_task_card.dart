@@ -115,126 +115,110 @@ class AniseSiswaTaskCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16.w(context)),
           onTap: onTap,
           child: Padding(
-            padding: EdgeInsets.all(16.w(context)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Top Row: Mata Pelajaran & Nilai/Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        subject,
-                        style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (nilai != null)
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12.w(context)),
-                        ),
-                        child: Text(
-                          'Nilai: $nilai',
-                          style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                SizedBox(height: 8.h(context)),
-
-                // Task Title
-                Text(
-                  title,
-                  style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
-                    fontWeight: FontWeight.w700,
+                // 1. Leading Icon Avatar (Mata Pelajaran & Status Icon)
+                Container(
+                  width: 44.w(context),
+                  height: 44.w(context),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12.w(context)),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Center(
+                    child: Icon(
+                      statusIcon,
+                      size: 22.w(context),
+                      color: statusColor,
+                    ),
+                  ),
                 ),
-                SizedBox(height: 12.h(context)),
+                SizedBox(width: 14.w(context)),
 
-                // Teacher Info
-                Row(
-                  children: [
-                    Icon(
-                      PhosphorIcons.user(PhosphorIconsStyle.regular),
-                      size: 16.w(context),
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    SizedBox(width: 6.w(context)),
-                    Expanded(
-                      child: Text(
-                        teacher,
-                        style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h(context)),
-
-                // Time / Deadline
-                Row(
-                  children: [
-                    Icon(
-                      PhosphorIcons.clock(PhosphorIconsStyle.regular),
-                      size: 16.w(context),
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    SizedBox(width: 6.w(context)),
-                    Expanded(
-                      child: Text(
-                        timeInfo,
-                        style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12.h(context)),
-
-                // Bottom Row: Status Badge & Chevron Action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8.w(context)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                // 2. Middle Info (ListTile Content: Judul, Mapel, Tenggat, Status)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Mapel & Badge Nilai (Jika ada)
+                      Row(
                         children: [
-                          Icon(statusIcon, size: 14.w(context), color: statusColor),
+                          Expanded(
+                            child: Text(
+                              subject,
+                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (nilai != null) ...[
+                            SizedBox(width: 6.w(context)),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 2.h(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8.w(context)),
+                              ),
+                              child: Text(
+                                'Nilai: $nilai',
+                                style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      SizedBox(height: 3.h(context)),
+
+                      // Judul Tugas
+                      Text(
+                        title,
+                        style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14.sp(context),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4.h(context)),
+
+                      // Tenggat & Status Info
+                      Row(
+                        children: [
+                          Icon(
+                            PhosphorIcons.clock(PhosphorIconsStyle.regular),
+                            size: 13.w(context),
+                            color: AppColors.onSurfaceVariant,
+                          ),
                           SizedBox(width: 4.w(context)),
-                          Text(
-                            statusText,
-                            style: AppTextStyles.labelSmall(context, color: statusColor).copyWith(
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            child: Text(
+                              timeInfo,
+                              style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant).copyWith(
+                                fontSize: 11.sp(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    Icon(
-                      PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-                      size: 18.w(context),
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                SizedBox(width: 10.w(context)),
+
+                // 3. Trailing Chevron
+                Icon(
+                  PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                  size: 18.w(context),
+                  color: AppColors.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ],
             ),

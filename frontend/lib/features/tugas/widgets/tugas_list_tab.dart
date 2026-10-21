@@ -28,10 +28,10 @@ class TugasListTab extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: EdgeInsets.only(left: 20.w(context), right: 20.w(context), bottom: 40.h(context)),
+      padding: EdgeInsets.only(left: 20.w(context), right: 20.w(context), top: 8.h(context), bottom: 40.h(context)),
       physics: const BouncingScrollPhysics(),
       itemCount: filteredTasks.length,
-      separatorBuilder: (context, index) => Divider(color: AppColors.primary, height: 24.h(context)),
+      separatorBuilder: (context, index) => SizedBox(height: 12.h(context)),
       itemBuilder: (context, index) {
         return _buildTaskCard(context, filteredTasks[index]);
       },

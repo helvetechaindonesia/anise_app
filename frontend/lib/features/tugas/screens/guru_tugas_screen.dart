@@ -192,8 +192,10 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                           final file = File(result.files.first.path!);
                           if (file.lengthSync() / (1024 * 1024) > 20) {
                             if (ctx.mounted) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(content: Text('Ukuran berkas maksimal 20 MB'), backgroundColor: AppColors.error),
+                              AniseFeedbackDialog.showWarning(
+                                ctx,
+                                title: 'Ukuran Berkas Terlalu Besar',
+                                message: 'Ukuran berkas maksimal 20 MB.',
                               );
                             }
                             return;
