@@ -48,40 +48,64 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
+      // 1. Cek index siswa dalam list data
+      final index = students.indexWhere((s) => s['student_id']?.toString() == targetStudentId);
+      if (index == -1) return;
+
       final key = _itemKeys[targetStudentId];
       if (key?.currentContext != null) {
         Scrollable.ensureVisible(
           key!.currentContext!,
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
-          alignment: 0.5, // 0.5 menempatkan item tepat di tengah-tengah viewport layar
+          alignment: 0.5, // Tepat di tengah layar
         );
-      } else {
-        // Jika belum dirender karena lazy ListView, hitung estimasi offset dari index
-        final index = students.indexWhere((s) => s['student_id']?.toString() == targetStudentId);
-        if (index != -1 && _scrollController.hasClients) {
-          final estimatedItemHeight = 160.0;
-          // Offset tengah: offset item dikurangi setengah viewport
-          final viewportHeight = _scrollController.position.viewportDimension;
-          final targetOffset = ((index * estimatedItemHeight) - (viewportHeight / 2) + (estimatedItemHeight / 2))
-              .clamp(0.0, _scrollController.position.maxScrollExtent);
+        return;
+      }
 
-          await _scrollController.animateTo(
-            targetOffset,
-            duration: const Duration(milliseconds: 600),
-            curve: Curves.easeInOut,
-          );
-
-          // Pastikan tepat setelah scroll ke area agar persis di tengah
-          final secondKey = _itemKeys[targetStudentId];
-          if (secondKey?.currentContext != null) {
-            Scrollable.ensureVisible(
-              secondKey!.currentContext!,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              alignment: 0.5, // Tepat di tengah layar
-            );
+      // 2. Jika belum ter-render karena lazy ListView, hitung rata-rata tinggi item siswa
+      if (_scrollController.hasClients) {
+        // Kartu siswa dengan padding, late request / status berkisar antara 180 - 240 px
+        // Hitung estimasi tinggi rata-rata item sebelumnya:
+        double cumulativeOffset = 0.0;
+        for (int i = 0; i < index; i++) {
+          final s = students[i] as Map<String, dynamic>;
+          final hasLateRequest = s['late_request'] != null;
+          final isSub = s['is_submitted'] == true;
+          // Item dengan late request / jawaban lebih tinggi dibanding yang belum mengumpulkan
+          if (hasLateRequest) {
+            cumulativeOffset += 240.0;
+          } else if (isSub) {
+            cumulativeOffset += 180.0;
+          } else {
+            cumulativeOffset += 130.0;
           }
+        }
+
+        final viewportHeight = _scrollController.position.viewportDimension;
+        // Bawa target ke posisi tengah viewport
+        final targetOffset = (cumulativeOffset - (viewportHeight / 2) + 90.0)
+            .clamp(0.0, _scrollController.position.maxScrollExtent);
+
+        await _scrollController.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+
+        // Tunggu 1 frame agar widget siswa di-mount ke tree
+        await Future.delayed(const Duration(milliseconds: 150));
+        if (!mounted) return;
+
+        // 3. Sekarang widget pasti sudah dirender karena sudah dekat di viewport, kunci posisi presisi dengan ensureVisible
+        final renderedKey = _itemKeys[targetStudentId];
+        if (renderedKey?.currentContext != null) {
+          Scrollable.ensureVisible(
+            renderedKey!.currentContext!,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            alignment: 0.5, // 0.5 menempatkan tepat di tengah layar
+          );
         }
       }
     });

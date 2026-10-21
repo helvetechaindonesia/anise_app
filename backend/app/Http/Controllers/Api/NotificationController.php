@@ -41,4 +41,18 @@ class NotificationController extends Controller
             ->update(['is_read' => true]);
         return $this->success(null, 'All marked as read');
     }
+
+    public function deleteAll(Request $request)
+    {
+        Notification::where('user_id', $request->user()?->id)->delete();
+        return $this->success(null, 'All notifications deleted');
+    }
+
+    public function deleteNotification(Request $request, $id)
+    {
+        Notification::where('user_id', $request->user()?->id)
+            ->where('id', $id)
+            ->delete();
+        return $this->success(null, 'Notification deleted');
+    }
 }

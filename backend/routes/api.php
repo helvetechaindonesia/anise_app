@@ -432,6 +432,8 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::get('/', [NotificationController::class, 'getNotifications']);
         Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::delete('/', [NotificationController::class, 'deleteAll']);
+        Route::delete('/{id}', [NotificationController::class, 'deleteNotification']);
     });
 
     // ==========================================
