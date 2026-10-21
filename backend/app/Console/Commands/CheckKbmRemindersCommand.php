@@ -180,7 +180,7 @@ class CheckKbmRemindersCommand extends Command
                 $alreadyNotifiedH1 = \App\Models\Notification::where('user_id', $sched->teacher_id)
                     ->where('title', 'like', '%1 Jam Lagi%')
                     ->where('message', 'like', "%{$sched->subject?->name}%")
-                    ->where('created_at', '>=', $now->copy()->subHours(2))
+                    ->whereDate('created_at', $todayDateStr)
                     ->exists();
 
                 if (!$alreadyNotifiedH1 || $force) {
@@ -190,18 +190,18 @@ class CheckKbmRemindersCommand extends Command
                 }
             }
 
-            // 2b. NOTIFIKASI KBM TEPAT DIMULAI (Start Time: antara menit ke-0 s/d menit ke-5)
+            // 2b. NOTIFIKASI KBM TEPAT DIMULAI (Start Time: antara menit ke-0 s/d menit ke-19)
             $minutesElapsed = (int)$startDateTime->diffInMinutes($now, false);
-            if ($minutesElapsed >= 0 && $minutesElapsed <= 5 && empty($journal->check_in_time)) {
+            if ($minutesElapsed >= 0 && $minutesElapsed <= 20 && empty($journal->check_in_time)) {
                 $alreadyNotifiedStart = \App\Models\Notification::where('user_id', $sched->teacher_id)
                     ->where('title', 'like', '%KBM Dimulai%')
                     ->where('message', 'like', "%{$sched->subject?->name}%")
-                    ->where('created_at', '>=', $now->copy()->subHours(1))
+                    ->whereDate('created_at', $todayDateStr)
                     ->exists();
 
                 if (!$alreadyNotifiedStart || $force) {
                     NotificationService::notifyGuruKbmStart($sched, $journal);
-                    $this->warn(" -> Terkirim notifikasi KBM Dimulai (Presensi Aktif) ke Guru {$sched->teacher?->username}");
+                    $this->warn(" -> Terkirim notifikasi KBM Dimulai (Presensi Aktif) ke Guru {$sched->teacher?->username} (WA: {$sched->teacher?->phone})");
                     $kbmNotifiedCount++;
                 }
             }
@@ -211,12 +211,12 @@ class CheckKbmRemindersCommand extends Command
                 $alreadyNotifiedLate = \App\Models\Notification::where('user_id', $sched->teacher_id)
                     ->where('title', 'like', '%Presensi Jurnal Terlambat%')
                     ->where('message', 'like', "%{$sched->subject?->name}%")
-                    ->where('created_at', '>=', $now->copy()->subHours(2))
+                    ->whereDate('created_at', $todayDateStr)
                     ->exists();
 
                 if (!$alreadyNotifiedLate || $force) {
                     NotificationService::notifyGuruPresensiCamLate($sched, $journal, $minutesElapsed);
-                    $this->warn(" -> Terkirim peringatan Toleransi 20 Menit Habis (Terlambat +{$minutesElapsed}m) ke Guru {$sched->teacher?->username}");
+                    $this->warn(" -> Terkirim peringatan Toleransi 20 Menit Habis (Terlambat +{$minutesElapsed}m) ke Guru {$sched->teacher?->username} (WA: {$sched->teacher?->phone})");
                     $kbmNotifiedCount++;
                 }
             }
