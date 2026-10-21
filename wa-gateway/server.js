@@ -37,9 +37,11 @@ async function startWhatsApp() {
     sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state,
-        browser: ['Anise School App', 'Chrome', '1.0.0']
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000,
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -49,14 +51,15 @@ async function startWhatsApp() {
 
         if (qr) {
             currentQR = qr;
-            console.log('[WA Gateway] QR Code baru siap untuk di-scan!');
+            console.log('[WA Gateway] >>> QR CODE BERHASIL DIGENERATE! <<<');
         }
 
         if (connection === 'close') {
             isConnected = false;
             botUser = null;
-            const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-            console.log(`[WA Gateway] Koneksi terputus (Status: ${statusCode})`);
+            const err = lastDisconnect?.error;
+            const statusCode = err?.output?.statusCode;
+            console.log(`[WA Gateway] Koneksi terputus:`, err?.message || err, `(Status: ${statusCode})`);
 
             // Jika status 500 atau 401 atau session corrupt, bersihkan session agar generate QR baru
             if (statusCode === 500 || statusCode === DisconnectReason.loggedOut || statusCode === 401) {
