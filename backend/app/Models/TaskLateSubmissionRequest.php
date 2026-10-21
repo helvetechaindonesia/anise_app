@@ -28,6 +28,11 @@ class TaskLateSubmissionRequest extends Model
         'responded_at' => 'datetime',
     ];
 
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return $date->format(\DateTimeInterface::ATOM);
+    }
+
     public function journalTask()
     {
         return $this->belongsTo(JournalTask::class, 'journal_task_id');

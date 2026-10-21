@@ -23,6 +23,33 @@ class AniseTimeFilterDropdowns extends StatelessWidget {
     required this.onYearChanged,
   });
 
+  /// Generator daftar tahun terstandarisasi berdasarkan tanggal rilis aplikasi
+  static List<String> getYears(DateTime releaseDate) {
+    final currentYear = DateTime.now().year;
+    final releaseYear = releaseDate.year;
+    final maxYear = currentYear >= releaseYear ? currentYear + 1 : releaseYear + 1;
+    final List<String> list = ['Semua Tahun'];
+    for (int y = releaseYear; y <= maxYear; y++) {
+      list.add(y.toString());
+    }
+    return list;
+  }
+
+  /// Generator daftar bulan terstandarisasi dengan proteksi tanggal rilis aplikasi
+  static List<String> getMonths(DateTime releaseDate, String selectedYear) {
+    const allMonths = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final List<String> list = ['Semua Bulan'];
+    if (selectedYear == releaseDate.year.toString()) {
+      list.addAll(allMonths.sublist(releaseDate.month - 1));
+    } else {
+      list.addAll(allMonths);
+    }
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(

@@ -74,14 +74,14 @@ class AssignmentController extends Controller
                         'teacher_name' => $teacherName,
                         'due_date_formatted' => $dueDateFormatted,
                     ];
-                    $notifMessage = "Bpk/Ibu {$teacherName} telah menerbitkan tugas baru: \"{$request->title}\". Tenggat waktu pengumpulan: {$dueDateFormatted} WIB.\n<!--DATA:" . json_encode($notifData) . "-->";
+                    $notifMessage = "Bpk/Ibu {$teacherName} telah menerbitkan tugas baru: \"{$request->title}\". Tenggat waktu pengumpulan: {$dueDateFormatted} WIB.";
 
                     $studentIds = ClassStudent::where('class_id', $journal->schedule->class_id)
                         ->where('status', 'ACTIVE')
                         ->pluck('student_id');
 
                     foreach ($studentIds as $sId) {
-                        NotificationService::sendInAppNotification($sId, $notifTitle, $notifMessage);
+                        NotificationService::sendTaskNotification($sId, $notifTitle, $notifMessage, $notifData);
                     }
                 } catch (\Throwable $notifErr) {
                     \Log::warning("Gagal mengirim notif tugas baru: " . $notifErr->getMessage());
@@ -447,16 +447,14 @@ class AssignmentController extends Controller
                 if ($isEditingScore) {
                     $notifTitle = "Nilai Tugas Diperbarui: {$subjectName}";
                     $notifMessage = "Guru {$teacherName} telah memperbarui nilai tugas \"{$taskTitle}\" menjadi skor {$scoreFormatted}/100." . 
-                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "") .
-                        "\n<!--DATA:" . json_encode($notifData) . "-->";
+                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "");
                 } else {
                     $notifTitle = "Nilai Tugas: {$subjectName}";
                     $notifMessage = "Tugas \"{$taskTitle}\" telah dinilai dengan skor {$scoreFormatted}/100." . 
-                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "") .
-                        "\n<!--DATA:" . json_encode($notifData) . "-->";
+                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "");
                 }
 
-                NotificationService::sendInAppNotification($submission->student_id, $notifTitle, $notifMessage);
+                NotificationService::sendTaskNotification($submission->student_id, $notifTitle, $notifMessage, $notifData);
             } catch (\Throwable $notifErr) {
                 \Log::warning("Gagal kirim notif nilai tugas: " . $notifErr->getMessage());
             }
@@ -544,14 +542,14 @@ class AssignmentController extends Controller
                         'teacher_name' => $teacherName,
                         'due_date_formatted' => $dueDateFormatted,
                     ];
-                    $notifMessage = "Guru {$teacherName} telah memperbarui rincian/tenggat tugas \"{$task->title}\" ({$subjectName}). Tenggat saat ini: {$dueDateFormatted} WIB. Silakan periksa kembali detail tugas Anda.\n<!--DATA:" . json_encode($notifData) . "-->";
+                    $notifMessage = "Guru {$teacherName} telah memperbarui rincian/tenggat tugas \"{$task->title}\" ({$subjectName}). Tenggat saat ini: {$dueDateFormatted} WIB. Silakan periksa kembali detail tugas Anda.";
 
                     $studentIds = ClassStudent::where('class_id', $classId)
                         ->where('status', 'ACTIVE')
                         ->pluck('student_id');
 
                     foreach ($studentIds as $sId) {
-                        NotificationService::sendInAppNotification($sId, $notifTitle, $notifMessage);
+                        NotificationService::sendTaskNotification($sId, $notifTitle, $notifMessage, $notifData);
                     }
                 } catch (\Throwable $notifErr) {
                     \Log::warning("Gagal mengirim notif pembaruan tugas: " . $notifErr->getMessage());
@@ -1044,15 +1042,13 @@ class AssignmentController extends Controller
 
                     if ($isResubmission) {
                         $teacherNotifTitle = "Pembaruan Tugas: {$studentName}";
-                        $teacherNotifMsg = "Siswa {$studentName} telah memperbarui pengumpulan tugas \"{$taskTitle}\" ({$subjectName})." . 
-                            "\n<!--DATA:" . json_encode($notifData) . "-->";
+                        $teacherNotifMsg = "Siswa {$studentName} telah memperbarui pengumpulan tugas \"{$taskTitle}\" ({$subjectName}).";
                     } else {
                         $teacherNotifTitle = "Tugas Dikumpulkan: {$studentName}";
-                        $teacherNotifMsg = "Siswa {$studentName} telah mengumpulkan tugas \"{$taskTitle}\" ({$subjectName})." . 
-                            "\n<!--DATA:" . json_encode($notifData) . "-->";
+                        $teacherNotifMsg = "Siswa {$studentName} telah mengumpulkan tugas \"{$taskTitle}\" ({$subjectName}).";
                     }
 
-                    NotificationService::sendInAppNotification($teacher->id, $teacherNotifTitle, $teacherNotifMsg);
+                    NotificationService::sendTaskNotification($teacher->id, $teacherNotifTitle, $teacherNotifMsg, $notifData);
                 }
             } catch (\Throwable $notifErr) {
                 \Log::warning("Gagal mengirim notif pengumpulan tugas ke guru: " . $notifErr->getMessage());
@@ -1330,15 +1326,8 @@ class AssignmentController extends Controller
                 'due_date_formatted' => $task ? Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm') : '',
             ];
 
-            $notifMsg .= "\n<!--DATA:" . json_encode($notifData) . "-->";
-
             // Kirim notifikasi ke siswa
-            Notification::create([
-                'user_id' => $lateRequest->student_id,
-                'title' => $notifTitle,
-                'message' => $notifMsg,
-                'is_read' => false,
-            ]);
+            NotificationService::sendTaskNotification($lateRequest->student_id, $notifTitle, $notifMsg, $notifData);
 
             return response()->json([
                 'status' => 'success',

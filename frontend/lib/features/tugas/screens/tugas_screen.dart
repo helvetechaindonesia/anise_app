@@ -24,31 +24,8 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
 
   static final DateTime _releaseDate = ApiConstants.appReleaseDate; // 26 Oktober 2026
 
-  List<String> get _years {
-    final currentYear = DateTime.now().year;
-    final releaseYear = _releaseDate.year;
-    final maxYear = currentYear >= releaseYear ? currentYear + 1 : releaseYear + 1;
-    final List<String> list = ['Semua Tahun'];
-    for (int y = releaseYear; y <= maxYear; y++) {
-      list.add(y.toString());
-    }
-    return list;
-  }
-
-  List<String> get _months {
-    const allMonths = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final List<String> list = ['Semua Bulan'];
-    if (_selectedYear == _releaseDate.year.toString()) {
-      // Tidak boleh memilih bulan sebelum rilis aplikasi (Oktober 2026)
-      list.addAll(allMonths.sublist(_releaseDate.month - 1));
-    } else {
-      list.addAll(allMonths);
-    }
-    return list;
-  }
+  List<String> get _years => AniseTimeFilterDropdowns.getYears(_releaseDate);
+  List<String> get _months => AniseTimeFilterDropdowns.getMonths(_releaseDate, _selectedYear);
 
   late String _selectedMonth;
   late String _selectedYear;

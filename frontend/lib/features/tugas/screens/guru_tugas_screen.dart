@@ -32,31 +32,8 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
 
   static final DateTime _releaseDate = ApiConstants.appReleaseDate; // 26 Oktober 2026
 
-  List<String> get _years {
-    final currentYear = DateTime.now().year;
-    final releaseYear = _releaseDate.year;
-    final maxYear = currentYear >= releaseYear ? currentYear + 1 : releaseYear + 1;
-    final List<String> list = ['Semua Tahun'];
-    for (int y = releaseYear; y <= maxYear; y++) {
-      list.add(y.toString());
-    }
-    return list;
-  }
-
-  List<String> get _months {
-    const allMonths = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final List<String> list = ['Semua Bulan'];
-    if (_selectedYear == _releaseDate.year.toString()) {
-      // Tidak boleh memilih bulan sebelum rilis aplikasi (Oktober 2026)
-      list.addAll(allMonths.sublist(_releaseDate.month - 1));
-    } else {
-      list.addAll(allMonths);
-    }
-    return list;
-  }
+  List<String> get _years => AniseTimeFilterDropdowns.getYears(_releaseDate);
+  List<String> get _months => AniseTimeFilterDropdowns.getMonths(_releaseDate, _selectedYear);
 
   late String _selectedMonth;
   late String _selectedYear;
@@ -88,21 +65,20 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
 
     if (confirmed == true && mounted) {
       final success = await ref.read(tugasProvider.notifier).deleteTugas(taskId: taskId);
-      if (mounted) {
-        if (success) {
-          ref.invalidate(getTasksProvider);
-          AniseFeedbackDialog.showSuccess(
-            context,
-            title: 'Tugas Dihapus',
-            message: 'Tugas "$taskTitle" beserta data pengumpulan siswa berhasil dihapus.',
-          );
-        } else {
-          AniseFeedbackDialog.showError(
-            context,
-            title: 'Gagal Menghapus',
-            message: 'Terjadi kendala saat menghapus tugas. Silakan periksa koneksi internet Anda.',
-          );
-        }
+      if (!context.mounted) return;
+      if (success) {
+        ref.invalidate(getTasksProvider);
+        AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Tugas Dihapus',
+          message: 'Tugas "$taskTitle" beserta data pengumpulan siswa berhasil dihapus.',
+        );
+      } else {
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Menghapus',
+          message: 'Terjadi kendala saat menghapus tugas. Silakan periksa koneksi internet Anda.',
+        );
       }
     }
   }
@@ -272,7 +248,7 @@ class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTi
                                 if (success) {
                                   ref.invalidate(getTasksProvider);
                                   if (ctx.mounted) Navigator.pop(ctx);
-                                  if (mounted) {
+                                  if (context.mounted) {
                                     AniseFeedbackDialog.showSuccess(
                                       context,
                                       title: 'Tugas Diperbarui',

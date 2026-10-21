@@ -82,6 +82,18 @@ class NotificationService
     }
 
     /**
+     * Send in-app task notification with embedded JSON payload for quick navigation
+     */
+    public static function sendTaskNotification(string $userId, string $title, string $message, array $taskData = []): bool
+    {
+        $payloadMessage = $message;
+        if (!empty($taskData)) {
+            $payloadMessage .= "\n<!--DATA:" . json_encode($taskData) . "-->";
+        }
+        return self::sendInAppNotification($userId, $title, $payloadMessage);
+    }
+
+    /**
      * Peringatan H-24 Jam: Guru wajib menerbitkan Jurnal Mengajar sebelum KBM
      */
     public static function notifyGuruH24Journal(Schedule $schedule, Carbon $teachingDate): bool
