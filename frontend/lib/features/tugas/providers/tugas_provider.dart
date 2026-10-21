@@ -61,6 +61,11 @@ final siswaTaskDetailProvider = FutureProvider.autoDispose.family<Map<String, dy
       return response.data['data'] as Map<String, dynamic>;
     }
     return {};
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 404) {
+      return {'is_deleted': true};
+    }
+    throw Exception(e.toString());
   } catch (e) {
     throw Exception(e.toString());
   }

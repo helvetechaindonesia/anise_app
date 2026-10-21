@@ -14,6 +14,7 @@ class GuruTugasPenilaianScreen extends ConsumerStatefulWidget {
   final String? title;
   final String? subject;
   final String? className;
+  final String? highlightStudentId;
 
   const GuruTugasPenilaianScreen({
     Key? key,
@@ -21,6 +22,7 @@ class GuruTugasPenilaianScreen extends ConsumerStatefulWidget {
     this.title,
     this.subject,
     this.className,
+    this.highlightStudentId,
   }) : super(key: key);
 
   @override
@@ -28,6 +30,31 @@ class GuruTugasPenilaianScreen extends ConsumerStatefulWidget {
 }
 
 class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScreen> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _itemKeys = {};
+  bool _hasScrolledToTarget = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTargetStudent(String targetStudentId) {
+    if (_hasScrolledToTarget) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _itemKeys[targetStudentId];
+      if (key?.currentContext != null) {
+        Scrollable.ensureVisible(
+          key!.currentContext!,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+          alignment: 0.2, // Tempatkan agak ke atas agar terlihat jelas
+        );
+        _hasScrolledToTarget = true;
+      }
+    });
+  }
   void _openGradeSheet(BuildContext context, Map<String, dynamic> student) {
     final submissionId = student['submission_id']?.toString();
     if (submissionId == null || submissionId.isEmpty) {
@@ -551,12 +578,27 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                           title: 'Belum Ada Siswa',
                           subtitle: 'Belum ada data siswa yang terdaftar di kelas untuk tugas ini.',
                         )
-                      : ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
-                          itemCount: students.length,
-                          itemBuilder: (context, index) {
-                            final student = students[index] as Map<String, dynamic>;
-                            return _buildStudentCard(context, student);
+                      : Builder(
+                          builder: (context) {
+                            if (widget.highlightStudentId != null && widget.highlightStudentId!.isNotEmpty) {
+                              _scrollToTargetStudent(widget.highlightStudentId!);
+                            }
+                            return ListView.builder(
+                              controller: _scrollController,
+                              padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
+                              itemCount: students.length,
+                              itemBuilder: (context, index) {
+                                final student = students[index] as Map<String, dynamic>;
+                                final studentId = student['student_id']?.toString() ?? '';
+                                final key = _itemKeys.putIfAbsent(studentId, () => GlobalKey());
+                                final isHighlighted = widget.highlightStudentId != null && widget.highlightStudentId == studentId;
+
+                                return Container(
+                                  key: key,
+                                  child: _buildStudentCard(context, student, isHighlighted: isHighlighted),
+                                );
+                              },
+                            );
                           },
                         ),
                 ),
@@ -668,7 +710,7 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
     );
   }
 
-  Widget _buildStudentCard(BuildContext context, Map<String, dynamic> student) {
+  Widget _buildStudentCard(BuildContext context, Map<String, dynamic> student, {bool isHighlighted = false}) {
     final bool isSubmitted = student['is_submitted'] == true;
     final dynamic score = student['score'];
     final bool hasScore = score != null;
@@ -676,16 +718,20 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
     final String? attachmentUrl = student['attachment_url']?.toString();
     final String? feedback = student['feedback']?.toString();
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
       margin: EdgeInsets.only(bottom: 12.h(context)),
       padding: EdgeInsets.all(16.w(context)),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isHighlighted ? AppColors.primaryContainer.withValues(alpha: 0.25) : AppColors.surface,
         borderRadius: BorderRadius.circular(16.w(context)),
         border: Border.all(
-          color: hasScore
-              ? AppColors.primary.withValues(alpha: 0.3)
-              : (isSubmitted ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.outline.withValues(alpha: 0.15)),
+          color: isHighlighted
+              ? AppColors.primary
+              : (hasScore
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : (isSubmitted ? AppColors.secondary.withValues(alpha: 0.3) : AppColors.outline.withValues(alpha: 0.15))),
+          width: isHighlighted ? 2.0 : 1.0,
         ),
       ),
       child: Column(
@@ -851,7 +897,7 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                                 ? 'Izin Diberikan (2x24 Jam)'
                                 : (student['late_request']['status'] == 'REJECTED'
                                     ? 'Permohonan Ditolak'
-                                    : 'Permohonan Keterlambatan Masuk'),
+                                    : 'Permohonan Keterlambatan'),
                             style: AppTextStyles.labelSmall(context,
                                 color: student['late_request']['status'] == 'APPROVED'
                                     ? AppColors.secondary

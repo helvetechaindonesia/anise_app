@@ -432,12 +432,21 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                       maxLines: 4,
                       style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                       decoration: InputDecoration(
-                        hintText: 'Contoh: Mohon maaf bapak/ibu guru, saya terlambat mengumpulkan karena ada kendala jaringan...',
+                        hintText: 'Tuliskan alasan keterlambatan atau permohonan...',
+                        hintStyle: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
                         filled: true,
                         fillColor: AppColors.backgroundLight,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14.w(context)),
                           borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14.w(context)),
+                          borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14.w(context)),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                         ),
                       ),
                     ),
@@ -505,6 +514,27 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
     // Sinkronisasi realtime data tugas & nilai siswa
     final taskDetailAsync = ref.watch(siswaTaskDetailProvider(widget.taskId));
     final liveData = taskDetailAsync.asData?.value;
+
+    // Poin 2: Jika tugas telah dihapus oleh guru saat siswa masih di halaman ini, auto redirect ke halaman tugas
+    if (liveData?['is_deleted'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.invalidate(getTasksProvider);
+          Navigator.pop(context);
+          AniseFeedbackDialog.showWarning(
+            context,
+            title: 'Tugas Dihapus',
+            message: 'Tugas ini telah dihapus atau ditarik oleh guru pengampu.',
+          );
+        }
+      });
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
 
     final currentSubmission = liveData?['submission'] ?? _submission;
     final currentIsSubmitted = liveData?['is_submitted'] ?? _isSubmitted;
@@ -1037,17 +1067,26 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                   final canSubmitAgain = lateRequest?['can_submit_again'] == true;
                   final isPendingRequest = lateRequest?['status'] == 'PENDING';
                   final isRejected = lateRequest?['status'] == 'REJECTED';
+                  final isExpiredAfterApproved = lateRequest?['is_expired_after_approved'] == true;
 
                   if (isLate && !canSubmitAgain) {
-                    // Ketika tugas terlewat dan belum disetujui guru: Tombol Permohonan Mengumpulkan
+                    // Jika permohonan ditolak atau masa toleransi 2x24 jam habis tanpa dikumpulkan: tombol terkunci permanen
+                    final isPermanentlyLocked = isRejected || isExpiredAfterApproved;
+
                     return AniseButton(
                       text: isPendingRequest
-                          ? 'Permohonan Menunggu Konfirmasi Guru'
-                          : (isRejected ? 'Permohonan Ditolak' : 'Permohonan Mengumpulkan'),
+                          ? 'Menunggu Konfirmasi'
+                          : (isRejected
+                              ? 'Permohonan Ditolak (Terkunci)'
+                              : (isExpiredAfterApproved
+                                  ? 'Batas Toleransi Berakhir'
+                                  : 'Permohonan Mengumpulkan')),
                       icon: isPendingRequest
                           ? PhosphorIcons.hourglass(PhosphorIconsStyle.bold)
-                          : PhosphorIcons.handTap(PhosphorIconsStyle.bold),
-                      onPressed: isPendingRequest
+                          : (isPermanentlyLocked
+                              ? PhosphorIcons.lockKey(PhosphorIconsStyle.bold)
+                              : PhosphorIcons.handTap(PhosphorIconsStyle.bold)),
+                      onPressed: (isPendingRequest || isPermanentlyLocked)
                           ? null
                           : () => _showLateRequestModal(context),
                     );

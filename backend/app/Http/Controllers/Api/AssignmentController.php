@@ -974,6 +974,7 @@ class AssignmentController extends Controller
                         'extended_until' => $latestLateRequest->extended_until?->toIso8601String(),
                         'extended_until_formatted' => $latestLateRequest->extended_until ? Carbon::parse($latestLateRequest->extended_until)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
                         'can_submit_again' => $isLateRequestApproved,
+                        'is_expired_after_approved' => ($latestLateRequest->status === 'APPROVED' && $latestLateRequest->extended_until && $now->gte($latestLateRequest->extended_until)),
                     ] : null,
                     'submission' => $submission ? [
                         'id' => $submission->id,
@@ -1018,7 +1019,19 @@ class AssignmentController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Guru penerbit tugas tidak ditemukan.'], 404);
             }
 
-            // Simpan / perbarui permohonan
+            // Batas permohonan hanya 1 kali per siswa per tugas
+            $existing = TaskLateSubmissionRequest::where('journal_task_id', $task->id)
+                ->where('student_id', $user->id)
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda sudah pernah mengajukan permohonan keterlambatan untuk tugas ini. Kesempatan permohonan hanya 1 kali.'
+                ], 422);
+            }
+
+            // Simpan permohonan
             $lateRequest = TaskLateSubmissionRequest::create([
                 'journal_task_id' => $task->id,
                 'student_id' => $user->id,
@@ -1027,14 +1040,24 @@ class AssignmentController extends Controller
                 'status' => 'PENDING',
             ]);
 
-            // Kirim notifikasi ke Guru
+            // Kirim notifikasi ke Guru (sertakan metadata tugas & siswa di pesan/payload)
             $studentName = $user->full_name ?: $user->username;
             $taskTitle = $task->title;
+
+            $notifData = [
+                'type' => 'late_request',
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+                'student_id' => $user->id,
+                'student_name' => $studentName,
+                'subject_name' => $task->journal?->schedule?->subject?->name ?? 'Mata Pelajaran',
+                'class_name' => ($task->journal?->schedule?->class?->grade_level . ' ' . $task->journal?->schedule?->class?->name),
+            ];
 
             Notification::create([
                 'user_id' => $teacher->id,
                 'title' => 'Permohonan Tugas Terlewat',
-                'message' => "Siswa {$studentName} mengajukan permohonan untuk mengumpulkan tugas \"{$taskTitle}\". Alasan: \"{$request->reason}\"",
+                'message' => "Siswa {$studentName} mengajukan permohonan untuk mengumpulkan tugas \"{$taskTitle}\". Alasan: \"{$request->reason}\"\n<!--DATA:" . json_encode($notifData) . "-->",
                 'is_read' => false,
             ]);
 

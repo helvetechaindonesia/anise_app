@@ -1,19 +1,38 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/network/dio_client.dart';
+import '../features/auth/providers/auth_provider.dart';
 
-// TODO: Import model dan repository/API service terkait
-// import 'package:frontend/models/notification_model.dart';
-// import 'package:frontend/services/api/notification_api.dart';
+/// Provider realtime notifikasi user (refresh otomatis setiap 6 detik)
+final notificationsListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final user = ref.watch(authProvider).user;
+  if (user == null) return [];
 
-class NotificationNotifier extends AsyncNotifier<List<dynamic>> {
-  @override
-  Future<List<dynamic>> build() async {
-    // Return initial state
+  final timer = Stream.periodic(const Duration(seconds: 6)).listen((_) {
+    ref.invalidateSelf();
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+  });
+
+  try {
+    final response = await dio.get('/notifications');
+    if (response.data['status'] == 'success') {
+      return response.data['data'] as List<dynamic>;
+    }
+    return [];
+  } catch (_) {
     return [];
   }
+});
 
-  // Tambahkan fungsi untuk manipulasi state di sini (fetch, add, update, delete)
-}
-
-final notificationProvider = AsyncNotifierProvider<NotificationNotifier, List<dynamic>>(() {
-  return NotificationNotifier();
+/// Provider jumlah notifikasi yang belum dibaca (unread count)
+final unreadNotificationCountProvider = Provider.autoDispose<int>((ref) {
+  final notifsAsync = ref.watch(notificationsListProvider);
+  return notifsAsync.maybeWhen(
+    data: (list) => list.where((item) => item['is_read'] != true && item['is_read'] != 1).length,
+    orElse: () => 0,
+  );
 });

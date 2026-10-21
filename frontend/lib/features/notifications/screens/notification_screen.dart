@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -6,6 +7,7 @@ import 'package:frontend/core/constants/colors.dart';
 import 'package:frontend/core/network/dio_client.dart';
 import 'package:frontend/core/widgets/anise_app_bar.dart';
 import 'package:frontend/core/widgets/anise_empty_state.dart';
+import '../../../providers/notification_provider.dart';
 import 'notification_detail_screen.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
@@ -60,22 +62,37 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           }
         }
 
-        String type = 'info';
-        if (title.contains('⚠️') || title.toLowerCase().contains('ditolak') || title.toLowerCase().contains('peringatan')) {
-          type = 'warning';
-        } else if (title.toLowerCase().contains('tugas')) {
-          type = 'task';
-        } else if (title.toLowerCase().contains('berhasil') || title.toLowerCase().contains('validasi')) {
-          type = 'habit';
+        String cleanMessage = message;
+        Map<String, dynamic> extraData = {};
+        if (message.contains('<!--DATA:') && message.contains('-->')) {
+          try {
+            final startIdx = message.indexOf('<!--DATA:') + 9;
+            final endIdx = message.indexOf('-->', startIdx);
+            final jsonStr = message.substring(startIdx, endIdx);
+            extraData = jsonDecode(jsonStr) as Map<String, dynamic>;
+            cleanMessage = message.substring(0, message.indexOf('<!--DATA:')).trim();
+          } catch (_) {}
+        }
+
+        String type = extraData['type']?.toString() ?? 'info';
+        if (type == 'info') {
+          if (title.contains('⚠️') || title.toLowerCase().contains('ditolak') || title.toLowerCase().contains('peringatan')) {
+            type = 'warning';
+          } else if (title.toLowerCase().contains('tugas')) {
+            type = 'task';
+          } else if (title.toLowerCase().contains('berhasil') || title.toLowerCase().contains('validasi')) {
+            type = 'habit';
+          }
         }
 
         return {
           'id': id,
           'title': title,
-          'body': message,
+          'body': cleanMessage,
           'time': timeStr,
           'type': type,
           'isRead': isRead,
+          'data': extraData,
         };
       }).toList();
 
@@ -96,6 +113,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     try {
       final dio = ref.read(dioProvider);
       await dio.put('/notifications/$id/read');
+      ref.invalidate(notificationsListProvider);
     } catch (_) {}
   }
 

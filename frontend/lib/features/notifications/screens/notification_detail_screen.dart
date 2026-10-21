@@ -4,6 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../tugas/screens/guru_tugas_penilaian_screen.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
   final Map<String, dynamic> notification;
@@ -90,13 +91,35 @@ class NotificationDetailScreen extends StatelessWidget {
             ),
             SizedBox(height: 48.h(context)),
             // Tombol aksi dinamis berdasarkan tipe notifikasi
-            if (notification['type'] == 'task')
+            if (notification['type'] == 'task' || notification['type'] == 'late_request')
               SizedBox(
                 width: double.infinity,
                 height: 56.h(context),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context); // Atau redirect ke halaman tugas
+                    final data = notification['data'] as Map<String, dynamic>? ?? {};
+                    final taskId = data['task_id']?.toString() ?? '';
+                    final studentId = data['student_id']?.toString();
+                    final taskTitle = data['task_title']?.toString();
+                    final subjectName = data['subject_name']?.toString();
+                    final className = data['class_name']?.toString();
+
+                    if (taskId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GuruTugasPenilaianScreen(
+                            taskId: taskId,
+                            title: taskTitle,
+                            subject: subjectName,
+                            className: className,
+                            highlightStudentId: studentId,
+                          ),
+                        ),
+                      );
+                    } else {
+                      Navigator.pop(context);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -106,7 +129,7 @@ class NotificationDetailScreen extends StatelessWidget {
                     elevation: 0,
                   ),
                   child: Text(
-                    'Lihat Tugas',
+                    notification['type'] == 'late_request' ? 'Lihat Permohonan & Beri Nilai' : 'Lihat Tugas',
                     style: AppTextStyles.bodyLarge(context, color: AppColors.onPrimary),
                   ),
                 ),

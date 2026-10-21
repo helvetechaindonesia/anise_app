@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../constants/colors.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/responsive.dart';
+import '../../providers/notification_provider.dart';
 import '../../features/notifications/screens/notification_screen.dart';
 
 /// MainHeader adalah payung identitas visual teratas pada layar dashboard utama
 /// aplikasi Anise (Siswa, Guru, BK, TU) dan layar root lainnya.
-class MainHeader extends StatelessWidget {
+class MainHeader extends ConsumerWidget {
   final String schoolName;
   final String? subtitle;
   final String? logoPath;
@@ -32,8 +34,10 @@ class MainHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool canPop = showBackButton ?? Navigator.canPop(context);
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+    final showBadge = hasUnreadNotification || unreadCount > 0;
 
     return SliverAppBar(
       pinned: pinned,
@@ -106,16 +110,37 @@ class MainHeader extends StatelessWidget {
                     size: 24.w(context),
                   ),
                 ),
-                if (hasUnreadNotification)
+                if (showBadge)
                   Positioned(
-                    top: 14.h(context),
-                    right: 14.w(context),
+                    top: 8.h(context),
+                    right: 8.w(context),
                     child: Container(
-                      width: 8.w(context),
-                      height: 8.w(context),
-                      decoration: const BoxDecoration(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: unreadCount > 9 ? 4.w(context) : 5.w(context),
+                        vertical: 1.h(context),
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 16.w(context),
+                        minHeight: 16.w(context),
+                      ),
+                      decoration: BoxDecoration(
                         color: AppColors.error,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(10.w(context)),
+                        border: Border.all(color: AppColors.surface, width: 1.5),
+                      ),
+                      child: Center(
+                        child: Text(
+                          unreadCount > 99
+                              ? '99+'
+                              : (unreadCount > 0 ? '$unreadCount' : ''),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.sp(context),
+                            fontWeight: FontWeight.bold,
+                            height: 1.0,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
