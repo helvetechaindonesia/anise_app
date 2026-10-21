@@ -370,6 +370,10 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
             );
           },
         );
+      },
+    );
+  }
+
   void _showLateRequestModal(BuildContext context) {
     final reasonController = TextEditingController();
     bool isSubmitting = false;
