@@ -17,6 +17,22 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, \Laravel\Sanctum\HasApiTokens, \Illuminate\Database\Eloquent\Concerns\HasUuids, \Illuminate\Database\Eloquent\SoftDeletes;
 
+    protected $fillable = [
+        'full_name',
+        'username',
+        'email',
+        'password_hash',
+        'role_id',
+        'is_active',
+        'phone',
+        'address',
+        'gender',
+        'religion',
+        'avatar',
+        'birth_place',
+        'birth_date',
+    ];
+
     /**
      * Get the password for the user.
      */
