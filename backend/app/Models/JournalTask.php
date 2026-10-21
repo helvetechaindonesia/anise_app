@@ -32,5 +32,10 @@ class JournalTask extends Model
     {
         return $this->hasMany(\App\Models\StudentTaskSubmission::class, 'journal_task_id');
     }
+
+    public function lateRequests()
+    {
+        return $this->hasMany(\App\Models\TaskLateSubmissionRequest::class, 'journal_task_id');
+    }
 }
 

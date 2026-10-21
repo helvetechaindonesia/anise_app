@@ -242,6 +242,233 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
     );
   }
 
+  void _openLateRequestResponseModal(BuildContext context, Map<String, dynamic> student, Map<String, dynamic> lateRequest) {
+    final noteController = TextEditingController();
+    final requestId = lateRequest['id']?.toString() ?? '';
+    final studentName = student['name']?.toString() ?? 'Siswa';
+    final reason = lateRequest['reason']?.toString() ?? '';
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24.w(context),
+                right: 24.w(context),
+                top: 24.h(context),
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40.w(context),
+                        height: 4.h(context),
+                        decoration: BoxDecoration(
+                          color: AppColors.outline.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h(context)),
+                    Text(
+                      'Respon Permohonan Siswa',
+                      style: AppTextStyles.titleLarge(context, color: AppColors.onSurface),
+                    ),
+                    SizedBox(height: 4.h(context)),
+                    Text(
+                      studentName,
+                      style: AppTextStyles.bodyMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(height: 16.h(context)),
+
+                    // Alasan Siswa
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(12.w(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Alasan / Ucapan Maaf Siswa:',
+                            style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant).copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4.h(context)),
+                          Text(
+                            reason,
+                            style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 16.h(context)),
+
+                    // Form Nasihat / Catatan Guru
+                    Text(
+                      'Pesan / Catatan Nasihat Guru (Wajib)',
+                      style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 6.h(context)),
+                    TextField(
+                      controller: noteController,
+                      maxLines: 3,
+                      style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Tuliskan nasihat, evaluasi, atau catatan untuk siswa ini...',
+                        hintStyle: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
+                        filled: true,
+                        fillColor: AppColors.backgroundLight,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                      ),
+                    ),
+                    SizedBox(height: 20.h(context)),
+
+                    // Tombol Aksi: Tolak & Setujui
+                    Row(
+                      children: [
+                        // Tombol Tolak
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: const BorderSide(color: AppColors.error),
+                              padding: EdgeInsets.symmetric(vertical: 14.h(context)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final note = noteController.text.trim();
+                                    if (note.length < 3) {
+                                      AniseFeedbackDialog.showWarning(
+                                        context,
+                                        title: 'Catatan Belum Diisi',
+                                        message: 'Mohon berikan nasihat atau catatan singkat minimal 3 karakter untuk siswa.',
+                                      );
+                                      return;
+                                    }
+
+                                    setModalState(() => isSubmitting = true);
+                                    final success = await ref.read(tugasProvider.notifier).respondLateSubmission(
+                                      requestId: requestId,
+                                      action: 'REJECT',
+                                      note: note,
+                                    );
+                                    setModalState(() => isSubmitting = false);
+
+                                    if (success) {
+                                      ref.invalidate(taskSubmissionsProvider(widget.taskId));
+                                      ref.invalidate(getTasksProvider);
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        AniseFeedbackDialog.showSuccess(
+                                          context,
+                                          title: 'Permohonan Ditolak',
+                                          message: 'Permohonan keterlambatan $studentName telah ditolak dengan catatan nasihat.',
+                                        );
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        AniseFeedbackDialog.showError(
+                                          context,
+                                          title: 'Gagal Memproses',
+                                          message: 'Terjadi kendala server saat menolak permohonan.',
+                                        );
+                                      }
+                                    }
+                                  },
+                            child: Text('Tolak Permohonan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.sp(context))),
+                          ),
+                        ),
+                        SizedBox(width: 12.w(context)),
+
+                        // Tombol Setujui
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              padding: EdgeInsets.symmetric(vertical: 14.h(context)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                            ),
+                            onPressed: isSubmitting
+                                ? null
+                                : () async {
+                                    final note = noteController.text.trim();
+                                    if (note.length < 3) {
+                                      AniseFeedbackDialog.showWarning(
+                                        context,
+                                        title: 'Nasihat Belum Diisi',
+                                        message: 'Mohon berikan nasihat atau catatan penyemangat minimal 3 karakter untuk siswa.',
+                                      );
+                                      return;
+                                    }
+
+                                    setModalState(() => isSubmitting = true);
+                                    final success = await ref.read(tugasProvider.notifier).respondLateSubmission(
+                                      requestId: requestId,
+                                      action: 'APPROVE',
+                                      note: note,
+                                    );
+                                    setModalState(() => isSubmitting = false);
+
+                                    if (success) {
+                                      ref.invalidate(taskSubmissionsProvider(widget.taskId));
+                                      ref.invalidate(getTasksProvider);
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        AniseFeedbackDialog.showSuccess(
+                                          context,
+                                          title: 'Permohonan Disetujui',
+                                          message: 'Akses pengumpulan tugas untuk $studentName telah dibuka kembali selama 2x24 jam.',
+                                        );
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        AniseFeedbackDialog.showError(
+                                          context,
+                                          title: 'Gagal Memproses',
+                                          message: 'Terjadi kendala server saat menyetujui permohonan.',
+                                        );
+                                      }
+                                    }
+                                  },
+                            child: isSubmitting
+                                ? SizedBox(
+                                    width: 18.w(context),
+                                    height: 18.w(context),
+                                    child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : Text('Setujui (2x24 Jam)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.sp(context))),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _downloadStudentFile(String rawUrl, String studentName, {String? submissionId}) {
     String targetUrl = rawUrl.trim();
     if (submissionId != null && submissionId.isNotEmpty) {
@@ -565,9 +792,128 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                     ),
                   ),
                 ),
+              ] else if (student['late_request'] != null && student['late_request']['status'] == 'PENDING') ...[
+                InkWell(
+                  onTap: () => _openLateRequestResponseModal(context, student, student['late_request']),
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 6.h(context)),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary,
+                      borderRadius: BorderRadius.circular(10.w(context)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          PhosphorIcons.chatTeardropDots(PhosphorIconsStyle.bold),
+                          size: 14.w(context),
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 4.w(context)),
+                        Text(
+                          'Respon',
+                          style: AppTextStyles.labelMedium(context).copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
+
+          // Permohonan Keterlambatan Card jika ada
+          if (student['late_request'] != null) ...[
+            SizedBox(height: 12.h(context)),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(12.w(context)),
+              decoration: BoxDecoration(
+                color: student['late_request']['status'] == 'APPROVED'
+                    ? AppColors.secondary.withValues(alpha: 0.08)
+                    : (student['late_request']['status'] == 'REJECTED'
+                        ? AppColors.error.withValues(alpha: 0.08)
+                        : AppColors.primary.withValues(alpha: 0.08)),
+                borderRadius: BorderRadius.circular(12.w(context)),
+                border: Border.all(
+                  color: student['late_request']['status'] == 'APPROVED'
+                      ? AppColors.secondary.withValues(alpha: 0.25)
+                      : (student['late_request']['status'] == 'REJECTED'
+                          ? AppColors.error.withValues(alpha: 0.25)
+                          : AppColors.primary.withValues(alpha: 0.25)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            student['late_request']['status'] == 'APPROVED'
+                                ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
+                                : (student['late_request']['status'] == 'REJECTED'
+                                    ? PhosphorIcons.xCircle(PhosphorIconsStyle.fill)
+                                    : PhosphorIcons.hourglass(PhosphorIconsStyle.bold)),
+                            size: 15.w(context),
+                            color: student['late_request']['status'] == 'APPROVED'
+                                ? AppColors.secondary
+                                : (student['late_request']['status'] == 'REJECTED' ? AppColors.error : AppColors.primary),
+                          ),
+                          SizedBox(width: 6.w(context)),
+                          Text(
+                            student['late_request']['status'] == 'APPROVED'
+                                ? 'Izin Diberikan (2x24 Jam)'
+                                : (student['late_request']['status'] == 'REJECTED'
+                                    ? 'Permohonan Ditolak'
+                                    : 'Permohonan Keterlambatan Masuk'),
+                            style: AppTextStyles.labelSmall(context,
+                                color: student['late_request']['status'] == 'APPROVED'
+                                    ? AppColors.secondary
+                                    : (student['late_request']['status'] == 'REJECTED' ? AppColors.error : AppColors.primary))
+                                .copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      if (student['late_request']['status'] == 'PENDING')
+                        InkWell(
+                          onTap: () => _openLateRequestResponseModal(context, student, student['late_request']),
+                          child: Text(
+                            'Beri Keputusan >',
+                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h(context)),
+                  Text(
+                    'Alasan Siswa: "${student['late_request']['reason'] ?? '-'}"',
+                    style: AppTextStyles.bodySmall(context, color: AppColors.onSurface),
+                  ),
+                  if (student['late_request']['teacher_note'] != null && student['late_request']['teacher_note'].toString().isNotEmpty) ...[
+                    SizedBox(height: 4.h(context)),
+                    Text(
+                      'Pesan Guru: "${student['late_request']['teacher_note']}"',
+                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                  if (student['late_request']['status'] == 'APPROVED' && student['late_request']['extended_until_formatted'] != null) ...[
+                    SizedBox(height: 4.h(context)),
+                    Text(
+                      'Batas Waktu Pengumpulan Tambahan: ${student['late_request']['extended_until_formatted']}',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
 
           // Teks Jawaban Siswa jika ada
           if (answerText != null && answerText.trim().isNotEmpty) ...[

@@ -370,6 +370,128 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
             );
           },
         );
+  void _showLateRequestModal(BuildContext context) {
+    final reasonController = TextEditingController();
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24.w(context),
+                right: 24.w(context),
+                top: 24.h(context),
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24.h(context),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40.w(context),
+                        height: 4.h(context),
+                        decoration: BoxDecoration(
+                          color: AppColors.outline.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h(context)),
+                    Text(
+                      'Permohonan Mengumpulkan Tugas',
+                      style: AppTextStyles.titleLarge(context, color: AppColors.onSurface),
+                    ),
+                    SizedBox(height: 6.h(context)),
+                    Text(
+                      'Tenggat waktu tugas ini telah berakhir. Tuliskan permohonan, alasan keterlambatan, atau ucapan maaf kepada guru pengampu untuk membuka kembali akses pengumpulan tugas.',
+                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                    SizedBox(height: 16.h(context)),
+
+                    Text(
+                      'Alasan / Ucapan Maaf',
+                      style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 6.h(context)),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 4,
+                      style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: Mohon maaf bapak/ibu guru, saya terlambat mengumpulkan karena ada kendala jaringan...',
+                        filled: true,
+                        fillColor: AppColors.backgroundLight,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14.w(context)),
+                          borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.2)),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 20.h(context)),
+
+                    AniseButton(
+                      text: isSubmitting ? 'Mengirimkan Permohonan...' : 'Kirim Permohonan ke Guru',
+                      icon: PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.bold),
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final text = reasonController.text.trim();
+                              if (text.length < 5) {
+                                AniseFeedbackDialog.showWarning(
+                                  context,
+                                  title: 'Alasan Belum Lengkap',
+                                  message: 'Harap tuliskan alasan atau permohonan minimal 5 karakter.',
+                                );
+                                return;
+                              }
+
+                              setModalState(() => isSubmitting = true);
+
+                              final success = await ref.read(tugasProvider.notifier).requestLateSubmission(
+                                taskId: widget.taskId,
+                                reason: text,
+                              );
+
+                              setModalState(() => isSubmitting = false);
+
+                              if (success) {
+                                ref.invalidate(getTasksProvider);
+                                ref.invalidate(siswaTaskDetailProvider(widget.taskId));
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (context.mounted) {
+                                  AniseFeedbackDialog.showSuccess(
+                                    context,
+                                    title: 'Permohonan Terkirim',
+                                    message: 'Permohonan Anda berhasil dikirim ke guru pengampu. Silakan tunggu konfirmasi melalui notifikasi.',
+                                  );
+                                }
+                              } else {
+                                if (context.mounted) {
+                                  AniseFeedbackDialog.showError(
+                                    context,
+                                    title: 'Gagal Mengirim',
+                                    message: 'Terjadi kendala saat mengirim permohonan. Periksa koneksi internet Anda.',
+                                  );
+                                }
+                              }
+                            },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -389,6 +511,7 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
     final currentTeacher = liveData?['teacher'] ?? widget.teacher;
     final currentSubject = liveData?['subject'] ?? widget.subject;
     final currentTitle = liveData?['title'] ?? widget.title;
+    final lateRequest = liveData?['late_request'] as Map<String, dynamic>?;
 
     final hasScore = currentSubmission != null && currentSubmission['score'] != null;
     final score = hasScore ? currentSubmission['score'] : null;
@@ -814,15 +937,125 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
                     ],
                   ),
                 ),
+              ] else if (lateRequest != null) ...[
+                // Banner Status Permohonan Mengumpulkan
+                Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.only(bottom: 12.h(context)),
+                  padding: EdgeInsets.all(12.w(context)),
+                  decoration: BoxDecoration(
+                    color: lateRequest['status'] == 'APPROVED'
+                        ? AppColors.secondary.withValues(alpha: 0.1)
+                        : (lateRequest['status'] == 'REJECTED'
+                            ? AppColors.error.withValues(alpha: 0.1)
+                            : AppColors.primary.withValues(alpha: 0.08)),
+                    borderRadius: BorderRadius.circular(10.w(context)),
+                    border: Border.all(
+                      color: lateRequest['status'] == 'APPROVED'
+                          ? AppColors.secondary.withValues(alpha: 0.3)
+                          : (lateRequest['status'] == 'REJECTED'
+                              ? AppColors.error.withValues(alpha: 0.3)
+                              : AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            lateRequest['status'] == 'APPROVED'
+                                ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill)
+                                : (lateRequest['status'] == 'REJECTED'
+                                    ? PhosphorIcons.xCircle(PhosphorIconsStyle.fill)
+                                    : PhosphorIcons.hourglass(PhosphorIconsStyle.bold)),
+                            size: 16.w(context),
+                            color: lateRequest['status'] == 'APPROVED'
+                                ? AppColors.secondary
+                                : (lateRequest['status'] == 'REJECTED' ? AppColors.error : AppColors.primary),
+                          ),
+                          SizedBox(width: 8.w(context)),
+                          Expanded(
+                            child: Text(
+                              lateRequest['status'] == 'APPROVED'
+                                  ? 'Permohonan Disetujui Guru'
+                                  : (lateRequest['status'] == 'REJECTED'
+                                      ? 'Permohonan Ditolak Guru'
+                                      : 'Permohonan Menunggu Konfirmasi Guru'),
+                              style: AppTextStyles.labelMedium(context,
+                                  color: lateRequest['status'] == 'APPROVED'
+                                      ? AppColors.secondary
+                                      : (lateRequest['status'] == 'REJECTED' ? AppColors.error : AppColors.primary))
+                                  .copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (lateRequest['teacher_note'] != null && lateRequest['teacher_note'].toString().isNotEmpty) ...[
+                        SizedBox(height: 4.h(context)),
+                        Text(
+                          'Catatan Guru: "${lateRequest['teacher_note']}"',
+                          style: AppTextStyles.bodySmall(context, color: AppColors.onSurface).copyWith(fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                      if (lateRequest['extended_until_formatted'] != null && lateRequest['status'] == 'APPROVED') ...[
+                        SizedBox(height: 4.h(context)),
+                        Text(
+                          'Batas Waktu Tambahan: ${lateRequest['extended_until_formatted']}',
+                          style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
-              AniseButton(
-                text: hasScore
-                    ? 'Tugas Sudah Dinilai (Terkunci)'
-                    : (currentIsSubmitted ? 'Perbarui Jawaban Tugas' : 'Kumpulkan Tugas Sekarang'),
-                icon: hasScore
-                    ? PhosphorIcons.lockKey(PhosphorIconsStyle.bold)
-                    : (currentIsSubmitted ? PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold) : PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold)),
-                onPressed: hasScore ? null : () => _showSubmitModal(context),
+              
+              // Dynamic Action Button (Kumpulkan / Permohonan Mengumpulkan / Kunci)
+              Builder(
+                builder: (context) {
+                  if (hasScore) {
+                    return AniseButton(
+                      text: 'Tugas Sudah Dinilai (Terkunci)',
+                      icon: PhosphorIcons.lockKey(PhosphorIconsStyle.bold),
+                      onPressed: null,
+                    );
+                  }
+
+                  if (currentIsSubmitted) {
+                    return AniseButton(
+                      text: 'Perbarui Jawaban Tugas',
+                      icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold),
+                      onPressed: () => _showSubmitModal(context),
+                    );
+                  }
+
+                  final isLate = currentStatus == 'Terlewat';
+                  final canSubmitAgain = lateRequest?['can_submit_again'] == true;
+                  final isPendingRequest = lateRequest?['status'] == 'PENDING';
+                  final isRejected = lateRequest?['status'] == 'REJECTED';
+
+                  if (isLate && !canSubmitAgain) {
+                    // Ketika tugas terlewat dan belum disetujui guru: Tombol Permohonan Mengumpulkan
+                    return AniseButton(
+                      text: isPendingRequest
+                          ? 'Permohonan Menunggu Konfirmasi Guru'
+                          : (isRejected ? 'Permohonan Ditolak' : 'Permohonan Mengumpulkan'),
+                      icon: isPendingRequest
+                          ? PhosphorIcons.hourglass(PhosphorIconsStyle.bold)
+                          : PhosphorIcons.handTap(PhosphorIconsStyle.bold),
+                      onPressed: isPendingRequest
+                          ? null
+                          : () => _showLateRequestModal(context),
+                    );
+                  }
+
+                  // Normal / Masa perpanjangan 2x24 jam yang disetujui
+                  return AniseButton(
+                    text: canSubmitAgain ? 'Kumpulkan Tugas (Masa Toleransi)' : 'Kumpulkan Tugas Sekarang',
+                    icon: PhosphorIcons.uploadSimple(PhosphorIconsStyle.bold),
+                    onPressed: () => _showSubmitModal(context),
+                  );
+                },
               ),
             ],
           ),

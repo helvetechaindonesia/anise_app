@@ -230,7 +230,63 @@ class TugasNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  /// Siswa mengajukan permohonan mengumpulkan tugas yang sudah terlewat
+  Future<bool> requestLateSubmission({
+    required String taskId,
+    required String reason,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.post(
+        '/assignments/$taskId/request-late',
+        data: {'reason': reason},
+      );
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
+
+  /// Guru menyetujui atau menolak permohonan tugas terlewat + memberikan catatan nasihat
+  Future<bool> respondLateSubmission({
+    required String requestId,
+    required String action, // 'APPROVE' atau 'REJECT'
+    required String note,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.post(
+        '/assignments/late-requests/$requestId/respond',
+        data: {
+          'action': action,
+          'note': note,
+        },
+      );
+      state = const AsyncValue.data(null);
+      return response.data['status'] == 'success';
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      return false;
+    }
+  }
 }
+
+/// Provider daftar permohonan tugas terlewat yang masuk ke guru
+final lateSubmissionRequestsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/assignments/late-requests');
+    if (response.data['status'] == 'success') {
+      return response.data['data'] as List<dynamic>;
+    }
+    return [];
+  } catch (e) {
+    return [];
+  }
+});
 
 final tugasProvider = StateNotifierProvider<TugasNotifier, AsyncValue<void>>((ref) {
   return TugasNotifier(ref.watch(dioProvider));

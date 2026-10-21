@@ -11,6 +11,8 @@ use App\Models\StudentTaskSubmission;
 use App\Models\StudentTaskGrade;
 use App\Models\ClassStudent;
 use App\Models\User;
+use App\Models\TaskLateSubmissionRequest;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use App\Services\FileStorageService;
 use App\Services\NotificationService;
@@ -277,6 +279,12 @@ class AssignmentController extends Controller
                 ->get()
                 ->keyBy('student_id');
 
+            // Ambil permohonan keterlambatan tugas untuk tugas ini
+            $lateRequests = TaskLateSubmissionRequest::where('journal_task_id', $taskId)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->keyBy('student_id');
+
             $studentsList = [];
             $submittedCount = 0;
             $gradedCount = 0;
@@ -295,11 +303,32 @@ class AssignmentController extends Controller
                 $submittedAt = $isSubmitted && $submission->submitted_at ? Carbon::parse($submission->submitted_at) : null;
                 $isLate = $submittedAt ? $submittedAt->gt($dueDate) : false;
 
+                // Cek status permohonan terlambat
+                $lateReq = $lateRequests->get($student->id);
+                $lateReqData = null;
+                if ($lateReq) {
+                    $lateReqData = [
+                        'id' => $lateReq->id,
+                        'reason' => $lateReq->reason,
+                        'status' => $lateReq->status,
+                        'teacher_note' => $lateReq->teacher_note,
+                        'extended_until' => $lateReq->extended_until?->toIso8601String(),
+                        'extended_until_formatted' => $lateReq->extended_until ? Carbon::parse($lateReq->extended_until)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                        'created_at_formatted' => $lateReq->created_at ? Carbon::parse($lateReq->created_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                    ];
+                }
+
                 $statusText = 'Belum Mengumpulkan';
                 if ($hasGrade) {
                     $statusText = 'Sudah Dinilai';
                 } elseif ($isSubmitted) {
                     $statusText = $isLate ? 'Mengumpulkan (Terlambat)' : 'Sudah Mengumpulkan';
+                } elseif ($lateReq && $lateReq->status === 'PENDING') {
+                    $statusText = 'Menunggu Konfirmasi Keterlambatan';
+                } elseif ($lateReq && $lateReq->status === 'APPROVED') {
+                    $statusText = 'Izin Keterlambatan Diberikan';
+                } elseif ($lateReq && $lateReq->status === 'REJECTED') {
+                    $statusText = 'Permohonan Ditolak';
                 }
 
                 $studentsList[] = [
@@ -316,7 +345,8 @@ class AssignmentController extends Controller
                     'attachment_url' => $submission?->attachment_url,
                     'score' => $submission?->grade ? (float) $submission->grade->score : null,
                     'feedback' => $submission?->grade?->feedback ?? null,
-                    'graded_at' => $submission?->grade?->updated_at ? Carbon::parse($submission->grade->updated_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : null
+                    'graded_at' => $submission?->grade?->updated_at ? Carbon::parse($submission->grade->updated_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                    'late_request' => $lateReqData,
                 ];
             }
 
@@ -657,6 +687,9 @@ class AssignmentController extends Controller
                 'attachments',
                 'submissions' => function ($q) use ($user) {
                     $q->where('student_id', $user->id)->with('grade');
+                },
+                'lateRequests' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id)->latest();
                 }
             ]);
 
@@ -693,6 +726,11 @@ class AssignmentController extends Controller
                 $isSubmitted = $submission !== null;
                 $dueDate = Carbon::parse($task->due_date);
                 
+                // Cek Permohonan Pengumpulan Terlewat Siswa
+                $latestLateRequest = $task->lateRequests->first();
+                $isLateRequestApproved = $latestLateRequest && $latestLateRequest->status === 'APPROVED' && $latestLateRequest->extended_until && $now->lt($latestLateRequest->extended_until);
+                $isLateRequestPending = $latestLateRequest && $latestLateRequest->status === 'PENDING';
+
                 if ($dueDate->between($startOfWeek, $endOfWeek)) {
                     $mingguIniCount++;
                 }
@@ -700,6 +738,10 @@ class AssignmentController extends Controller
                 if ($isSubmitted) {
                     $status = 'Selesai Dikerjakan';
                     $selesaiCount++;
+                } elseif ($isLateRequestApproved) {
+                    // Tombol aktif kembali 2x24 jam
+                    $status = 'Belum Dikerjakan';
+                    $belumCount++;
                 } elseif ($now->gt($dueDate)) {
                     $status = 'Terlewat';
                     $terlewatCount++;
@@ -727,6 +769,15 @@ class AssignmentController extends Controller
                     'teacher_avatar' => $teacherAvatar,
                     'status' => $status,
                     'is_submitted' => $isSubmitted,
+                    'late_request' => $latestLateRequest ? [
+                        'id' => $latestLateRequest->id,
+                        'status' => $latestLateRequest->status,
+                        'reason' => $latestLateRequest->reason,
+                        'teacher_note' => $latestLateRequest->teacher_note,
+                        'extended_until' => $latestLateRequest->extended_until?->toIso8601String(),
+                        'extended_until_formatted' => $latestLateRequest->extended_until ? Carbon::parse($latestLateRequest->extended_until)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                        'can_submit_again' => $isLateRequestApproved,
+                    ] : null,
                     'submission' => $submission ? [
                         'id' => $submission->id,
                         'status' => $submission->status,
@@ -788,6 +839,28 @@ class AssignmentController extends Controller
                     'status' => 'error',
                     'message' => 'Tugas ini sudah dinilai oleh guru dan tidak dapat diperbarui lagi.'
                 ], 422);
+            }
+
+            // Cek Batas Waktu / Tenggat & Permohonan Terlewat
+            $now = now();
+            $dueDate = Carbon::parse($task->due_date);
+            if ($now->gt($dueDate)) {
+                $latestLateRequest = TaskLateSubmissionRequest::where('journal_task_id', $task->id)
+                    ->where('student_id', $user->id)
+                    ->latest()
+                    ->first();
+
+                $isApproved = $latestLateRequest 
+                    && $latestLateRequest->status === 'APPROVED' 
+                    && $latestLateRequest->extended_until 
+                    && $now->lt($latestLateRequest->extended_until);
+
+                if (!$isApproved) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Batas waktu pengumpulan tugas ini telah berakhir. Silakan ajukan permohonan mengumpulkan kepada guru pengampu.'
+                    ], 422);
+                }
             }
 
             $attachmentUrl = null;
@@ -854,6 +927,9 @@ class AssignmentController extends Controller
                 'attachments',
                 'submissions' => function ($q) use ($user) {
                     $q->where('student_id', $user->id)->with('grade');
+                },
+                'lateRequests' => function ($q) use ($user) {
+                    $q->where('student_id', $user->id)->latest();
                 }
             ])->findOrFail($id);
 
@@ -865,8 +941,13 @@ class AssignmentController extends Controller
             $dueDate = Carbon::parse($task->due_date);
             $now = now();
 
+            $latestLateRequest = $task->lateRequests->first();
+            $isLateRequestApproved = $latestLateRequest && $latestLateRequest->status === 'APPROVED' && $latestLateRequest->extended_until && $now->lt($latestLateRequest->extended_until);
+
             if ($isSubmitted) {
                 $status = 'Selesai Dikerjakan';
+            } elseif ($isLateRequestApproved) {
+                $status = 'Belum Dikerjakan';
             } elseif ($now->gt($dueDate)) {
                 $status = 'Terlewat';
             } else {
@@ -885,6 +966,15 @@ class AssignmentController extends Controller
                     'teacher' => $teacherName,
                     'status' => $status,
                     'is_submitted' => $isSubmitted,
+                    'late_request' => $latestLateRequest ? [
+                        'id' => $latestLateRequest->id,
+                        'status' => $latestLateRequest->status,
+                        'reason' => $latestLateRequest->reason,
+                        'teacher_note' => $latestLateRequest->teacher_note,
+                        'extended_until' => $latestLateRequest->extended_until?->toIso8601String(),
+                        'extended_until_formatted' => $latestLateRequest->extended_until ? Carbon::parse($latestLateRequest->extended_until)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                        'can_submit_again' => $isLateRequestApproved,
+                    ] : null,
                     'submission' => $submission ? [
                         'id' => $submission->id,
                         'status' => $submission->status,
@@ -903,6 +993,150 @@ class AssignmentController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Siswa mengajukan permohonan untuk mengumpulkan tugas yang sudah terlewat
+     */
+    public function requestLateSubmission(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|min:5'
+        ]);
+
+        try {
+            $user = Auth::user();
+            $task = JournalTask::with([
+                'journal.teacher',
+                'journal.schedule.teacher'
+            ])->findOrFail($id);
+
+            $teacher = $task->journal?->teacher ?? $task->journal?->schedule?->teacher;
+            if (!$teacher) {
+                return response()->json(['status' => 'error', 'message' => 'Guru penerbit tugas tidak ditemukan.'], 404);
+            }
+
+            // Simpan / perbarui permohonan
+            $lateRequest = TaskLateSubmissionRequest::create([
+                'journal_task_id' => $task->id,
+                'student_id' => $user->id,
+                'teacher_id' => $teacher->id,
+                'reason' => $request->reason,
+                'status' => 'PENDING',
+            ]);
+
+            // Kirim notifikasi ke Guru
+            $studentName = $user->full_name ?: $user->username;
+            $taskTitle = $task->title;
+
+            Notification::create([
+                'user_id' => $teacher->id,
+                'title' => 'Permohonan Tugas Terlewat',
+                'message' => "Siswa {$studentName} mengajukan permohonan untuk mengumpulkan tugas \"{$taskTitle}\". Alasan: \"{$request->reason}\"",
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Permohonan berhasil dikirim ke guru pengampu.',
+                'data' => $lateRequest
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Guru mengambil daftar permohonan tugas terlewat yang masuk
+     */
+    public function getLateSubmissionRequests(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $requests = TaskLateSubmissionRequest::where('teacher_id', $user->id)
+                ->with(['student.siswaProfile', 'journalTask'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($req) {
+                    return [
+                        'id' => $req->id,
+                        'task_id' => $req->journal_task_id,
+                        'task_title' => $req->journalTask?->title ?? 'Tugas',
+                        'student_id' => $req->student_id,
+                        'student_name' => $req->student?->full_name ?: ($req->student?->username ?? 'Siswa'),
+                        'student_nis' => $req->student?->siswaProfile?->nis ?? '-',
+                        'reason' => $req->reason,
+                        'status' => $req->status,
+                        'teacher_note' => $req->teacher_note,
+                        'extended_until' => $req->extended_until?->toIso8601String(),
+                        'created_at' => $req->created_at?->toIso8601String(),
+                        'created_at_formatted' => $req->created_at ? Carbon::parse($req->created_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : '-',
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $requests
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Guru merespons permohonan tugas terlewat (SETUJUI / TOLAK + Nasihat)
+     * Jika disetujui: tombol pengumpulan siswa aktif kembali selama 2x24 jam (48 jam)
+     */
+    public function respondLateSubmissionRequest(Request $request, $requestId)
+    {
+        $request->validate([
+            'action' => 'required|in:APPROVE,REJECT',
+            'note' => 'required|string|min:3'
+        ]);
+
+        try {
+            $user = Auth::user();
+            $lateRequest = TaskLateSubmissionRequest::with(['journalTask', 'student'])->findOrFail($requestId);
+
+            if ($lateRequest->teacher_id !== $user->id) {
+                return response()->json(['status' => 'error', 'message' => 'Anda tidak berwenang merespons permohonan ini.'], 403);
+            }
+
+            $now = now();
+            if ($request->action === 'APPROVE') {
+                $lateRequest->status = 'APPROVED';
+                $lateRequest->extended_until = $now->copy()->addHours(48); // Aktif kembali 2 x 24 jam!
+                $statusMsg = 'disetujui';
+                $notifTitle = 'Permohonan Tugas Disetujui';
+                $deadlineStr = $lateRequest->extended_until->locale('id')->isoFormat('dddd, D MMMM Y HH:mm');
+                $notifMsg = "Guru telah menyetujui permohonan tugas \"{$lateRequest->journalTask?->title}\". Tombol pengumpulan aktif kembali hingga {$deadlineStr}. Pesan Guru: \"{$request->note}\"";
+            } else {
+                $lateRequest->status = 'REJECTED';
+                $statusMsg = 'ditolak';
+                $notifTitle = 'Permohonan Tugas Ditolak';
+                $notifMsg = "Permohonan tugas \"{$lateRequest->journalTask?->title}\" ditolak oleh guru. Pesan Guru: \"{$request->note}\"";
+            }
+
+            $lateRequest->teacher_note = $request->note;
+            $lateRequest->responded_at = $now;
+            $lateRequest->save();
+
+            // Kirim notifikasi ke siswa
+            Notification::create([
+                'user_id' => $lateRequest->student_id,
+                'title' => $notifTitle,
+                'message' => $notifMsg,
+                'is_read' => false,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => "Permohonan berhasil {$statusMsg}.",
+                'data' => $lateRequest
+            ]);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }

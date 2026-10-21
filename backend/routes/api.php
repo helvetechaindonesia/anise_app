@@ -130,10 +130,13 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
             Route::get('/siswa', [AssignmentController::class, 'getSiswaTasks']);
             Route::get('/siswa/{id}', [AssignmentController::class, 'getTaskDetailForSiswa']);
             Route::post('/submit', [AssignmentController::class, 'submitTask']);
+            Route::post('/{id}/request-late', [AssignmentController::class, 'requestLateSubmission']);
         });
         Route::middleware('role:GURU')->group(function () {
             Route::post('/', [AssignmentController::class, 'storeTask']);
             Route::get('/', [AssignmentController::class, 'getTasks']);
+            Route::get('/late-requests', [AssignmentController::class, 'getLateSubmissionRequests']);
+            Route::post('/late-requests/{requestId}/respond', [AssignmentController::class, 'respondLateSubmissionRequest']);
             Route::get('/{taskId}/submissions', [AssignmentController::class, 'getTaskSubmissions']);
             Route::post('/submissions/{submissionId}/grade', [AssignmentController::class, 'gradeSubmission']);
             Route::post('/{id}/update', [AssignmentController::class, 'updateTask']);
