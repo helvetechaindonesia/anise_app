@@ -123,27 +123,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         'data': extraData,
         'raw_created_at': createdAt,
         'parsed_date': dt,
-        'server_index': currentIndex,
       };
     }).toList();
-
-    // Urutkan dari yang terbaru ke terlama secara stabil
-    mapped.sort((a, b) {
-      final DateTime? aDate = a['parsed_date'] as DateTime?;
-      final DateTime? bDate = b['parsed_date'] as DateTime?;
-      if (aDate != null && bDate != null) {
-        final cmp = bDate.compareTo(aDate); // Descending (terbaru di atas)
-        if (cmp != 0) return cmp;
-      } else if (aDate == null && bDate != null) {
-        return 1;
-      } else if (aDate != null && bDate == null) {
-        return -1;
-      }
-      // Jika waktu sama persis, pertahankan urutan dari server (index lebih kecil = lebih baru)
-      final int aIdx = a['server_index'] as int? ?? 0;
-      final int bIdx = b['server_index'] as int? ?? 0;
-      return aIdx.compareTo(bIdx);
-    });
 
     return mapped;
   }
