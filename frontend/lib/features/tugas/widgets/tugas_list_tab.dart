@@ -17,7 +17,12 @@ class TugasListTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filteredTasks = allTasks.where((t) => t['status'] == status).toList();
+    final filteredTasks = allTasks.where((t) {
+      if (status == 'Belum Dikerjakan') {
+        return t['status'] == 'Belum Dikerjakan' || t['status'] == 'Terlewat ; Belum Dikerjakan';
+      }
+      return t['status'] == status;
+    }).toList();
 
     if (filteredTasks.isEmpty) {
       return AniseEmptyState(
@@ -44,10 +49,15 @@ class TugasListTab extends StatelessWidget {
   Widget _buildTaskCard(BuildContext context, Map<String, dynamic> task, {bool showDivider = true}) {
     bool isSelesai = task['status'] == 'Selesai Dikerjakan';
     bool isTerlewat = task['status'] == 'Terlewat';
+    bool isApprovedLate = task['status'] == 'Terlewat ; Belum Dikerjakan';
 
-    String timeInfo = isSelesai ? 'Diselesaikan' : (isTerlewat ? 'Terlewat: ${task['deadline']}' : 'Tenggat: ${task['deadline']}');
-    Color timeBgColor = isSelesai ? AppColors.primary.withValues(alpha: 0.5) : (isTerlewat ? AppColors.primary.withValues(alpha: 0.5) : AppColors.primary.withValues(alpha: 0.5));
-    Color timeIconColor = isSelesai ? AppColors.primary : (isTerlewat ? AppColors.primary : AppColors.primary);
+    String timeInfo = isSelesai 
+        ? 'Diselesaikan' 
+        : (isTerlewat 
+            ? 'Terlewat: ${task['deadline']}' 
+            : (isApprovedLate ? 'Perpanjangan: ${task['deadline']}' : 'Tenggat: ${task['deadline']}'));
+    Color timeBgColor = AppColors.primary.withValues(alpha: 0.5);
+    Color timeIconColor = AppColors.primary;
     
     String statusText = task['status'].toString();
     Color statusColor = AppColors.warning;
@@ -59,6 +69,10 @@ class TugasListTab extends StatelessWidget {
     } else if (isTerlewat) {
       statusColor = AppColors.error;
       statusIcon = PhosphorIcons.warningCircle(PhosphorIconsStyle.bold);
+    } else if (isApprovedLate) {
+      // Warna amber / warning agak menyala agar siswa aware
+      statusColor = const Color(0xFFD97706);
+      statusIcon = PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold);
     } else {
       statusColor = AppColors.warning;
       statusIcon = PhosphorIcons.hourglass(PhosphorIconsStyle.bold);

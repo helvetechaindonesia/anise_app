@@ -141,7 +141,7 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
             data: (rawTasks) {
               final filteredTasks = _filterTasks(rawTasks);
 
-              final belumCount = filteredTasks.where((t) => t['status'] == 'Belum Dikerjakan').length;
+              final belumCount = filteredTasks.where((t) => t['status'] == 'Belum Dikerjakan' || t['status'] == 'Terlewat ; Belum Dikerjakan').length;
               final selesaiCount = filteredTasks.where((t) => t['status'] == 'Selesai Dikerjakan').length;
               final terlewatCount = filteredTasks.where((t) => t['status'] == 'Terlewat').length;
 

@@ -97,11 +97,20 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         };
       }).toList();
 
-      // Pastikan urut dari yang paling baru ke lama
+      // Pastikan urut dari yang paling baru ke lama dengan parsing DateTime yang presisi
       mapped.sort((a, b) {
-        final aTime = a['raw_created_at']?.toString() ?? '';
-        final bTime = b['raw_created_at']?.toString() ?? '';
-        return bTime.compareTo(aTime);
+        final aTimeStr = a['raw_created_at']?.toString() ?? '';
+        final bTimeStr = b['raw_created_at']?.toString() ?? '';
+        if (aTimeStr.isEmpty && bTimeStr.isEmpty) return 0;
+        if (aTimeStr.isEmpty) return 1;
+        if (bTimeStr.isEmpty) return -1;
+        try {
+          final aDate = DateTime.parse(aTimeStr);
+          final bDate = DateTime.parse(bTimeStr);
+          return bDate.compareTo(aDate); // Descending (terbaru di paling atas)
+        } catch (_) {
+          return bTimeStr.compareTo(aTimeStr);
+        }
       });
 
       if (mounted) {

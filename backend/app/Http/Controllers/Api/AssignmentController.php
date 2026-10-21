@@ -769,12 +769,37 @@ class AssignmentController extends Controller
                     $status = 'Selesai Dikerjakan';
                     $selesaiCount++;
                 } elseif ($isLateRequestApproved) {
-                    // Tombol aktif kembali 2x24 jam
-                    $status = 'Belum Dikerjakan';
+                    // Tombol aktif kembali 2x24 jam dengan status khusus agar siswa aware
+                    $status = 'Terlewat ; Belum Dikerjakan';
                     $belumCount++;
                 } elseif ($now->gt($dueDate)) {
                     $status = 'Terlewat';
                     $terlewatCount++;
+
+                    // Pastikan notifikasi tugas terlewat terbit ke notifikasi siswa jika belum ada
+                    try {
+                        $notifTitle = "⚠️ Tugas Terlewat: " . ($sched?->subject?->name ?? 'Mata Pelajaran');
+                        $alreadyNotified = Notification::where('user_id', $user->id)
+                            ->where('title', $notifTitle)
+                            ->where('message', 'like', "%{$task->id}%")
+                            ->exists();
+
+                        if (!$alreadyNotified) {
+                            $dueDateFormatted = $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm');
+                            $subjectName = $sched?->subject?->name ?? 'Mata Pelajaran';
+                            $notifData = [
+                                'type' => 'task',
+                                'task_id' => $task->id,
+                                'task_title' => $task->title,
+                                'subject_name' => $subjectName,
+                                'due_date_formatted' => $dueDateFormatted,
+                            ];
+                            $notifMessage = "Batas waktu pengumpulan tugas \"{$task->title}\" ({$subjectName}) telah terlewat pada {$dueDateFormatted} WIB. Silakan ajukan permohonan mengumpulkan kepada guru pengampu jika masih ingin mengumpulkan.\n<!--DATA:" . json_encode($notifData) . "-->";
+                            NotificationService::sendInAppNotification($user->id, $notifTitle, $notifMessage);
+                        }
+                    } catch (\Throwable $notifErr) {
+                        \Log::warning("Gagal auto-sync notif terlewat: " . $notifErr->getMessage());
+                    }
                 } else {
                     $status = 'Belum Dikerjakan';
                     $belumCount++;
@@ -1014,7 +1039,7 @@ class AssignmentController extends Controller
             if ($isSubmitted) {
                 $status = 'Selesai Dikerjakan';
             } elseif ($isLateRequestApproved) {
-                $status = 'Belum Dikerjakan';
+                $status = 'Terlewat ; Belum Dikerjakan';
             } elseif ($now->gt($dueDate)) {
                 $status = 'Terlewat';
             } else {
