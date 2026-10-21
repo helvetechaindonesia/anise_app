@@ -79,7 +79,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   List<Map<String, dynamic>> _processNotifications(List<dynamic> rawData) {
-    int serverIndex = 0;
     final mapped = rawData.map((item) {
       final id = item['id']?.toString() ?? '';
       final title = item['title']?.toString() ?? 'Pemberitahuan';
@@ -112,7 +111,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         }
       }
 
-      final currentIndex = serverIndex++;
       return {
         'id': id,
         'title': title,
