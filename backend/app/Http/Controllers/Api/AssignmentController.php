@@ -813,12 +813,19 @@ class AssignmentController extends Controller
                     ];
                 });
 
+                // Jika permohonan disetujui, gunakan batas perpanjangan (extended_until / 2x24 jam) sebagai tenggat efektif
+                $effectiveDueDate = ($isLateRequestApproved && $latestLateRequest->extended_until) 
+                    ? Carbon::parse($latestLateRequest->extended_until) 
+                    : $dueDate;
+
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
                     'description' => $task->description ?? '',
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                    'due_date' => $effectiveDueDate->toIso8601String(),
+                    'due_date_formatted' => $effectiveDueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                    'original_due_date' => $task->due_date,
+                    'original_due_date_formatted' => $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
                     'subject' => $sched?->subject?->name ?? 'Mata Pelajaran',
                     'teacher' => $teacherName,
                     'teacher_avatar' => $teacherAvatar,
@@ -1046,14 +1053,21 @@ class AssignmentController extends Controller
                 $status = 'Belum Dikerjakan';
             }
 
+            // Jika permohonan disetujui, gunakan batas perpanjangan (extended_until / 2x24 jam) sebagai tenggat efektif
+            $effectiveDueDate = ($isLateRequestApproved && $latestLateRequest->extended_until) 
+                ? Carbon::parse($latestLateRequest->extended_until) 
+                : $dueDate;
+
             return response()->json([
                 'status' => 'success',
                 'data' => [
                     'id' => $task->id,
                     'title' => $task->title,
                     'description' => $task->description ?? '',
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                    'due_date' => $effectiveDueDate->toIso8601String(),
+                    'due_date_formatted' => $effectiveDueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                    'original_due_date' => $task->due_date,
+                    'original_due_date_formatted' => $dueDate->locale('id')->isoFormat('D MMM Y, HH:mm'),
                     'subject' => $sched?->subject?->name ?? 'Mata Pelajaran',
                     'teacher' => $teacherName,
                     'status' => $status,
