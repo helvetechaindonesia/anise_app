@@ -102,6 +102,9 @@ class NotificationService
         if (!$teacher) return false;
 
         $teacherName = $teacher->guruProfile?->full_name ?: ($teacher->full_name ?: ($teacher->username ?? 'Guru Pengampu'));
+        $gender = strtoupper($teacher->gender ?: ($teacher->guruProfile?->gender ?? ''));
+        $honorific = $gender === 'P' ? 'Ibu' : ($gender === 'L' ? 'Bapak' : 'Bapak/Ibu');
+
         $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
         $className = $schedule->class ? ($schedule->class->grade_level . ' ' . $schedule->class->name) : 'Kelas';
         $startTime = substr($schedule->start_time, 0, 5);
@@ -109,10 +112,10 @@ class NotificationService
         $dateFormatted = $teachingDate->locale('id')->isoFormat('dddd, D MMMM Y');
 
         $title = "⚠️ Peringatan Terbitkan Jurnal (H-24 Jam)";
-        $message = "Halo Bapak/Ibu {$teacherName}, Anda memiliki jadwal KBM {$subjectName} di kelas {$className} pada {$dateFormatted} pukul {$startTime} - {$endTime}. Status: Jurnal Mengajar (Micro-RPP) belum diterbitkan. Mohon segera terbitkan materi jurnal maksimal 24 jam sebelum KBM melalui aplikasi Anise.";
+        $message = "Halo {$honorific} {$teacherName}, Anda memiliki jadwal KBM {$subjectName} di kelas {$className} pada {$dateFormatted} pukul {$startTime} - {$endTime}. Status: Jurnal Mengajar (Micro-RPP) belum diterbitkan. Mohon segera terbitkan materi jurnal maksimal 24 jam sebelum KBM melalui aplikasi Sipena.";
 
         $waMessage = "📢 *[PERINGATAN KBM - SMA N 1 PEUNARON]*\n\n"
-            . "Yth. Bapak/Ibu *{$teacherName}*,\n\n"
+            . "Yth. {$honorific} *{$teacherName}*,\n\n"
             . "Sistem mendeteksi jadwal KBM Anda dalam 24 jam ke depan belum memiliki Jurnal Mengajar:\n"
             . "📚 *Mata Pelajaran:* {$subjectName}\n"
             . "🏫 *Kelas:* {$className}\n"
@@ -120,8 +123,8 @@ class NotificationService
             . "⏰ *Waktu:* {$startTime} - {$endTime} WIB\n\n"
             . "⚠️ *Status:* Belum Diterbitkan\n\n"
             . "Sesuai SOP Akademik, guru wajib menerbitkan Jurnal/Micro-RPP maksimal H-24 jam sebelum KBM agar siswa dapat mempersiapkan materi.\n\n"
-            . "Silakan buka aplikasi *Anise App*, pilih menu *Jurnal Mengajar* dan klik *Terbitkan Jurnal*.\n\n"
-            . "Terima kasih.\n_Kurikulum & IT Support Anise App_";
+            . "Silakan buka aplikasi *Sipena*, pilih menu *Jurnal Mengajar* dan klik *Terbitkan Jurnal*.\n\n"
+            . "Terima kasih.\n_Kurikulum & IT Support Sipena_";
 
         self::sendInAppNotification($teacher->id, $title, $message);
 
@@ -144,21 +147,24 @@ class NotificationService
         if (!$teacher) return false;
 
         $teacherName = $teacher->guruProfile?->full_name ?: ($teacher->full_name ?: ($teacher->username ?? 'Guru Pengampu'));
+        $gender = strtoupper($teacher->gender ?: ($teacher->guruProfile?->gender ?? ''));
+        $honorific = $gender === 'P' ? 'Ibu' : ($gender === 'L' ? 'Bapak' : 'Bapak/Ibu');
+
         $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
         $className = $schedule->class ? ($schedule->class->grade_level . ' ' . $schedule->class->name) : 'Kelas';
         $startTime = substr($schedule->start_time, 0, 5);
 
         $title = "⏰ Pengingat KBM: 1 Jam Lagi ({$subjectName})";
-        $message = "Halo Bapak/Ibu {$teacherName}, jadwal KBM {$subjectName} di kelas {$className} akan dimulai 1 jam lagi (pukul {$startTime} WIB). Mohon bersiap menuju ruang kelas.";
+        $message = "Halo {$honorific} {$teacherName}, jadwal KBM {$subjectName} di kelas {$className} akan dimulai 1 jam lagi (pukul {$startTime} WIB). Mohon bersiap menuju ruang kelas.";
 
         $waMessage = "⏰ *[PENGINGAT KBM - 1 JAM LAGI]*\n\n"
-            . "Yth. Bapak/Ibu *{$teacherName}*,\n\n"
+            . "Yth. {$honorific} *{$teacherName}*,\n\n"
             . "Jadwal KBM Anda sebentar lagi akan dimulai:\n"
             . "📚 *Mata Pelajaran:* {$subjectName}\n"
             . "🏫 *Kelas:* {$className}\n"
             . "⏰ *Waktu Mulai:* {$startTime} WIB\n\n"
             . "Mohon segera mempersiapkan materi dan bersiap menuju ruang kelas.\n\n"
-            . "Terima kasih.\n_Kurikulum & IT Support Anise App_";
+            . "Terima kasih.\n_Kurikulum & IT Support Sipena_";
 
         self::sendInAppNotification($teacher->id, $title, $message);
 
@@ -179,20 +185,23 @@ class NotificationService
         if (!$teacher) return false;
 
         $teacherName = $teacher->guruProfile?->full_name ?: ($teacher->full_name ?: ($teacher->username ?? 'Guru Pengampu'));
+        $gender = strtoupper($teacher->gender ?: ($teacher->guruProfile?->gender ?? ''));
+        $honorific = $gender === 'P' ? 'Ibu' : ($gender === 'L' ? 'Bapak' : 'Bapak/Ibu');
+
         $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
         $className = $schedule->class ? ($schedule->class->grade_level . ' ' . $schedule->class->name) : 'Kelas';
         $startTime = substr($schedule->start_time, 0, 5);
 
         $title = "🔔 KBM Dimulai: Presensi Jurnal Aktif ({$subjectName})";
-        $message = "Bapak/Ibu {$teacherName}, jam KBM {$subjectName} ({$className}) telah dimulai pukul {$startTime} WIB. Tombol \"Presensi Jurnal\" telah muncul di aplikasi Anise. Segera lakukan presensi wajah di kelas sebelum toleransi 20 menit berakhir.";
+        $message = "{$honorific} {$teacherName}, jam KBM {$subjectName} ({$className}) telah dimulai pukul {$startTime} WIB. Tombol \"Presensi Jurnal\" telah muncul di aplikasi Sipena. Segera lakukan presensi wajah di kelas sebelum toleransi 20 menit berakhir.";
 
         $waMessage = "🔔 *[KBM DIMULAI - PRESENSI JURNAL]*\n\n"
-            . "Yth. Bapak/Ibu *{$teacherName}*,\n\n"
+            . "Yth. {$honorific} *{$teacherName}*,\n\n"
             . "Jam KBM mata pelajaran *{$subjectName}* di kelas *{$className}* telah dimulai ({$startTime} WIB).\n\n"
-            . "📸 *Tombol 'Presensi Jurnal' sekarang sudah aktif di aplikasi Anise.*\n"
+            . "📸 *Tombol 'Presensi Jurnal' sekarang sudah aktif di aplikasi Sipena.*\n"
             . "Silakan buka aplikasi dan lakukan presensi wajah (Biometrik Cam & Geofence GPS) di kelas.\n\n"
             . "⏳ *Toleransi Waktu:* 20 menit dari waktu mulai KBM. Lewat dari itu tombol akan berubah menjadi 'Presensi Terlambat'.\n\n"
-            . "Terima kasih.\n_Kurikulum Anise App_";
+            . "Terima kasih.\n_Kurikulum Sipena_";
 
         self::sendInAppNotification($teacher->id, $title, $message);
 
@@ -213,20 +222,23 @@ class NotificationService
         if (!$teacher) return false;
 
         $teacherName = $teacher->guruProfile?->full_name ?: ($teacher->full_name ?: ($teacher->username ?? 'Guru Pengampu'));
+        $gender = strtoupper($teacher->gender ?: ($teacher->guruProfile?->gender ?? ''));
+        $honorific = $gender === 'P' ? 'Ibu' : ($gender === 'L' ? 'Bapak' : 'Bapak/Ibu');
+
         $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
         $className = $schedule->class ? ($schedule->class->grade_level . ' ' . $schedule->class->name) : 'Kelas';
         $startTime = substr($schedule->start_time, 0, 5);
 
         $title = "🚨 Peringatan: Presensi Jurnal Terlambat ({$subjectName})";
-        $message = "Bapak/Ibu {$teacherName}, batas toleransi 20 menit KBM {$subjectName} ({$className}) telah terlewati (+{$minutesLate} menit). Tombol presensi telah berganti menjadi \"Presensi Terlambat\" (Merah). Segera lakukan presensi agar dapat mengisi jurnal mengajar.";
+        $message = "{$honorific} {$teacherName}, batas toleransi 20 menit KBM {$subjectName} ({$className}) telah terlewati (+{$minutesLate} menit). Tombol presensi telah berganti menjadi \"Presensi Terlambat\" (Merah). Segera lakukan presensi agar dapat mengisi jurnal mengajar.";
 
         $waMessage = "🚨 *[PERINGATAN KETERLAMBATAN KBM]*\n\n"
-            . "Yth. Bapak/Ibu *{$teacherName}*,\n\n"
+            . "Yth. {$honorific} *{$teacherName}*,\n\n"
             . "Batas waktu toleransi 20 menit untuk KBM *{$subjectName}* di kelas *{$className}* telah berakhir (Keterlambatan: +{$minutesLate} menit).\n\n"
             . "⚠️ *Status:* Presensi Terlambat (Tombol Berwarna Merah)\n\n"
             . "Sesuai sistem akademik, Anda tidak dapat mengisi laporan jurnal sebelum melakukan presensi wajah & GPS terlebih dahulu.\n\n"
-            . "Buka aplikasi *Anise App* sekarang dan klik tombol merah *'Presensi Terlambat'* pada kartu KBM yang bersangkutan.\n\n"
-            . "Terima kasih.\n_Pengawas KBM & Kurikulum Anise App_";
+            . "Buka aplikasi *Sipena* sekarang dan klik tombol merah *'Presensi Terlambat'* pada kartu KBM yang bersangkutan.\n\n"
+            . "Terima kasih.\n_Pengawas KBM & Kurikulum Sipena_";
 
         self::sendInAppNotification($teacher->id, $title, $message);
 
