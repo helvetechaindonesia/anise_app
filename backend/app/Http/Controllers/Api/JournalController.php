@@ -769,14 +769,30 @@ class JournalController extends Controller
                 $className = $sched?->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
                 $classId = $sched?->class_id ?? $journal->class_id;
 
+                // Server-Authoritative Time Calculation
+                // Jam server menentukan apakah KBM sedang Aktif / Terlewat / Selesai
+                $serverNow = Carbon::now();
+                $teachingDateStr = $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : $serverNow->format('Y-m-d');
+                $isTodayOnServer = $serverNow->format('Y-m-d') === $teachingDateStr;
+                
+                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} " . (strlen($startTime) == 5 ? "{$startTime}:00" : $startTime));
+                $endDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} " . (strlen($endTime) == 5 ? "{$endTime}:00" : $endTime));
+
+                $isServerPastEnd = $serverNow->gt($endDateTime);
+                $isServerStarted = $serverNow->gte($startDateTime);
+                $serverMinutesSinceStart = $isServerStarted ? (int)$startDateTime->diffInMinutes($serverNow, false) : -1;
+                $isServerLateTolerance = $serverMinutesSinceStart > 20;
+
                 $journalStatus = 'Belum';
-                if (!empty($journal->filled_at) || $journal->status === 'Selesai' || $journal->status === 'COMPLETED') {
+                if (!empty($journal->filled_at) || $journal->status === 'Selesai' || $journal->status === 'COMPLETED' || $isServerPastEnd) {
                     $journalStatus = 'Selesai';
-                } elseif (!empty($journal->check_in_time) || $journal->status === 'Aktif' || $journal->status === 'ONGOING') {
+                } elseif (!empty($journal->check_in_time)) {
+                    $journalStatus = 'Aktif';
+                } elseif ($isTodayOnServer && $isServerStarted && !$isServerPastEnd) {
                     $journalStatus = 'Aktif';
                 }
 
-                $isFilled = !empty($journal->filled_at) || $journalStatus === 'Selesai';
+                $isFilled = !empty($journal->filled_at) || (!empty($journal->check_in_time) && $journalStatus === 'Selesai');
                 $isCheckedIn = !empty($journal->check_in_time);
 
                 $result[] = [
@@ -808,6 +824,9 @@ class JournalController extends Controller
                     'is_checked_in' => $isCheckedIn,
                     'is_filled' => $isFilled,
                     'can_fill' => $isCheckedIn && !$isFilled,
+                    'has_started' => $isTodayOnServer && $isServerStarted,
+                    'is_late_tolerance' => $isTodayOnServer && $isServerLateTolerance,
+                    'minutes_since_start' => $serverMinutesSinceStart,
                     'likes' => $likesCount,
                     'is_liked' => $myLikedIds->contains($journal->id),
                     'is_saved' => $mySavedIds->contains($journal->id),

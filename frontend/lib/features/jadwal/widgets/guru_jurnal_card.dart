@@ -636,14 +636,18 @@ class GuruJurnalCard extends ConsumerWidget {
     // KASUS 4: JURNAL SUDAH TERBIT (Menunggu KBM atau Sedang Berlangsung)
     // REVISI USER:
     // 1. Tombol Presensi Jurnal TIDAK MUNCUL sebelum waktu start dimulai (bukan disabled, melainkan completely hidden).
-    // 2. Tepat saat waktu start dimulai (isToday && currentMinutes >= startMinutes), tombol baru muncul.
+    // 2. Tepat saat waktu start dimulai (isToday && currentMinutes >= startMinutes ATAU server-authoritative flag), tombol baru muncul.
     // 3. Toleransi 20 menit:
     //    - 0-20 menit dari start_time: Tombol Hijau ("Presensi Jurnal")
     //    - > 20 menit dari start_time: Tombol Merah ("Presensi Terlambat")
     // 4. Setelah presensi sukses (isCheckedIn), tombol berubah jadi "Isi Jurnal" / "Edit Laporan Jurnal KBM".
-    final bool hasStarted = isToday && (currentMinutes >= startMinutes);
+    // 5. ANTI-CLOCK DRIFT: Jika jam HP salah tapi server menyatakan status == 'Aktif' atau has_started == true, aplikasi tetap berfungsi!
+    final bool serverStarted = journal['has_started'] == true || status == 'Aktif';
+    final bool hasStarted = (isToday && (currentMinutes >= startMinutes)) || serverStarted;
+    
     final int minutesSinceStart = isToday ? (currentMinutes - startMinutes) : -1;
-    final bool isLateTolerance = minutesSinceStart > 20;
+    final bool serverLateTolerance = journal['is_late_tolerance'] == true;
+    final bool isLateTolerance = (minutesSinceStart > 20) || serverLateTolerance;
 
     if (!isCheckedIn) {
       // Jika KBM belum mulai, tombol Presensi Jurnal TIDAK DIMUNCULKAN (SizedBox.shrink)
