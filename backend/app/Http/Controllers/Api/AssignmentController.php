@@ -527,6 +527,37 @@ class AssignmentController extends Controller
 
             $task->load('attachments');
 
+            // Kirim notifikasi ke seluruh siswa di kelas bahwa tugas telah diperbarui
+            $classId = $task->journal?->schedule?->class_id ?? $task->journal?->class_id;
+            if ($classId) {
+                try {
+                    $teacherName = $user->full_name ?: ($user->username ?? 'Guru');
+                    $subjectName = $task->journal?->schedule?->subject?->name ?? ($task->journal?->subject?->name ?? 'Mata Pelajaran');
+                    $dueDateFormatted = Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMMM Y, HH:mm');
+
+                    $notifTitle = "Pembaruan Tugas: {$subjectName}";
+                    $notifData = [
+                        'type' => 'task',
+                        'task_id' => $task->id,
+                        'task_title' => $task->title,
+                        'subject_name' => $subjectName,
+                        'teacher_name' => $teacherName,
+                        'due_date_formatted' => $dueDateFormatted,
+                    ];
+                    $notifMessage = "Guru {$teacherName} telah memperbarui rincian/tenggat tugas \"{$task->title}\" ({$subjectName}). Tenggat saat ini: {$dueDateFormatted} WIB. Silakan periksa kembali detail tugas Anda.\n<!--DATA:" . json_encode($notifData) . "-->";
+
+                    $studentIds = ClassStudent::where('class_id', $classId)
+                        ->where('status', 'ACTIVE')
+                        ->pluck('student_id');
+
+                    foreach ($studentIds as $sId) {
+                        NotificationService::sendInAppNotification($sId, $notifTitle, $notifMessage);
+                    }
+                } catch (\Throwable $notifErr) {
+                    \Log::warning("Gagal mengirim notif pembaruan tugas: " . $notifErr->getMessage());
+                }
+            }
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Tugas berhasil diperbarui.',
@@ -640,6 +671,10 @@ class AssignmentController extends Controller
             }
 
             $journalId = $task->journal_id;
+            $classId = $task->journal?->schedule?->class_id ?? $task->journal?->class_id;
+            $taskTitle = $task->title;
+            $subjectName = $task->journal?->schedule?->subject?->name ?? ($task->journal?->subject?->name ?? 'Mata Pelajaran');
+            $teacherName = $user->full_name ?: ($user->username ?? 'Guru');
             
             // 1. Hapus berkas fisik lampiran materi tugas
             foreach ($task->attachments as $att) {
@@ -670,6 +705,24 @@ class AssignmentController extends Controller
             // Sehingga tugas kembali muncul di tab "Belum" sebagai cangkang, bukan terhapus total
             if ($journalId) {
                 Journal::where('id', $journalId)->update(['has_task' => true]);
+            }
+
+            // Kirim notifikasi ke siswa bahwa tugas telah ditarik / dihapus
+            if ($classId) {
+                try {
+                    $notifTitle = "Tugas Dihapus: {$subjectName}";
+                    $notifMessage = "Tugas \"{$taskTitle}\" ({$subjectName}) telah dihapus atau ditarik oleh guru pengampu ({$teacherName}).";
+
+                    $studentIds = ClassStudent::where('class_id', $classId)
+                        ->where('status', 'ACTIVE')
+                        ->pluck('student_id');
+
+                    foreach ($studentIds as $sId) {
+                        NotificationService::sendInAppNotification($sId, $notifTitle, $notifMessage);
+                    }
+                } catch (\Throwable $notifErr) {
+                    \Log::warning("Gagal mengirim notif hapus tugas: " . $notifErr->getMessage());
+                }
             }
 
             return response()->json([
