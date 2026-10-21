@@ -93,8 +93,16 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           'type': type,
           'isRead': isRead,
           'data': extraData,
+          'raw_created_at': createdAt,
         };
       }).toList();
+
+      // Pastikan urut dari yang paling baru ke lama
+      mapped.sort((a, b) {
+        final aTime = a['raw_created_at']?.toString() ?? '';
+        final bTime = b['raw_created_at']?.toString() ?? '';
+        return bTime.compareTo(aTime);
+      });
 
       if (mounted) {
         setState(() {

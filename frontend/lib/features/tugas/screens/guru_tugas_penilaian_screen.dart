@@ -54,28 +54,32 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
           key!.currentContext!,
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
-          alignment: 0.2,
+          alignment: 0.5, // 0.5 menempatkan item tepat di tengah-tengah viewport layar
         );
       } else {
         // Jika belum dirender karena lazy ListView, hitung estimasi offset dari index
         final index = students.indexWhere((s) => s['student_id']?.toString() == targetStudentId);
         if (index != -1 && _scrollController.hasClients) {
           final estimatedItemHeight = 160.0;
-          final targetOffset = (index * estimatedItemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
+          // Offset tengah: offset item dikurangi setengah viewport
+          final viewportHeight = _scrollController.position.viewportDimension;
+          final targetOffset = ((index * estimatedItemHeight) - (viewportHeight / 2) + (estimatedItemHeight / 2))
+              .clamp(0.0, _scrollController.position.maxScrollExtent);
+
           await _scrollController.animateTo(
             targetOffset,
             duration: const Duration(milliseconds: 600),
             curve: Curves.easeInOut,
           );
 
-          // Pastikan tepat setelah scroll ke area
+          // Pastikan tepat setelah scroll ke area agar persis di tengah
           final secondKey = _itemKeys[targetStudentId];
           if (secondKey?.currentContext != null) {
             Scrollable.ensureVisible(
               secondKey!.currentContext!,
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
-              alignment: 0.2,
+              alignment: 0.5, // Tepat di tengah layar
             );
           }
         }

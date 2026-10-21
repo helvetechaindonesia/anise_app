@@ -30,18 +30,18 @@ class TugasListTab extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
+    return ListView.builder(
       padding: EdgeInsets.only(left: 20.w(context), right: 20.w(context), top: 8.h(context), bottom: 40.h(context)),
       physics: const BouncingScrollPhysics(),
       itemCount: filteredTasks.length,
-      separatorBuilder: (context, index) => SizedBox(height: 12.h(context)),
       itemBuilder: (context, index) {
-        return _buildTaskCard(context, filteredTasks[index]);
+        final isLast = index == filteredTasks.length - 1;
+        return _buildTaskCard(context, filteredTasks[index], showDivider: !isLast);
       },
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, Map<String, dynamic> task) {
+  Widget _buildTaskCard(BuildContext context, Map<String, dynamic> task, {bool showDivider = true}) {
     bool isSelesai = task['status'] == 'Selesai Dikerjakan';
     bool isTerlewat = task['status'] == 'Terlewat';
 
@@ -76,6 +76,7 @@ class TugasListTab extends StatelessWidget {
       timeBgColor: timeBgColor,
       timeIconColor: timeIconColor,
       isSelesai: isSelesai,
+      showDivider: showDivider,
       nilai: task['nilai'] != null ? (task['nilai'] as num).toInt() : null,
       description: task['description']?.toString(),
       submission: task['submission'] as Map<String, dynamic>?,
