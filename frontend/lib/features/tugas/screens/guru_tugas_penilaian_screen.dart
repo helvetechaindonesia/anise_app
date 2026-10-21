@@ -6,6 +6,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/utils/file_download_helper.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../providers/tugas_provider.dart';
 
 class GuruTugasPenilaianScreen extends ConsumerStatefulWidget {
@@ -546,18 +547,9 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                 ),
                 Expanded(
                   child: students.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(PhosphorIcons.users(PhosphorIconsStyle.fill), size: 48.w(context), color: AppColors.onSurfaceVariant.withValues(alpha: 0.3)),
-                              SizedBox(height: 12.h(context)),
-                              Text(
-                                'Belum ada data siswa di kelas ini.',
-                                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
+                      ? const AniseEmptyState(
+                          title: 'Belum Ada Siswa',
+                          subtitle: 'Belum ada data siswa yang terdaftar di kelas untuk tugas ini.',
                         )
                       : ListView.builder(
                           padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
@@ -575,28 +567,9 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
-        error: (error, stack) => Center(
-          child: Padding(
-            padding: EdgeInsets.all(24.w(context)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), size: 48.w(context), color: AppColors.error),
-                SizedBox(height: 12.h(context)),
-                Text(
-                  'Gagal memuat data penilaian siswa: $error',
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.error),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16.h(context)),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                  onPressed: () => ref.invalidate(taskSubmissionsProvider(widget.taskId)),
-                  child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
+        error: (error, stack) => const AniseEmptyState(
+          title: 'Gagal Memuat Penilaian',
+          subtitle: 'Terjadi kendala saat memuat data penilaian siswa. Silakan periksa koneksi atau muat ulang.',
         ),
       ),
     );
@@ -697,20 +670,11 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
 
   Widget _buildStudentCard(BuildContext context, Map<String, dynamic> student) {
     final bool isSubmitted = student['is_submitted'] == true;
-    final bool isLate = student['is_late'] == true;
     final dynamic score = student['score'];
     final bool hasScore = score != null;
-    final String statusText = student['status']?.toString() ?? (isSubmitted ? 'Sudah Mengumpulkan' : 'Belum Mengumpulkan');
     final String? answerText = student['answer_text']?.toString();
     final String? attachmentUrl = student['attachment_url']?.toString();
     final String? feedback = student['feedback']?.toString();
-
-    Color statusColor = AppColors.error;
-    if (hasScore) {
-      statusColor = AppColors.primary;
-    } else if (isSubmitted) {
-      statusColor = isLate ? AppColors.warning : AppColors.secondary;
-    }
 
     return Container(
       margin: EdgeInsets.only(bottom: 12.h(context)),
@@ -754,11 +718,26 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 2.h(context)),
                     Text(
-                      statusText + (student['submitted_at'] != null ? ' â€¢ ${student['submitted_at']}' : ''),
-                      style: AppTextStyles.labelSmall(context, color: statusColor).copyWith(fontWeight: FontWeight.w600),
+                      hasScore ? 'Sudah Dinilai' : 'Belum Dinilai',
+                      style: AppTextStyles.labelSmall(context, color: hasScore ? AppColors.secondary : AppColors.error)
+                          .copyWith(fontWeight: FontWeight.w700),
                     ),
+                    if (hasScore && student['graded_at'] != null) ...[
+                      SizedBox(height: 2.h(context)),
+                      Text(
+                        student['graded_at'].toString(),
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)
+                            .copyWith(fontSize: 10.sp(context)),
+                      ),
+                    ] else if (isSubmitted && student['submitted_at'] != null) ...[
+                      SizedBox(height: 2.h(context)),
+                      Text(
+                        'Dikumpulkan: ${student['submitted_at']}',
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)
+                            .copyWith(fontSize: 10.sp(context)),
+                      ),
+                    ],
                   ],
                 ),
               ),

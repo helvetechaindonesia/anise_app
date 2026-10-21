@@ -340,12 +340,12 @@ class AssignmentController extends Controller
                     'is_submitted' => $isSubmitted,
                     'is_late' => $isLate,
                     'submission_id' => $submission?->id,
-                    'submitted_at' => $submittedAt ? $submittedAt->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                    'submitted_at' => $submittedAt ? $submittedAt->format('d/m/Y, H:i') : null,
                     'answer_text' => $submission?->answer_text,
                     'attachment_url' => $submission?->attachment_url,
                     'score' => $submission?->grade ? (float) $submission->grade->score : null,
                     'feedback' => $submission?->grade?->feedback ?? null,
-                    'graded_at' => $submission?->grade?->updated_at ? Carbon::parse($submission->grade->updated_at)->locale('id')->isoFormat('D MMM Y, HH:mm') : null,
+                    'graded_at' => $submission?->grade?->updated_at ? Carbon::parse($submission->grade->updated_at)->format('d/m/Y, H:i') : null,
                     'late_request' => $lateReqData,
                 ];
             }

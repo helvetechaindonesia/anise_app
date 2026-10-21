@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/constants/api_constants.dart';
@@ -9,6 +8,7 @@ import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_insight_card.dart';
 import '../../../core/widgets/anise_time_filter_dropdowns.dart';
 import '../../../core/widgets/anise_capsule_tab_bar.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../widgets/tugas_list_tab.dart';
 import '../providers/tugas_provider.dart';
 
@@ -235,21 +235,9 @@ class _TugasScreenState extends ConsumerState<TugasScreen> with SingleTickerProv
               );
             },
             loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-            error: (e, st) => Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.bold), size: 48.w(context), color: AppColors.error),
-                  SizedBox(height: 12.h(context)),
-                  Text('Gagal memuat daftar tugas', style: AppTextStyles.titleMedium(context, color: AppColors.error)),
-                  SizedBox(height: 8.h(context)),
-                  ElevatedButton(
-                    onPressed: () => ref.invalidate(getTasksProvider),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                    child: const Text('Coba Lagi'),
-                  ),
-                ],
-              ),
+            error: (e, st) => const AniseEmptyState(
+              title: 'Gagal Memuat Tugas',
+              subtitle: 'Terjadi kendala saat menghubungkan ke server. Silakan muat ulang halaman.',
             ),
           ),
         ),

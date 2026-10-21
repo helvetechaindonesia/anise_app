@@ -22,8 +22,11 @@ class TugasListTab extends StatelessWidget {
     if (filteredTasks.isEmpty) {
       return AniseEmptyState(
         title: 'Belum Ada Tugas',
-        subtitle: 'Tidak ada tugas dengan status $status saat ini.',
-        icon: PhosphorIcons.checks(PhosphorIconsStyle.fill),
+        subtitle: status == 'Belum Dikerjakan'
+            ? 'Tidak ada tugas yang perlu dikerjakan saat ini.'
+            : (status == 'Selesai Dikerjakan'
+                ? 'Belum ada tugas yang selesai dikerjakan.'
+                : 'Tidak ada tugas yang terlewatkan.'),
       );
     }
 
