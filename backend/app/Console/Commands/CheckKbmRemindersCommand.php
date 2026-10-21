@@ -5,6 +5,10 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Schedule;
 use App\Models\Journal;
+use App\Models\JournalTask;
+use App\Models\StudentTaskSubmission;
+use App\Models\ClassStudent;
+use App\Models\Notification;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 
@@ -182,6 +186,112 @@ class CheckKbmRemindersCommand extends Command
             }
         }
         $this->info("Selesai Presensi Cam check: {$camNotifiedCount} guru dikirim peringatan keterlambatan.");
+
+        // ========================================================
+        // 3. PENGINGAT H-6 JAM SEBELUM TENGGAT TUGAS SISWA
+        // Siswa yang belum mengumpulkan tugas dikirim pengingat
+        // ========================================================
+        $this->info("\n[3] Memeriksa pengingat H-6 Jam tenggat tugas siswa...");
+        $nowH6Start = $now->copy();
+        $nowH6End = $now->copy()->addHours(6);
+
+        // Ambil tugas yang due_date antara sekarang dan 6 jam ke depan
+        $tasksDueIn6Hours = JournalTask::where('due_date', '>=', $nowH6Start)
+            ->where('due_date', '<=', $nowH6End)
+            ->with(['journal.schedule.class', 'journal.schedule.subject', 'journal.teacher', 'submissions'])
+            ->get();
+
+        $h6NotifiedCount = 0;
+        foreach ($tasksDueIn6Hours as $task) {
+            $classId = $task->journal?->schedule?->class_id ?? $task->journal?->class_id;
+            if (!$classId) continue;
+
+            $subjectName = $task->journal?->schedule?->subject?->name ?? 'Mata Pelajaran';
+            $dueDateFormatted = Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm');
+            $submittedStudentIds = $task->submissions->pluck('student_id')->toArray();
+
+            $activeStudentIds = ClassStudent::where('class_id', $classId)
+                ->where('status', 'ACTIVE')
+                ->pluck('student_id');
+
+            $notifTitle = "⏳ Pengingat: Tenggat Tugas Segera Berakhir";
+            $notifData = [
+                'type' => 'task',
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+                'subject_name' => $subjectName,
+                'due_date_formatted' => $dueDateFormatted,
+            ];
+
+            foreach ($activeStudentIds as $studentId) {
+                // Jangan kirim ke siswa yang sudah mengumpulkan
+                if (in_array($studentId, $submittedStudentIds)) continue;
+
+                // Cek apakah sudah pernah dikirimi notifikasi H-6 untuk tugas ini
+                $alreadyNotified = Notification::where('user_id', $studentId)
+                    ->where('title', $notifTitle)
+                    ->where('message', 'like', "%{$task->id}%")
+                    ->exists();
+
+                if (!$alreadyNotified) {
+                    $notifMessage = "Tugas \"{$task->title}\" ({$subjectName}) akan berakhir dalam waktu kurang dari 6 jam (Tenggat: {$dueDateFormatted} WIB). Segera selesaikan dan kumpulkan tugas Anda!\n<!--DATA:" . json_encode($notifData) . "-->";
+                    NotificationService::sendInAppNotification($studentId, $notifTitle, $notifMessage);
+                    $h6NotifiedCount++;
+                }
+            }
+        }
+        $this->info("Selesai Pengingat H-6 Jam: {$h6NotifiedCount} siswa dikirimi pengingat.");
+
+        // ========================================================
+        // 4. NOTIFIKASI TUGAS TERLEWAT KEPADA SISWA
+        // Begitu melewati batas due_date, siswa yang belum mengumpulkan dikirimi notifikasi terlewat
+        // ========================================================
+        $this->info("\n[4] Memeriksa notifikasi tugas terlewat siswa...");
+        $recentExpiredTasks = JournalTask::where('due_date', '<', $now)
+            ->where('due_date', '>=', $now->copy()->subHours(48)) // Scan tugas yang terlewat dalam 48 jam terakhir
+            ->with(['journal.schedule.class', 'journal.schedule.subject', 'journal.teacher', 'submissions'])
+            ->get();
+
+        $expiredNotifiedCount = 0;
+        foreach ($recentExpiredTasks as $task) {
+            $classId = $task->journal?->schedule?->class_id ?? $task->journal?->class_id;
+            if (!$classId) continue;
+
+            $subjectName = $task->journal?->schedule?->subject?->name ?? 'Mata Pelajaran';
+            $dueDateFormatted = Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm');
+            $submittedStudentIds = $task->submissions->pluck('student_id')->toArray();
+
+            $activeStudentIds = ClassStudent::where('class_id', $classId)
+                ->where('status', 'ACTIVE')
+                ->pluck('student_id');
+
+            $notifTitle = "⚠️ Tugas Terlewat: {$subjectName}";
+            $notifData = [
+                'type' => 'task',
+                'task_id' => $task->id,
+                'task_title' => $task->title,
+                'subject_name' => $subjectName,
+                'due_date_formatted' => $dueDateFormatted,
+            ];
+
+            foreach ($activeStudentIds as $studentId) {
+                // Jangan kirim ke siswa yang sudah mengumpulkan
+                if (in_array($studentId, $submittedStudentIds)) continue;
+
+                // Cek apakah sudah pernah dikirimi notifikasi terlewat untuk tugas ini
+                $alreadyNotified = Notification::where('user_id', $studentId)
+                    ->where('title', $notifTitle)
+                    ->where('message', 'like', "%{$task->id}%")
+                    ->exists();
+
+                if (!$alreadyNotified) {
+                    $notifMessage = "Batas waktu pengumpulan tugas \"{$task->title}\" ({$subjectName}) telah terlewat pada {$dueDateFormatted} WIB. Silakan ajukan permohonan mengumpulkan kepada guru pengampu jika masih ingin mengumpulkan.\n<!--DATA:" . json_encode($notifData) . "-->";
+                    NotificationService::sendInAppNotification($studentId, $notifTitle, $notifMessage);
+                    $expiredNotifiedCount++;
+                }
+            }
+        }
+        $this->info("Selesai Tugas Terlewat: {$expiredNotifiedCount} siswa dikirimi notifikasi tugas terlewat.");
 
         $this->info("\n=== PEMINDAIAN SELESAI ===");
         return Command::SUCCESS;

@@ -66,7 +66,15 @@ class AssignmentController extends Controller
                     $dueDateFormatted = Carbon::parse($request->due_date)->locale('id')->isoFormat('D MMMM Y, HH:mm');
 
                     $notifTitle = "Tugas Baru: {$subjectName}";
-                    $notifMessage = "Bpk/Ibu {$teacherName} telah menerbitkan tugas baru: \"{$request->title}\". Tenggat waktu pengumpulan: {$dueDateFormatted} WIB.";
+                    $notifData = [
+                        'type' => 'task',
+                        'task_id' => $task->id,
+                        'task_title' => $request->title,
+                        'subject_name' => $subjectName,
+                        'teacher_name' => $teacherName,
+                        'due_date_formatted' => $dueDateFormatted,
+                    ];
+                    $notifMessage = "Bpk/Ibu {$teacherName} telah menerbitkan tugas baru: \"{$request->title}\". Tenggat waktu pengumpulan: {$dueDateFormatted} WIB.\n<!--DATA:" . json_encode($notifData) . "-->";
 
                     $studentIds = ClassStudent::where('class_id', $journal->schedule->class_id)
                         ->where('status', 'ACTIVE')
@@ -404,6 +412,9 @@ class AssignmentController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk menilai tugas ini.'], 403);
             }
 
+            $existingGrade = StudentTaskGrade::where('submission_id', $submission->id)->first();
+            $isEditingScore = $existingGrade !== null;
+
             $grade = StudentTaskGrade::updateOrCreate(
                 ['submission_id' => $submission->id],
                 [
@@ -418,13 +429,32 @@ class AssignmentController extends Controller
 
             // Kirim notifikasi in-app ke siswa
             try {
-                $taskTitle = $submission->journalTask->title;
+                $task = $submission->journalTask;
+                $taskTitle = $task->title;
                 $subjectName = $schedule->subject?->name ?? 'Mata Pelajaran';
+                $teacherName = $user->full_name ?: ($user->username ?? 'Guru');
                 $scoreFormatted = number_format($request->score, 0);
 
-                $notifTitle = "Nilai Tugas: {$subjectName}";
-                $notifMessage = "Tugas \"{$taskTitle}\" telah dinilai dengan skor {$scoreFormatted}/100." . 
-                    ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "");
+                $notifData = [
+                    'type' => 'task',
+                    'task_id' => $task->id,
+                    'task_title' => $taskTitle,
+                    'subject_name' => $subjectName,
+                    'teacher_name' => $teacherName,
+                    'due_date_formatted' => Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm'),
+                ];
+
+                if ($isEditingScore) {
+                    $notifTitle = "Nilai Tugas Diperbarui: {$subjectName}";
+                    $notifMessage = "Guru {$teacherName} telah memperbarui nilai tugas \"{$taskTitle}\" menjadi skor {$scoreFormatted}/100." . 
+                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "") .
+                        "\n<!--DATA:" . json_encode($notifData) . "-->";
+                } else {
+                    $notifTitle = "Nilai Tugas: {$subjectName}";
+                    $notifMessage = "Tugas \"{$taskTitle}\" telah dinilai dengan skor {$scoreFormatted}/100." . 
+                        ($request->feedback ? " Catatan Guru: \"{$request->feedback}\"" : "") .
+                        "\n<!--DATA:" . json_encode($notifData) . "-->";
+                }
 
                 NotificationService::sendInAppNotification($submission->student_id, $notifTitle, $notifMessage);
             } catch (\Throwable $notifErr) {
@@ -888,6 +918,8 @@ class AssignmentController extends Controller
                 $submissionData['attachment_url'] = $attachmentUrl;
             }
 
+            $isResubmission = $existingSubmission !== null;
+
             $submission = StudentTaskSubmission::updateOrCreate(
                 [
                     'journal_task_id' => $task->id,
@@ -895,6 +927,41 @@ class AssignmentController extends Controller
                 ],
                 $submissionData
             );
+
+            // Kirim notifikasi ke Guru Pengampu
+            try {
+                $teacher = $task->journal?->teacher ?? $task->journal?->schedule?->teacher;
+                if ($teacher) {
+                    $studentName = $user->full_name ?: ($user->username ?? 'Siswa');
+                    $taskTitle = $task->title;
+                    $subjectName = $task->journal?->schedule?->subject?->name ?? ($task->journal?->subject?->name ?? 'Mata Pelajaran');
+                    $className = $task->journal?->schedule?->class ? ($task->journal->schedule->class->grade_level . ' ' . $task->journal->schedule->class->name) : '';
+
+                    $notifData = [
+                        'type' => 'task',
+                        'task_id' => $task->id,
+                        'task_title' => $taskTitle,
+                        'student_id' => $user->id,
+                        'student_name' => $studentName,
+                        'subject_name' => $subjectName,
+                        'class_name' => $className,
+                    ];
+
+                    if ($isResubmission) {
+                        $teacherNotifTitle = "Pembaruan Tugas: {$studentName}";
+                        $teacherNotifMsg = "Siswa {$studentName} telah memperbarui pengumpulan tugas \"{$taskTitle}\" ({$subjectName})." . 
+                            "\n<!--DATA:" . json_encode($notifData) . "-->";
+                    } else {
+                        $teacherNotifTitle = "Tugas Dikumpulkan: {$studentName}";
+                        $teacherNotifMsg = "Siswa {$studentName} telah mengumpulkan tugas \"{$taskTitle}\" ({$subjectName})." . 
+                            "\n<!--DATA:" . json_encode($notifData) . "-->";
+                    }
+
+                    NotificationService::sendInAppNotification($teacher->id, $teacherNotifTitle, $teacherNotifMsg);
+                }
+            } catch (\Throwable $notifErr) {
+                \Log::warning("Gagal mengirim notif pengumpulan tugas ke guru: " . $notifErr->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -1147,6 +1214,21 @@ class AssignmentController extends Controller
             $lateRequest->teacher_note = $request->note;
             $lateRequest->responded_at = $now;
             $lateRequest->save();
+
+            $task = $lateRequest->journalTask;
+            $teacherName = $user->full_name ?: ($user->username ?? 'Guru');
+            $subjectName = $task?->journal?->schedule?->subject?->name ?? 'Mata Pelajaran';
+
+            $notifData = [
+                'type' => 'task',
+                'task_id' => $task?->id,
+                'task_title' => $task?->title ?? 'Tugas',
+                'subject_name' => $subjectName,
+                'teacher_name' => $teacherName,
+                'due_date_formatted' => $task ? Carbon::parse($task->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm') : '',
+            ];
+
+            $notifMsg .= "\n<!--DATA:" . json_encode($notifData) . "-->";
 
             // Kirim notifikasi ke siswa
             Notification::create([

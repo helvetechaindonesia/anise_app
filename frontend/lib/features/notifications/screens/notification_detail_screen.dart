@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../auth/models/user_model.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../tugas/screens/guru_tugas_penilaian_screen.dart';
+import '../../tugas/screens/tugas_detail_screen.dart';
 
 class NotificationDetailScreen extends StatelessWidget {
   final Map<String, dynamic> notification;
@@ -95,43 +99,75 @@ class NotificationDetailScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 height: 56.h(context),
-                child: ElevatedButton(
-                  onPressed: () {
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final currentUser = ref.watch(authProvider).user;
+                    final isSiswa = currentUser?.role == UserRole.siswa;
+
                     final data = notification['data'] as Map<String, dynamic>? ?? {};
                     final taskId = data['task_id']?.toString() ?? '';
                     final studentId = data['student_id']?.toString();
-                    final taskTitle = data['task_title']?.toString();
-                    final subjectName = data['subject_name']?.toString();
-                    final className = data['class_name']?.toString();
+                    final taskTitle = data['task_title']?.toString() ?? notification['title'] ?? 'Tugas';
+                    final subjectName = data['subject_name']?.toString() ?? 'Mata Pelajaran';
+                    final className = data['class_name']?.toString() ?? '';
+                    final teacherName = data['teacher_name']?.toString() ?? 'Guru';
+                    final dueDateFormatted = data['due_date_formatted']?.toString() ?? '';
 
-                    if (taskId.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GuruTugasPenilaianScreen(
-                            taskId: taskId,
-                            title: taskTitle,
-                            subject: subjectName,
-                            className: className,
-                            highlightStudentId: studentId,
-                          ),
-                        ),
-                      );
-                    } else {
-                      Navigator.pop(context);
+                    String buttonLabel = 'Lihat Tugas';
+                    if (!isSiswa && notification['type'] == 'late_request') {
+                      buttonLabel = 'Lihat Permohonan & Beri Nilai';
                     }
+
+                    return ElevatedButton(
+                      onPressed: () {
+                        if (taskId.isEmpty) {
+                          Navigator.pop(context);
+                          return;
+                        }
+
+                        if (isSiswa) {
+                          // Siswa diarahkan ke detail tugas siswa
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TugasDetailScreen(
+                                taskId: taskId,
+                                subject: subjectName,
+                                teacher: teacherName,
+                                title: taskTitle,
+                                timeInfo: dueDateFormatted,
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Guru diarahkan ke halaman penilaian tugas
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => GuruTugasPenilaianScreen(
+                                taskId: taskId,
+                                title: taskTitle,
+                                subject: subjectName,
+                                className: className,
+                                highlightStudentId: studentId,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.w(context)),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        buttonLabel,
+                        style: AppTextStyles.bodyLarge(context, color: AppColors.onPrimary),
+                      ),
+                    );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.w(context)),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    notification['type'] == 'late_request' ? 'Lihat Permohonan & Beri Nilai' : 'Lihat Tugas',
-                    style: AppTextStyles.bodyLarge(context, color: AppColors.onPrimary),
-                  ),
                 ),
               ),
           ],
