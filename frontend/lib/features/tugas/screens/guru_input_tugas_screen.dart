@@ -586,7 +586,7 @@ class _GuruInputTugasScreenState extends ConsumerState<GuruInputTugasScreen> {
         Text(label, style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold)),
         SizedBox(height: 6.h(context)),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           onChanged: onChanged,
           items: items.map((item) => DropdownMenuItem(
                 value: item['id'].toString(),

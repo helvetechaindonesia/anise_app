@@ -306,4 +306,91 @@ class AssignmentTest extends TestCase
             'title' => 'Tugas Fisika',
         ]);
     }
+
+    /**
+     * Test 7: Alur Permohonan Tugas Terlewat (Siswa minta -> Guru setujui 2x24 jam -> status terlewat belum dikerjakan)
+     */
+    public function test_late_submission_request_lifecycle(): void
+    {
+        // Buat tugas yang sudah terlewat
+        $task = JournalTask::create([
+            'journal_id' => $this->journal->id,
+            'title' => 'Tugas Kimia Organik',
+            'description' => 'Kerjakan hidrokarbon',
+            'due_date' => Carbon::now()->subDay()->toDateTimeString(),
+        ]);
+
+        // 1. Siswa ajukan permohonan terlambat
+        $requestResponse = $this->actingAs($this->siswa)->postJson("/api/assignments/{$task->id}/request-late", [
+            'reason' => 'Mohon maaf pak, saya kemarin sakit demam.',
+        ]);
+
+        $requestResponse->assertStatus(200)
+            ->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('task_late_submission_requests', [
+            'journal_task_id' => $task->id,
+            'student_id' => $this->siswa->id,
+            'reason' => 'Mohon maaf pak, saya kemarin sakit demam.',
+            'status' => 'PENDING',
+        ]);
+
+        $lateReq = \App\Models\TaskLateSubmissionRequest::where('journal_task_id', $task->id)->first();
+
+        // 2. Guru setujui permohonan dengan pesan nasihat
+        $respondResponse = $this->actingAs($this->guru)->postJson("/api/assignments/late-requests/{$lateReq->id}/respond", [
+            'status' => 'APPROVED',
+            'teacher_note' => 'Iya nak, semoga lekas sehat. Segera kumpulkan dalam 2x24 jam ya.',
+        ]);
+
+        $respondResponse->assertStatus(200)
+            ->assertJson(['status' => 'success']);
+
+        $this->assertDatabaseHas('task_late_submission_requests', [
+            'id' => $lateReq->id,
+            'status' => 'APPROVED',
+            'teacher_note' => 'Iya nak, semoga lekas sehat. Segera kumpulkan dalam 2x24 jam ya.',
+        ]);
+
+        // Pastikan extended_until disetel ke ~48 jam ke depan
+        $lateReq->refresh();
+        $this->assertNotNull($lateReq->extended_until);
+        $this->assertTrue(Carbon::parse($lateReq->extended_until)->isFuture());
+
+        // 3. Cek endpoint siswa: status tugas harus 'Terlewat ; Belum Dikerjakan'
+        $siswaTasksResponse = $this->actingAs($this->siswa)->getJson('/api/assignments/siswa');
+        $siswaTasksResponse->assertStatus(200);
+        $targetTask = collect($siswaTasksResponse->json('data'))->firstWhere('id', $task->id);
+        $this->assertNotNull($targetTask);
+        $this->assertEquals('Terlewat ; Belum Dikerjakan', $targetTask['status']);
+    }
+
+    /**
+     * Test 8: Guru update tugas memicu notifikasi in-app ke siswa
+     */
+    public function test_update_task_triggers_notification(): void
+    {
+        $task = JournalTask::create([
+            'journal_id' => $this->journal->id,
+            'title' => 'Tugas Awal',
+            'description' => 'Deskripsi lama',
+            'due_date' => Carbon::now()->addDays(2)->toDateTimeString(),
+        ]);
+
+        $newDueDate = Carbon::now()->addDays(4)->toDateTimeString();
+        $updateResponse = $this->actingAs($this->guru)->putJson("/api/assignments/{$task->id}", [
+            'title' => 'Tugas Awal Diperbarui',
+            'description' => 'Deskripsi baru dengan tambahan soal',
+            'due_date' => $newDueDate,
+        ]);
+
+        $updateResponse->assertStatus(200)
+            ->assertJson(['status' => 'success']);
+
+        // Pastikan ada notifikasi terbit untuk siswa
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $this->siswa->id,
+            'title' => "Pembaruan Tugas: {$this->subject->name}",
+        ]);
+    }
 }
