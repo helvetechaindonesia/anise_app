@@ -44,6 +44,19 @@ class TugasDetailScreen extends ConsumerStatefulWidget {
 class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
   late bool _isSubmitted;
   Map<String, dynamic>? _submission;
+  bool _hasHandledDeletion = false;
+
+  void _handleTaskDeleted() {
+    if (_hasHandledDeletion || !mounted) return;
+    _hasHandledDeletion = true;
+    ref.invalidate(getTasksProvider);
+    Navigator.pop(context);
+    AniseFeedbackDialog.showWarning(
+      context,
+      title: 'Tugas Dihapus',
+      message: 'Tugas ini telah dihapus atau ditarik oleh guru pengampu.',
+    );
+  }
 
   @override
   void initState() {
@@ -511,23 +524,19 @@ class _TugasDetailScreenState extends ConsumerState<TugasDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sinkronisasi realtime data tugas & nilai siswa
+    // Listen perubahan realtime: jika tugas dihapus guru saat siswa di halaman ini, langsung redirect
+    ref.listen<AsyncValue<Map<String, dynamic>>>(siswaTaskDetailProvider(widget.taskId), (prev, next) {
+      final data = next.asData?.value;
+      if (data?['is_deleted'] == true) {
+        _handleTaskDeleted();
+      }
+    });
+
     final taskDetailAsync = ref.watch(siswaTaskDetailProvider(widget.taskId));
     final liveData = taskDetailAsync.asData?.value;
 
-    // Poin 2: Jika tugas telah dihapus oleh guru saat siswa masih di halaman ini, auto redirect ke halaman tugas
     if (liveData?['is_deleted'] == true) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref.invalidate(getTasksProvider);
-          Navigator.pop(context);
-          AniseFeedbackDialog.showWarning(
-            context,
-            title: 'Tugas Dihapus',
-            message: 'Tugas ini telah dihapus atau ditarik oleh guru pengampu.',
-          );
-        }
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _handleTaskDeleted());
       return const Scaffold(
         backgroundColor: AppColors.backgroundLight,
         body: Center(

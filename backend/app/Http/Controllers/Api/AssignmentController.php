@@ -993,7 +993,9 @@ class AssignmentController extends Controller
                     'created_at' => $task->created_at,
                 ]
             ]);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Tugas tidak ditemukan atau telah dihapus.'], 404);
+        } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }

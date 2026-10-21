@@ -40,18 +40,45 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
     super.dispose();
   }
 
-  void _scrollToTargetStudent(String targetStudentId) {
+  void _scrollToTargetStudent(String targetStudentId, List<dynamic> students) {
     if (_hasScrolledToTarget) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _hasScrolledToTarget = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+
       final key = _itemKeys[targetStudentId];
       if (key?.currentContext != null) {
         Scrollable.ensureVisible(
           key!.currentContext!,
           duration: const Duration(milliseconds: 600),
           curve: Curves.easeInOut,
-          alignment: 0.2, // Tempatkan agak ke atas agar terlihat jelas
+          alignment: 0.2,
         );
-        _hasScrolledToTarget = true;
+      } else {
+        // Jika belum dirender karena lazy ListView, hitung estimasi offset dari index
+        final index = students.indexWhere((s) => s['student_id']?.toString() == targetStudentId);
+        if (index != -1 && _scrollController.hasClients) {
+          final estimatedItemHeight = 160.0;
+          final targetOffset = (index * estimatedItemHeight).clamp(0.0, _scrollController.position.maxScrollExtent);
+          await _scrollController.animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+          );
+
+          // Pastikan tepat setelah scroll ke area
+          final secondKey = _itemKeys[targetStudentId];
+          if (secondKey?.currentContext != null) {
+            Scrollable.ensureVisible(
+              secondKey!.currentContext!,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: 0.2,
+            );
+          }
+        }
       }
     });
   }
@@ -581,7 +608,7 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                       : Builder(
                           builder: (context) {
                             if (widget.highlightStudentId != null && widget.highlightStudentId!.isNotEmpty) {
-                              _scrollToTargetStudent(widget.highlightStudentId!);
+                              _scrollToTargetStudent(widget.highlightStudentId!, students);
                             }
                             return ListView.builder(
                               controller: _scrollController,
@@ -906,14 +933,6 @@ class _GuruTugasPenilaianScreenState extends ConsumerState<GuruTugasPenilaianScr
                           ),
                         ],
                       ),
-                      if (student['late_request']['status'] == 'PENDING')
-                        InkWell(
-                          onTap: () => _openLateRequestResponseModal(context, student, student['late_request']),
-                          child: Text(
-                            'Beri Keputusan >',
-                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ),
                     ],
                   ),
                   SizedBox(height: 6.h(context)),

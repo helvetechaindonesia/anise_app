@@ -39,7 +39,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         final id = item['id']?.toString() ?? '';
         final title = item['title']?.toString() ?? 'Pemberitahuan';
         final message = item['message']?.toString() ?? '';
-        final isRead = item['is_read'] == true;
+        final isRead = item['is_read'] == true || item['is_read'] == 1 || item['is_read'] == '1';
         final createdAt = item['created_at']?.toString() ?? '';
 
         String timeStr = 'Baru saja';
@@ -177,19 +177,23 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                       }
 
                       return GestureDetector(
-                        onTap: () {
-                          if (notif['isRead'] == false && (notif['id'] as String).isNotEmpty) {
+                        onTap: () async {
+                          final notifId = notif['id']?.toString() ?? '';
+                          if (notif['isRead'] != true && notifId.isNotEmpty) {
                             setState(() {
                               notif['isRead'] = true;
                             });
-                            _markAsRead(notif['id'] as String);
+                            _markAsRead(notifId);
                           }
-                          Navigator.push(
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => NotificationDetailScreen(notification: notif),
                             ),
                           );
+                          if (mounted) {
+                            _fetchNotifications();
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.all(16),

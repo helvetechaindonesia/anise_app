@@ -18,6 +18,10 @@ class Notification extends Model
         'is_read'
     ];
 
+    protected $casts = [
+        'is_read' => 'boolean',
+    ];
+
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
