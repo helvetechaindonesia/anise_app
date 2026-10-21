@@ -94,8 +94,11 @@ class NotificationDetailScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 48.h(context)),
-            // Tombol aksi dinamis berdasarkan tipe notifikasi
-            if (notification['type'] == 'task' || notification['type'] == 'late_request')
+            // Tombol aksi dinamis berdasarkan tipe notifikasi (tidak ditampilkan jika tugas telah dihapus atau taskId kosong)
+            if ((notification['type'] == 'task' || notification['type'] == 'late_request') &&
+                !notification['title'].toString().toLowerCase().contains('dihapus') &&
+                !notification['body'].toString().toLowerCase().contains('telah dihapus') &&
+                ((notification['data'] as Map<String, dynamic>?)?['task_id']?.toString().isNotEmpty ?? false))
               SizedBox(
                 width: double.infinity,
                 height: 56.h(context),
