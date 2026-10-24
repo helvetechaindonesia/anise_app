@@ -436,13 +436,28 @@ class JournalController extends Controller
             }
 
             // Validasi Kemiripan Biometrik Wajah
-            if ($user->face_embedding && $request->filled('face_embedding')) {
-                $registeredEmbedding = json_decode($user->face_embedding, true);
-                $currentEmbedding = is_array($request->face_embedding) 
-                    ? $request->face_embedding 
-                    : json_decode($request->face_embedding, true);
+            if ($user->face_embedding) {
+                $rawFaceParam = $request->input('face_embedding');
+                if (!$rawFaceParam) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Presensi Jurnal ditolak! Data biometrik wajah dari kamera tidak terdeteksi.'
+                    ], 400);
+                }
 
-                if (is_array($registeredEmbedding) && is_array($currentEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
+                $registeredEmbedding = json_decode($user->face_embedding, true);
+                $currentEmbedding = is_string($rawFaceParam) 
+                    ? json_decode($rawFaceParam, true) 
+                    : (is_array($rawFaceParam) ? $rawFaceParam : null);
+
+                if (!is_array($currentEmbedding) || count($currentEmbedding) === 0) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Format data biometrik wajah tidak valid.'
+                    ], 400);
+                }
+
+                if (is_array($registeredEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
                     $dotProduct = 0.0;
                     $normA = 0.0;
                     $normB = 0.0;

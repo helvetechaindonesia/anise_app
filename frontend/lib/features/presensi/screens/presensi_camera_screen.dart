@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
@@ -421,11 +422,11 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
           ? '/journals/${widget.journalId}/check-in-cam'
           : '/attendance/check-in-cam';
 
-      // Kirim via FormData dengan foto snapshot asli dan vektor geometri wajah
+      // Kirim via FormData dengan foto snapshot asli dan vektor geometri wajah sebagai JSON String
       final formData = FormData.fromMap({
         'lat': position.latitude,
         'lng': position.longitude,
-        'face_embedding': embedding,
+        'face_embedding': jsonEncode(embedding),
         'face_image': await MultipartFile.fromFile(
           photo.path,
           filename: 'face_presensi_${DateTime.now().millisecondsSinceEpoch}.jpg',

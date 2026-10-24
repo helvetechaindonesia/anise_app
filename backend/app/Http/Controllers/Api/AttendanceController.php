@@ -37,14 +37,27 @@ class AttendanceController extends Controller
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
         if (!$user->has_registered_biometric) return response()->json(['message' => 'Wajah Anda belum didaftarkan di sistem.'], 400);
 
-        // Validasi Kemiripan Biometrik Wajah (Cosine Similarity / Euclidean Distance)
-        if ($user->face_embedding && $request->filled('face_embedding')) {
-            $registeredEmbedding = json_decode($user->face_embedding, true);
-            $currentEmbedding = is_array($request->face_embedding) 
-                ? $request->face_embedding 
-                : json_decode($request->face_embedding, true);
+        // Validasi Kemiripan Biometrik Wajah (Cosine Similarity)
+        if ($user->face_embedding) {
+            $rawFaceParam = $request->input('face_embedding');
+            if (!$rawFaceParam) {
+                return response()->json([
+                    'message' => 'Presensi ditolak! Data biometrik wajah dari kamera tidak terdeteksi.'
+                ], 400);
+            }
 
-            if (is_array($registeredEmbedding) && is_array($currentEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
+            $registeredEmbedding = json_decode($user->face_embedding, true);
+            $currentEmbedding = is_string($rawFaceParam) 
+                ? json_decode($rawFaceParam, true) 
+                : (is_array($rawFaceParam) ? $rawFaceParam : null);
+
+            if (!is_array($currentEmbedding) || count($currentEmbedding) === 0) {
+                return response()->json([
+                    'message' => 'Format data biometrik wajah tidak valid.'
+                ], 400);
+            }
+
+            if (is_array($registeredEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
                 $dotProduct = 0.0;
                 $normA = 0.0;
                 $normB = 0.0;
@@ -60,7 +73,7 @@ class AttendanceController extends Controller
                 // Jika kemiripan di bawah 75%, tolak presensi!
                 if ($similarity < 0.75) {
                     return response()->json([
-                        'message' => 'Wajah Anda tidak cocok dengan data biometrik terdaftar! (Tingkat kemiripan: ' . round($similarity * 100) . '%).'
+                        'message' => 'Presensi ditolak! Wajah Anda tidak cocok dengan data biometrik terdaftar (Tingkat kemiripan: ' . round($similarity * 100) . '%).'
                     ], 400);
                 }
             }
