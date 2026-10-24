@@ -511,22 +511,31 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
             message: errorMsg,
             buttonText: "Coba Lagi",
             onConfirm: () async {
-              // Reset status kamera agar bisa deteksi ulang tanpa harus keluar screen!
-              if (mounted) {
-                setState(() {
-                  _status = CameraScanStatus.locatingFace;
-                  _hintMessage = "Posisikan wajah Anda di dalam lingkaran";
-                  _hasPassedTurnHead = false;
-                  _hasPassedBlinkClose = false;
-                  _hasPassedBlink = false;
-                  _hasTriggeredCapture = false;
-                  _initialHeadEulerY = null;
-                  _lastBoundingBox = null;
-                  _consecutiveFaceFrames = 0;
-                });
-                try {
-                  await _controller?.startImageStream(_processCameraFrame);
-                } catch (_) {}
+              if (!mounted) return;
+              setState(() {
+                _status = CameraScanStatus.locatingFace;
+                _hintMessage = "Posisikan wajah Anda di dalam lingkaran";
+                _hasPassedTurnHead = false;
+                _hasPassedBlinkClose = false;
+                _hasPassedBlink = false;
+                _hasTriggeredCapture = false;
+                _initialHeadEulerY = null;
+                _lastBoundingBox = null;
+                _consecutiveFaceFrames = 0;
+              });
+
+              // Buka ulang kamera stream secara bersih agar frame tidak freeze
+              try {
+                if (_controller != null && _controller!.value.isInitialized) {
+                  if (!_controller!.value.isStreamingImages) {
+                    await _controller!.startImageStream(_processCameraFrame);
+                  }
+                } else {
+                  await _initCamera();
+                }
+              } catch (e) {
+                debugPrint("Restart stream error: $e, re-initializing camera...");
+                await _initCamera();
               }
             },
           );
