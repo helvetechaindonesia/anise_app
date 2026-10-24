@@ -11,6 +11,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../../core/biometric/face_3d_mesh_analyzer.dart';
+import 'package:dio/dio.dart';
 import '../../auth/providers/auth_provider.dart';
 
 enum LivenessStep {
