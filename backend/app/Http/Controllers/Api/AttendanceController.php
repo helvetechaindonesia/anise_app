@@ -20,15 +20,38 @@ class AttendanceController extends Controller
         $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $user->has_registered_biometric = true;
-        if ($request->filled('face_embedding')) {
+        // Jika foto dikirimkan (Metode Enterprise AI), ekstrak 512-D embedding via FaceAiService
+        if ($request->hasFile('face_image')) {
+            $aiResult = \App\Services\FaceAiService::extractEmbedding($request->file('face_image'));
+            if (!$aiResult['success'] || empty($aiResult['embedding'])) {
+                return response()->json([
+                    'message' => 'Pendaftaran biometrik ditolak: ' . $aiResult['message']
+                ], 400);
+            }
+
+            $user->face_embedding = json_encode($aiResult['embedding']);
+            
+            // Simpan file foto biometrik resmi untuk arsip identitas
+            try {
+                $path = $request->file('face_image')->store('biometrics', 'public');
+                $user->biometric_photo_path = $path;
+            } catch (\Throwable $e) {}
+
+        } elseif ($request->filled('face_embedding')) {
+            // Fallback backward-compatibility jika berupa raw array/JSON
             $user->face_embedding = is_array($request->face_embedding) 
                 ? json_encode($request->face_embedding) 
                 : $request->face_embedding;
+        } else {
+            return response()->json([
+                'message' => 'Foto wajah tidak ditemukan. Harap ambil foto wajah yang jelas.'
+            ], 400);
         }
+
+        $user->has_registered_biometric = true;
         $user->save();
 
-        return response()->json(['message' => 'Biometrik wajah berhasil didaftarkan']);
+        return response()->json(['message' => 'Biometrik wajah berhasil didaftarkan dan diaktivasi']);
     }
 
     public function submitPresensiCam(Request $request)
@@ -37,44 +60,51 @@ class AttendanceController extends Controller
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
         if (!$user->has_registered_biometric) return response()->json(['message' => 'Wajah Anda belum didaftarkan di sistem.'], 400);
 
-        // Validasi Kemiripan Biometrik Wajah (Cosine Similarity)
+        // 1. Verifikasi Biometrik Wajah Menggunakan Deep Face AI Microservice
         if ($user->face_embedding) {
-            $rawFaceParam = $request->input('face_embedding');
-            if (!$rawFaceParam) {
-                return response()->json([
-                    'message' => 'Presensi ditolak! Data biometrik wajah dari kamera tidak terdeteksi.'
-                ], 400);
-            }
+            if ($request->hasFile('face_image')) {
+                $verifyResult = \App\Services\FaceAiService::verifyFace(
+                    $request->file('face_image'),
+                    $user->face_embedding
+                );
 
-            $registeredEmbedding = json_decode($user->face_embedding, true);
-            $currentEmbedding = is_string($rawFaceParam) 
-                ? json_decode($rawFaceParam, true) 
-                : (is_array($rawFaceParam) ? $rawFaceParam : null);
-
-            if (!is_array($currentEmbedding) || count($currentEmbedding) === 0) {
-                return response()->json([
-                    'message' => 'Format data biometrik wajah tidak valid.'
-                ], 400);
-            }
-
-            if (is_array($registeredEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
-                $dotProduct = 0.0;
-                $normA = 0.0;
-                $normB = 0.0;
-                for ($i = 0; $i < count($registeredEmbedding); $i++) {
-                    $a = (float)$registeredEmbedding[$i];
-                    $b = (float)$currentEmbedding[$i];
-                    $dotProduct += $a * $b;
-                    $normA += $a * $a;
-                    $normB += $b * $b;
-                }
-                $similarity = ($normA > 0 && $normB > 0) ? ($dotProduct / (sqrt($normA) * sqrt($normB))) : 0;
-                
-                // Jika kemiripan di bawah 75%, tolak presensi!
-                if ($similarity < 0.75) {
+                if (!$verifyResult['success'] || !$verifyResult['verified']) {
+                    $similarityPercent = round(($verifyResult['similarity'] ?? 0) * 100);
                     return response()->json([
-                        'message' => 'Presensi ditolak! Wajah Anda tidak cocok dengan data biometrik terdaftar (Tingkat kemiripan: ' . round($similarity * 100) . '%).'
+                        'message' => 'Presensi ditolak! ' . ($verifyResult['message'] ?? 'Wajah tidak cocok dengan akun terdaftar.') . " (Kecocokan: {$similarityPercent}%)"
                     ], 400);
+                }
+            } else {
+                // Fallback jika tidak ada file foto tetapi ada vektor lama
+                $rawFaceParam = $request->input('face_embedding');
+                if (!$rawFaceParam) {
+                    return response()->json([
+                        'message' => 'Presensi ditolak! Foto wajah atau data biometrik dari kamera tidak terdeteksi.'
+                    ], 400);
+                }
+
+                $registeredEmbedding = json_decode($user->face_embedding, true);
+                $currentEmbedding = is_string($rawFaceParam) 
+                    ? json_decode($rawFaceParam, true) 
+                    : (is_array($rawFaceParam) ? $rawFaceParam : null);
+
+                if (is_array($registeredEmbedding) && is_array($currentEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
+                    $dotProduct = 0.0;
+                    $normA = 0.0;
+                    $normB = 0.0;
+                    for ($i = 0; $i < count($registeredEmbedding); $i++) {
+                        $a = (float)$registeredEmbedding[$i];
+                        $b = (float)$currentEmbedding[$i];
+                        $dotProduct += $a * $b;
+                        $normA += $a * $a;
+                        $normB += $b * $b;
+                    }
+                    $similarity = ($normA > 0 && $normB > 0) ? ($dotProduct / (sqrt($normA) * sqrt($normB))) : 0;
+                    if ($similarity < 0.65) {
+                        return response()->json([
+                            'message' => 'Presensi ditolak! Wajah Anda tidak cocok dengan data biometrik terdaftar.'
+                        ], 400);
+                    }
                 }
             }
         }

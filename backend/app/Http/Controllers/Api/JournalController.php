@@ -435,46 +435,54 @@ class JournalController extends Controller
                 ], 422);
             }
 
-            // Validasi Kemiripan Biometrik Wajah
+            // Validasi Kemiripan Biometrik Wajah Menggunakan Deep Face AI Microservice
             if ($user->face_embedding) {
-                $rawFaceParam = $request->input('face_embedding');
-                if (!$rawFaceParam) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Presensi Jurnal ditolak! Data biometrik wajah dari kamera tidak terdeteksi.'
-                    ], 400);
-                }
+                if ($request->hasFile('face_image')) {
+                    $verifyResult = \App\Services\FaceAiService::verifyFace(
+                        $request->file('face_image'),
+                        $user->face_embedding
+                    );
 
-                $registeredEmbedding = json_decode($user->face_embedding, true);
-                $currentEmbedding = is_string($rawFaceParam) 
-                    ? json_decode($rawFaceParam, true) 
-                    : (is_array($rawFaceParam) ? $rawFaceParam : null);
-
-                if (!is_array($currentEmbedding) || count($currentEmbedding) === 0) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Format data biometrik wajah tidak valid.'
-                    ], 400);
-                }
-
-                if (is_array($registeredEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
-                    $dotProduct = 0.0;
-                    $normA = 0.0;
-                    $normB = 0.0;
-                    for ($i = 0; $i < count($registeredEmbedding); $i++) {
-                        $a = (float)$registeredEmbedding[$i];
-                        $b = (float)$currentEmbedding[$i];
-                        $dotProduct += $a * $b;
-                        $normA += $a * $a;
-                        $normB += $b * $b;
-                    }
-                    $similarity = ($normA > 0 && $normB > 0) ? ($dotProduct / (sqrt($normA) * sqrt($normB))) : 0;
-                    
-                    if ($similarity < 0.75) {
+                    if (!$verifyResult['success'] || !$verifyResult['verified']) {
+                        $similarityPercent = round(($verifyResult['similarity'] ?? 0) * 100);
                         return response()->json([
                             'status' => 'error',
-                            'message' => 'Presensi Jurnal ditolak! Wajah Anda tidak cocok dengan biometrik terdaftar (' . round($similarity * 100) . '% kemiripan).'
+                            'message' => 'Presensi Jurnal ditolak! ' . ($verifyResult['message'] ?? 'Wajah tidak cocok dengan akun terdaftar.') . " (Kecocokan: {$similarityPercent}%)"
                         ], 400);
+                    }
+                } else {
+                    $rawFaceParam = $request->input('face_embedding');
+                    if (!$rawFaceParam) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Presensi Jurnal ditolak! Data biometrik wajah atau foto dari kamera tidak terdeteksi.'
+                        ], 400);
+                    }
+
+                    $registeredEmbedding = json_decode($user->face_embedding, true);
+                    $currentEmbedding = is_string($rawFaceParam) 
+                        ? json_decode($rawFaceParam, true) 
+                        : (is_array($rawFaceParam) ? $rawFaceParam : null);
+
+                    if (is_array($registeredEmbedding) && is_array($currentEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
+                        $dotProduct = 0.0;
+                        $normA = 0.0;
+                        $normB = 0.0;
+                        for ($i = 0; $i < count($registeredEmbedding); $i++) {
+                            $a = (float)$registeredEmbedding[$i];
+                            $b = (float)$currentEmbedding[$i];
+                            $dotProduct += $a * $b;
+                            $normA += $a * $a;
+                            $normB += $b * $b;
+                        }
+                        $similarity = ($normA > 0 && $normB > 0) ? ($dotProduct / (sqrt($normA) * sqrt($normB))) : 0;
+                        
+                        if ($similarity < 0.65) {
+                            return response()->json([
+                                'status' => 'error',
+                                'message' => 'Presensi Jurnal ditolak! Wajah Anda tidak cocok dengan biometrik terdaftar.'
+                            ], 400);
+                        }
                     }
                 }
             }

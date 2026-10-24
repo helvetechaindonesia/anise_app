@@ -314,21 +314,21 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
   };
 
   Future<void> _autoCaptureAndRegister(Face face) async {
-    // 1. Validasi Kedalaman 3D (Tolak Foto KTP saat pendaftaran)
-    if (!Face3dMeshAnalyzer.isReal3dFace(face)) {
-      setState(() {
-        _hintMessage = "Wajah tidak valid atau objek datar! Gunakan wajah manusia asli.";
-      });
-      return;
-    }
-
     try {
-      final dio = ref.read(dioProvider);
-      final embedding = Face3dMeshAnalyzer.extract5ZoneBiometricSignature(face);
+      await _controller?.stopImageStream();
+      await Future.delayed(const Duration(milliseconds: 200));
 
-      await dio.post('/attendance/biometric/register', data: {
-        'face_embedding': embedding,
+      final XFile photo = await _controller!.takePicture();
+      final dio = ref.read(dioProvider);
+
+      final formData = FormData.fromMap({
+        'face_image': await MultipartFile.fromFile(
+          photo.path,
+          filename: 'face_register_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ),
       });
+
+      final response = await dio.post('/attendance/biometric/register', data: formData);
 
       // Update auth user profile state agar badge biometrik langsung hijau
       ref.read(authProvider.notifier).checkAuth();
@@ -338,10 +338,11 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
           _currentStep = LivenessStep.completed;
         });
 
+        final successMsg = response.data['message'] ?? 'Data biometrik wajah Anda telah tersimpan dan aktif untuk presensi.';
         AniseFeedbackDialog.showSuccess(
           context,
           title: "Pendaftaran Berhasil!",
-          message: "Data biometrik wajah Anda telah tersimpan dan aktif untuk presensi.",
+          message: successMsg,
           onConfirm: () {
             Navigator.pop(context, true);
           },
@@ -349,12 +350,31 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = "Terjadi kesalahan saat memproses biometrik.";
+        if (e is DioException && e.response?.data != null) {
+          errorMsg = e.response?.data['message'] ?? e.response?.data['detail'] ?? errorMsg;
+        } else {
+          errorMsg = "$e";
+        }
+
         AniseFeedbackDialog.showError(
           context,
-          title: "Gagal Menyimpan",
-          message: "Terjadi kesalahan saat menyimpan biometrik: $e",
+          title: "Pendaftaran Ditolak",
+          message: errorMsg,
           onConfirm: () {
-            Navigator.pop(context);
+            // Reset status agar user bisa mengulang
+            if (mounted) {
+              setState(() {
+                _currentStep = LivenessStep.lookStraight;
+                _stepProgress = 0.0;
+                _hasPassedStep1 = false;
+                _hasPassedStep2 = false;
+                _hasPassedStep3 = false;
+                _consecutiveValidFrames = 0;
+                _hintMessage = "Posisikan wajah lurus menghadap kamera";
+              });
+              _controller?.startImageStream(_processCameraFrame);
+            }
           },
         );
       }
