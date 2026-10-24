@@ -26,38 +26,33 @@ Dokumen ini adalah cetak biru perombakan total arsitektur presensi cam dan penda
 ## 🎯 DAFTAR TARGET & STEP EKSEKUSI
 
 ### STEP 1: Siapkan Python Face AI Service di VPS (Port 5000)
-- [ ] Buat folder `/www/wwwroot/31.97.222.13/face-engine` di VPS.
-- [ ] Install library AI: `fastapi`, `uvicorn`, `insightface`, `onnxruntime`, `opencv-python-headless`.
-- [ ] Buat service `main.py` dengan dua endpoint:
-  - `POST /extract-face`: Menguji liveness anti-spoofing + mengembalikan 512-D embedding.
-  - `POST /verify-face`: Membandingkan dua gambar wajah secara langsung (similarity score).
-- [ ] Jalankan dengan systemd service / PM2: `sipena-face-ai`.
+- [x] Siapkan kode `face-engine/main.py` (FastAPI + InsightFace buffalo_s 512-D + Anti-Spoofing & Liveness).
+- [x] Siapkan `face-engine/requirements.txt`, `face-engine/sipena-face-ai.service`, dan auto-installer `face-engine/deploy.sh`.
+- [ ] Jalankan `./deploy.sh` di VPS (`31.97.222.13`) untuk aktivasi microservice di background port 5000.
 
 ---
 
 ### STEP 2: Rombak Backend Laravel (`AttendanceController` & `JournalController`)
-- [ ] Buat helper service `FaceAiService.php` untuk komunikasi internal ke `http://127.0.0.1:5000`.
-- [ ] **Method `registerBiometric`:**
-  - Terima file foto selfie `face_image` dari user.
-  - Panggil Face AI Engine untuk verifikasi anti-spoofing & ekstrak 512-D embedding.
-  - Simpan embedding asli ke `users.face_embedding` dan simpan foto ke `storage/app/public/biometrics/`.
-- [ ] **Method `submitPresensiCam` (Presensi Harian & Jurnal):**
-  - Validasi Geofence GPS.
-  - Kirim foto selfie presensi ke Face AI Engine untuk di-matching dengan `users.face_embedding`.
-  - Jika spoofing (KTP/layar) $\rightarrow$ Tolak HTTP 400: *"Foto tidak valid! Gunakan wajah asli."*
-  - Jika similarity < 0.65 (Wajah orang lain/ibu/teman) $\rightarrow$ Tolak HTTP 400: *"Wajah tidak cocok dengan pemilik akun!"*.
-  - Jika cocok $\ge 0.65$ $\rightarrow$ Presensi sah!
+- [x] Buat helper service [FaceAiService.php](file:///f:/projek/anise_app/backend/app/Services/FaceAiService.php) untuk komunikasi internal ke `http://127.0.0.1:5000`.
+- [x] **Method `registerBiometric`:**
+  - Menerima file foto selfie `face_image` dari user.
+  - Memanggil `FaceAiService::extractEmbedding()` (512-D vector).
+  - Menyimpan embedding asli ke `users.face_embedding` & foto ke `storage/app/public/biometrics/`.
+- [x] **Method `submitPresensiCam` (Presensi Harian & Jurnal):**
+  - Menerima file `face_image` snapshot asli dari kamera.
+  - Memanggil `FaceAiService::verifyFace($photo, $user->face_embedding)` (threshold similarity standard 0.55 - 0.65).
+  - Menolak otomatis jika foto buram/layar HP/KTP atau wajah orang lain.
 
 ---
 
 ### STEP 3: Rombak Frontend Flutter (Super Bersih & Seamless)
-- [ ] Hapus kalkulasi koordinat manual di `Face3dMeshAnalyzer.dart`.
-- [ ] Di `BiometricRegistrationScreen.dart`:
-  - Gunakan frame lingkaran sempurna, anti-peyang.
-  - Saat wajah terdeteksi stabil di tengah lingkaran $\rightarrow$ Auto-jepret $\rightarrow$ Kirim file foto via FormData ke `/attendance/biometric/register`.
-- [ ] Di `PresensiCameraScreen.dart`:
-  - Gunakan frame lingkaran sempurna, banner status melayang.
-  - Auto-jepret saat wajah stabil $\rightarrow$ Kirim file foto + GPS via FormData ke `/attendance/check-in-cam` atau `/journals/{id}/check-in-cam`.
+- [x] Di [biometric_registration_screen.dart](file:///f:/projek/anise_app/frontend/lib/features/profile/screens/biometric_registration_screen.dart):
+  - Frame lingkaran sempurna & anti-peyang.
+  - Auto-capture resolusi tinggi setelah verifikasi ekspresi/liveness.
+  - Mengirim multipart file `face_image` ke backend.
+- [x] Di [presensi_camera_screen.dart](file:///f:/projek/anise_app/frontend/lib/features/presensi/screens/presensi_camera_screen.dart):
+  - Frame lingkaran sempurna, anti-peyang, banner status floating.
+  - Auto-capture saat wajah stabil $\rightarrow$ Kirim file snapshot asli `face_image` + GPS.
   - Tangani pesan error presisi dari backend.
 
 ---
