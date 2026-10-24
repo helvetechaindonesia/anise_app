@@ -31,10 +31,12 @@ class AttendanceController extends Controller
 
             $user->face_embedding = json_encode($aiResult['embedding']);
             
-            // Simpan file foto biometrik resmi untuk arsip identitas
+            // Simpan file foto biometrik resmi untuk arsip identitas jika tabel memiliki kolomnya
             try {
                 $path = $request->file('face_image')->store('biometrics', 'public');
-                $user->biometric_photo_path = $path;
+                if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'biometric_photo_path')) {
+                    $user->biometric_photo_path = $path;
+                }
             } catch (\Throwable $e) {}
 
         } elseif ($request->filled('face_embedding')) {
