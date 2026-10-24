@@ -509,9 +509,25 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
             context,
             title: "Presensi Ditolak",
             message: errorMsg,
-            buttonText: "Kembali",
-            onConfirm: () {
-              Navigator.pop(context, false);
+            buttonText: "Coba Lagi",
+            onConfirm: () async {
+              // Reset status kamera agar bisa deteksi ulang tanpa harus keluar screen!
+              if (mounted) {
+                setState(() {
+                  _status = CameraScanStatus.locatingFace;
+                  _hintMessage = "Posisikan wajah Anda di dalam lingkaran";
+                  _hasPassedTurnHead = false;
+                  _hasPassedBlinkClose = false;
+                  _hasPassedBlink = false;
+                  _hasTriggeredCapture = false;
+                  _initialHeadEulerY = null;
+                  _lastBoundingBox = null;
+                  _consecutiveFaceFrames = 0;
+                });
+                try {
+                  await _controller?.startImageStream(_processCameraFrame);
+                } catch (_) {}
+              }
             },
           );
         }
