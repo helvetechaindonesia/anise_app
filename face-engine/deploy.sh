@@ -19,6 +19,11 @@ echo "=== [4/5] Menginstall Dependencies InsightFace & FastAPI ==="
 ./venv/bin/pip install --upgrade pip
 ./venv/bin/pip install -r requirements.txt
 
+echo "=== [4.1/5] Mengunduh Model Deep Learning Anti-Spoofing (MiniFASNetV2) ==="
+if [ ! -f "2.7_80x80_MiniFASNetV2.onnx" ]; then
+    wget -O 2.7_80x80_MiniFASNetV2.onnx "https://github.com/serengil/deepface_models/releases/download/v1.0/2.7_80x80_MiniFASNetV2.onnx"
+fi
+
 echo "=== [5/5] Mendaftarkan & Menjalankan Systemd Service ==="
 cp sipena-face-ai.service /etc/systemd/system/sipena-face-ai.service
 systemctl daemon-reload
