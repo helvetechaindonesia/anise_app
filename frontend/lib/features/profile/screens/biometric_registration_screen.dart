@@ -46,6 +46,9 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
   bool _hasPassedStep1 = false;
   bool _hasPassedStep2 = false;
   bool _hasPassedStep3 = false;
+  bool _hasPassedBlinkClose = false;
+  double? _initialHeadEulerY;
+  Rect? _lastBoundingBox;
   int _consecutiveValidFrames = 0;
 
   // Animation controller for scanner ring
@@ -192,47 +195,73 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
 
       final face = faces.first;
       final headEulerY = face.headEulerAngleY ?? 0; // Toleh kanan (-) atau kiri (+)
-      final smileProb = face.smilingProbability ?? 0;
-      final leftEyeOpen = face.leftEyeOpenProbability ?? 1.0;
-      final rightEyeOpen = face.rightEyeOpenProbability ?? 1.0;
+      final leftEyeOpen = face.leftEyeOpenProbability ?? -1.0;
+      final rightEyeOpen = face.rightEyeOpenProbability ?? -1.0;
+      final bbox = face.boundingBox;
+
+      // --- 1. ANTI-SHAKE / JITTER FILTER (Tolak Guncangan Foto Kertas/HP) ---
+      if (_lastBoundingBox != null) {
+        final deltaX = (bbox.left - _lastBoundingBox!.left).abs();
+        final deltaY = (bbox.top - _lastBoundingBox!.top).abs();
+        final deltaW = (bbox.width - _lastBoundingBox!.width).abs();
+        // Jika kotak wajah melompat liar (> 65px per frame), user sedang mengocok/mengguncang foto!
+        if (deltaX > 65 || deltaY > 65 || deltaW > 50) {
+          _consecutiveValidFrames = 0;
+          _hasPassedBlinkClose = false;
+          _lastBoundingBox = bbox;
+          setState(() {
+            _hintMessage = "Kamera/Foto berguncang! Tahan stabil jangan digoyang.";
+          });
+          _isProcessingFrame = false;
+          return;
+        }
+      }
+      _lastBoundingBox = bbox;
 
       // Evaluasi Step Liveness
       switch (_currentStep) {
         case LivenessStep.lookStraight:
-          if (headEulerY.abs() < 12) {
+          // Syarat 1: Menghadap lurus (< 12 der) DAN kedua mata MELEK NYATA (> 0.70)
+          if (headEulerY.abs() < 12 && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
             _consecutiveValidFrames++;
             if (_consecutiveValidFrames >= 4) {
               _hasPassedStep1 = true;
+              _initialHeadEulerY = headEulerY;
               _consecutiveValidFrames = 0;
               setState(() {
                 _currentStep = LivenessStep.turnHead;
                 _stepProgress = 0.35;
-                _hintMessage = "Bagus! Sekarang tolehkan kepala sedikit ke kanan atau kiri";
+                _hintMessage = "Bagus! Tolehkan kepala sedikit ke kanan atau kiri";
               });
               HapticFeedback.lightImpact();
             } else {
               setState(() {
-                _hintMessage = "Tahan posisi wajah lurus...";
+                _hintMessage = "Tahan posisi wajah lurus & mata terbuka...";
               });
             }
           } else {
             _consecutiveValidFrames = 0;
             setState(() {
-              _hintMessage = "Posisikan wajah lurus menghadap kamera";
+              _hintMessage = "Posisikan wajah lurus & buka mata menghadap kamera";
             });
           }
           break;
 
         case LivenessStep.turnHead:
-          if (headEulerY.abs() > 16) {
+          // Syarat 2: Tolehkan kepala (beda minimal 16 derajat dari posisi awal saat lurus)
+          final baseAngle = _initialHeadEulerY ?? 0;
+          final angleDiff = (headEulerY - baseAngle).abs();
+
+          if (angleDiff > 16.0) {
             _consecutiveValidFrames++;
             if (_consecutiveValidFrames >= 3) {
               _hasPassedStep2 = true;
               _consecutiveValidFrames = 0;
+              _hasPassedBlinkClose = false;
               setState(() {
                 _currentStep = LivenessStep.smileOrBlink;
                 _stepProgress = 0.70;
-                _hintMessage = "Mantap! Sekarang kedipkan mata atau tersenyumlah";
+                _hintMessage = "Mantap! Sekarang KEDIPKAN MATA Anda (Tutup lalu Buka)";
               });
               HapticFeedback.mediumImpact();
             }
@@ -240,16 +269,25 @@ class _BiometricRegistrationScreenState extends ConsumerState<BiometricRegistrat
           break;
 
         case LivenessStep.smileOrBlink:
-          // Senyum > 0.4 atau salah satu mata berkedip (< 0.25)
-          if (smileProb > 0.4 || leftEyeOpen < 0.25 || rightEyeOpen < 0.25) {
-            _consecutiveValidFrames++;
-            if (_consecutiveValidFrames >= 2) {
+          // Syarat 3: SIKLUS KEDIP PENUH (MELEK -> MEREM -> MELEK LAGI)
+          // FOTO MATI TIDAK BISA BERUBAH DARI MEREM KE MELEK!
+          if (!_hasPassedBlinkClose) {
+            // Fase A: Mata terpejam / menutup nyata (< 0.22)
+            if (leftEyeOpen >= 0 && rightEyeOpen >= 0 && (leftEyeOpen < 0.22 || rightEyeOpen < 0.22)) {
+              _hasPassedBlinkClose = true;
+              setState(() {
+                _hintMessage = "Bagus! Sekarang BUKA MATA Anda kembali";
+              });
+              HapticFeedback.lightImpact();
+            }
+          } else {
+            // Fase B: Mata kembali terbuka lebar (> 0.60) setelah sempat terpejam
+            if (leftEyeOpen > 0.60 && rightEyeOpen > 0.60) {
               _hasPassedStep3 = true;
-              _consecutiveValidFrames = 0;
               setState(() {
                 _currentStep = LivenessStep.capturing;
                 _stepProgress = 1.0;
-                _hintMessage = "Sempurna! Mengambil biometrik wajah...";
+                _hintMessage = "Kedip asli terverifikasi! Mengambil biometrik...";
               });
               HapticFeedback.heavyImpact();
               _autoCaptureAndRegister(face);

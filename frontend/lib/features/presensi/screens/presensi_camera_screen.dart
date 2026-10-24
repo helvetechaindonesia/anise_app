@@ -57,8 +57,10 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
   CameraScanStatus _status = CameraScanStatus.checkingPermission;
   String _hintMessage = "Menyiapkan kamera...";
   bool _hasPassedTurnHead = false;
+  bool _hasPassedBlinkClose = false;
   bool _hasPassedBlink = false;
   bool _hasTriggeredCapture = false;
+  Rect? _lastBoundingBox;
   int _consecutiveFaceFrames = 0;
 
   // Animation controller
@@ -289,8 +291,26 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
     final headEulerY = face.headEulerAngleY ?? 0;
     final leftEye = face.leftEyeOpenProbability ?? -1.0;
     final rightEye = face.rightEyeOpenProbability ?? -1.0;
+    final bbox = face.boundingBox;
 
-    // Step 0: UJI KEDALAMAN 3D REAL-TIME (TOLAK MUTLAK FOTO KTP / KERTAS / LAYAR HP)
+    // Step 0A: ANTI-SHAKE / JITTER FILTER (TOLAK FOTO KERTAS/HP YANG DIGUNCANG)
+    if (_lastBoundingBox != null) {
+      final deltaX = (bbox.left - _lastBoundingBox!.left).abs();
+      final deltaY = (bbox.top - _lastBoundingBox!.top).abs();
+      final deltaW = (bbox.width - _lastBoundingBox!.width).abs();
+      if (deltaX > 65 || deltaY > 65 || deltaW > 50) {
+        _consecutiveFaceFrames = 0;
+        _hasPassedBlinkClose = false;
+        _lastBoundingBox = bbox;
+        setState(() {
+          _hintMessage = "Kamera/Foto berguncang! Tahan stabil jangan digoyang.";
+        });
+        return;
+      }
+    }
+    _lastBoundingBox = bbox;
+
+    // Step 0B: UJI KEDALAMAN 3D REAL-TIME (TOLAK MUTLAK FOTO KTP / KERTAS / LAYAR HP)
     if (!Face3dMeshAnalyzer.isReal3dFace(face)) {
       setState(() {
         _status = CameraScanStatus.outsideRadius; // Trigger ring merah
@@ -316,40 +336,50 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
     }
 
     // Step 2: Deteksi Perubahan Sudut Kepala Dinamis (Beda minimal 15 derajat dari posisi awal)
-    // Foto KTP yang digoyang pelan tidak akan mengubah rasio sudut Euler 3D
     if (!_hasPassedTurnHead) {
       final deltaAngle = (headEulerY - _initialHeadEulerY!).abs();
-      if (deltaAngle >= 14.0) {
+      if (deltaAngle >= 15.0) {
         _hasPassedTurnHead = true;
+        _hasPassedBlinkClose = false;
         HapticFeedback.lightImpact();
         setState(() {
           _status = CameraScanStatus.blinkPrompt;
-          _hintMessage = "Bagus! Sekarang KEDIPKAN MATA Anda 😉";
+          _hintMessage = "Bagus! Sekarang KEDIPKAN MATA Anda (Tutup lalu Buka)";
         });
       }
       return;
     }
 
-    // Step 3: Deteksi Transisi Kedip Nyata (Mata tadinya melek -> merem tutup -> melek lagi)
-    // FOTO KTP TIDAK BISA BERUBAH DARI MELEK KE MEREM!
+    // Step 3: SIKLUS KEDIP PENUH (MELEK -> MEREM -> MELEK LAGI)
+    // FOTO MATI TIDAK AKAN BISA MELAKUKAN TRANSISI NYATA INI!
     if (_hasPassedTurnHead && !_hasPassedBlink) {
-      // Kondisi mata terpejam / kedip (salah satu atau kedua mata < 0.20)
-      if (leftEye < 0.22 || rightEye < 0.22) {
-        _hasPassedBlink = true;
-        _hasTriggeredCapture = true;
-        HapticFeedback.mediumImpact();
+      if (!_hasPassedBlinkClose) {
+        // Fase A: Mata terpejam / kedip (< 0.22)
+        if (leftEye >= 0 && rightEye >= 0 && (leftEye < 0.22 || rightEye < 0.22)) {
+          _hasPassedBlinkClose = true;
+          setState(() {
+            _hintMessage = "Bagus! Sekarang BUKA MATA Anda kembali";
+          });
+          HapticFeedback.lightImpact();
+        }
+      } else {
+        // Fase B: Mata terbuka kembali (> 0.60) setelah sempat terpejam
+        if (leftEye > 0.60 && rightEye > 0.60) {
+          _hasPassedBlink = true;
+          _hasTriggeredCapture = true;
+          HapticFeedback.mediumImpact();
 
-        setState(() {
-          _status = CameraScanStatus.capturing;
-          _hintMessage = "Kedip terverifikasi! Menjepret presensi...";
-        });
+          setState(() {
+            _status = CameraScanStatus.capturing;
+            _hintMessage = "Kedip asli terverifikasi! Menjepret presensi...";
+          });
 
-        // Delay 350ms agar mata terbuka kembali secara alami sebelum difoto
-        Future.delayed(const Duration(milliseconds: 350), () {
-          if (mounted) {
-            _autoCapturePresensi(face);
-          }
-        });
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (mounted) {
+              _autoCapturePresensi(face);
+            }
+          });
+        }
       }
     }
   }
