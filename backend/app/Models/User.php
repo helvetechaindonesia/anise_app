@@ -31,6 +31,8 @@ class User extends Authenticatable
         'avatar',
         'birth_place',
         'birth_date',
+        'has_registered_biometric',
+        'face_embedding',
     ];
 
     /**

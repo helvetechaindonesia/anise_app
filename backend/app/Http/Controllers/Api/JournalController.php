@@ -435,6 +435,35 @@ class JournalController extends Controller
                 ], 422);
             }
 
+            // Validasi Kemiripan Biometrik Wajah
+            if ($user->face_embedding && $request->filled('face_embedding')) {
+                $registeredEmbedding = json_decode($user->face_embedding, true);
+                $currentEmbedding = is_array($request->face_embedding) 
+                    ? $request->face_embedding 
+                    : json_decode($request->face_embedding, true);
+
+                if (is_array($registeredEmbedding) && is_array($currentEmbedding) && count($registeredEmbedding) === count($currentEmbedding)) {
+                    $dotProduct = 0.0;
+                    $normA = 0.0;
+                    $normB = 0.0;
+                    for ($i = 0; $i < count($registeredEmbedding); $i++) {
+                        $a = (float)$registeredEmbedding[$i];
+                        $b = (float)$currentEmbedding[$i];
+                        $dotProduct += $a * $b;
+                        $normA += $a * $a;
+                        $normB += $b * $b;
+                    }
+                    $similarity = ($normA > 0 && $normB > 0) ? ($dotProduct / (sqrt($normA) * sqrt($normB))) : 0;
+                    
+                    if ($similarity < 0.75) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Presensi Jurnal ditolak! Wajah Anda tidak cocok dengan biometrik terdaftar (' . round($similarity * 100) . '% kemiripan).'
+                        ], 400);
+                    }
+                }
+            }
+
             // Validasi Waktu Mulai & Toleransi 20 Menit dari start_time
             $isLate = false;
             $minutesLate = 0;

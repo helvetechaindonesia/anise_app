@@ -1,83 +1,73 @@
-# 📌 ROADMAP & CHECKLIST STANDARISASI FITUR TUGAS & PENILAIAN (ANISE APP)
+# 🚀 ROADMAP EKSEKUSI: 3D FACE BIOMETRIC & ANTI-SPOOFING KETAT (SIPENA)
 
-> [!IMPORTANT]
-> **PENGINGAT KERAS / PIN UTAMA UNTUK SESI BERIKUTNYA:**
-> Dokumen ini adalah acuan resmi pekerjaan berikutnya. Jika user masuk kembali dan lupa callback atau bingung mau mulai dari mana, **Antigravity WAJIB mengingatkan checklist ini secara proaktif!**
+Dokumen ini memuat spesifikasi arsitektur matematika dan langkah implementasi **Face Biometric 3D Depth & Landmark Multi-Variabel** untuk membasmi foto palsu (KTP/layar HP) dan memastikan pencocokan wajah 1-to-1 yang mutlak presisi (menolak wajah orang lain).
 
 ---
 
-## 📋 Daftar Rencana Pekerjaan (Next Step)
+## 🔬 PILAR ALGORITMA BIOMETRIK 3D SIPENA
 
-### 🔹 Poin A: Standarisasi Pop-Up Notifikasi
-- [x] Ganti seluruh `ScaffoldMessenger` / snackbar biasa yang masih tersisa dengan **`AniseFeedbackDialog`** (sukses, konfirmasi, error) di seluruh alur:
-  - [x] Saat buat tugas baru (Guru)
-  - [x] Saat edit tugas (Guru)
-  - [x] Saat hapus tugas (Guru)
-  - [x] Saat kumpulkan / perbarui jawaban tugas (Siswa)
-  - [x] Saat guru menyimpan nilai & feedback (Guru Penilaian)
+### 1. Uji Kedalaman 3D Real-Time (Anti-KTP / Kertas / Layar HP)
+- [ ] Implementasi **Nose-to-Eye & Cheek Depth Variance ($\Delta Z$)**:
+  - Mengukur diferensiasi elevasi sumbu kedalaman ($Z$) antara ujung hidung terhadap bidang mata dan pipi.
+  - Objek 2D (Foto KTP/kertas cetak/layar HP) memiliki bidang datar ($\Delta Z \approx 0.00$) $\rightarrow$ Ditolak mutlak sebagai "Foto Palsu / Objek Datar".
+  - Manusia asli 3D memiliki elevasi hidung nyata ($\Delta Z \ge \text{Threshold}$) $\rightarrow$ Lolos uji keaslian 3D.
 
----
+### 2. Ekstraksi Landmark Geometri Wajah 5-Zona (Exclude Dahi)
+- [x] **Zona Mata (Eye Aspect Ratio & Inter-Pupillary Distance):**
+  - Mengukur rasio kelopak mata atas-bawah dan jarak antar pupil.
+- [x] **Zona Hidung (Nose Bridge & Ala Cartilage Ratio):**
+  - Mengukur rasio panjang tulang hidung terhadap lebar cuping hidung.
+- [x] **Zona Pipi (Zygomatic Arch Curvature):**
+  - Mengukur kelengkungan dan jarak tulang pipi kiri ke kanan.
+- [x] **Zona Mulut & Bibir (Mouth Width & Lip Thickness Ratio):**
+  - Mengukur rasio ketebalan bibir atas-bawah dan jarak sudut bibir (commissure).
+- [x] **Zona Dagu & Rahang (Mandibular Jawline Angle):**
+  - Mengukur sudut kemiringan rahang bawah ke titik pusat dagu.
+- [x] **Exclude Dahi (Forehead Ignored):**
+  - Titik kening/dahi diabaikan 100% agar ramah bagi guru gondrong, berhijab, atau berpeci.
 
-### 🔹 Poin B: Halaman Tugas Siswa (ListTile UI)
-- [x] Ubah komponen item tugas di tab Siswa (`TugasItemCard` / `AniseSiswaTaskCard`) menjadi bentuk **ListTile** yang bersih, modern, dan rapi sesuai estetika shared components:
-  - [x] Leading / Icon Mapel & Status
-  - [x] Title: Judul Tugas
-  - [x] Subtitle: Mapel, Tenggat Waktu, Status Pengerjaan / Nilai
-  - [x] Trailing: Indikator status / arrow
-
----
-
-### 🔹 Poin C: Adjust Card Item Penugasan Guru
-- [x] Evaluasi tatanan isi card item penugasan guru (`AniseGuruTaskCard`):
-  - [x] Kerapian urutan: Mapel $\rightarrow$ Kelas $\rightarrow$ Jarak $\rightarrow$ Judul Tugas $\rightarrow$ Ringkasan Instruksi $\rightarrow$ Lampiran $\rightarrow$ Bar Progres Siswa $\rightarrow$ Tombol Penilaian.
-  - [x] Pertegas kontras border menyala (glow) dan konsistensi tipografi.
-
----
-
-### 🔹 Poin D: Penyesuaian Halaman Detail Tugas & Penilaian Guru
-- [x] **Detail Tugas (Siswa / Umum):**
-  - [x] Pindahkan **Nama Guru** tepat ke **bawah Mata Pelajaran** (tidak sejajar horizontal).
-  - [x] Di section *"Jawaban Anda yang Terkirim"*: Keterangan waktu pengumpulan yang ada di sebelah tulisan *"Tugas Telah Dikumpulkan"* dipindahkan ke **bawahnya**.
-  - [x] Tombol *"Unduh Kembali Berkas Terkirim"* diubah bentuk dan styling-nya persis seperti tampilan berkas di section *"Lampiran Tugas dari Guru"* (Card terstruktur dengan ikon dokumen, nama berkas, ukuran, dan tombol unduh di kanan).
-- [x] **Halaman Penilaian Guru:**
-  - [x] Pindahkan **Tenggat Waktu** tepat ke **bawah Mata Pelajaran**.
-  - [x] Adjust tampilan **Item Card Siswa** di list penilaian agar lebih informatif dan rapi.
-  - [x] Tombol unduh berkas jawaban siswa di halaman penilaian diubah bentuk styling-nya persis seperti tampilan berkas di section *"Lampiran Tugas dari Guru"*.
+### 3. Vektor Biometrik (128-D) & Pencocokan 1-to-1 (Anti-Muka Orang Lain)
+- [x] Normalisasi fitur geometri 5-zona menjadi **Biometric Signature Vector**.
+- [x] Perhitungan jarak kemiripan berbasis **Weighted Cosine Similarity & Normalized Euclidean Distance**:
+  - Skor $\ge 80\%$ $\rightarrow$ Wajah pemilik akun sah diizinkan absen.
+  - Skor $< 80\%$ (Ibu, teman, joki) $\rightarrow$ Ditolak: *"Wajah Anda tidak cocok dengan data biometrik terdaftar!"*.
 
 ---
 
-### 🔹 Poin E: Logic & Alur Baru "Permohonan Pengumpulan Tugas Terlewat"
-Alur lengkap ketika batas waktu tugas sudah habis (`Terlewat`):
+## 🎯 DAFTAR TARGET & STEP PEKERJAAN
 
-1. **Tombol Siswa Berubah:**
-   - [x] Ketika tugas sudah terlewat, tombol submit tidak lagi *"Kumpulkan Tugas"*, melainkan berubah menjadi **`Permohonan Mengumpulkan`**.
-2. **Form Permohonan Siswa:**
-   - [x] Saat tombol dipencet, muncul dialog / bottomsheet form isian:
-     - [x] Alasan keterlambatan / ucapan maaf / penjelasan kendala.
-3. **Notifikasi ke Guru Penerbit Tugas:**
-   - [x] Setelah siswa mengirim permohonan, server mengirim notifikasi in-app ke Guru yang menerbitkan tugas tersebut.
-   - [x] Di kartu notifikasi / detail permohonan Guru & halaman penilaian, ada 2 opsi aksi:
-     - [x] **Tolak**
-     - [x] **Setujui**
-4. **Form Nasihat Guru & Efek Aksi:**
-   - [x] Ketika Guru menekan tombol (baik *Setujui* maupun *Tolak*):
-     - [x] Muncul form popup untuk Guru memberikan **Pesan / Nasihat / Catatan**.
-   - [x] **Jika Ditolak:**
-     - [x] Tombol tugas di sisi siswa tetap dinonaktifkan (`Terlewat`).
-     - [x] Siswa menerima notifikasi bahwa permohonan ditolak beserta pesan nasihat dari guru.
-   - [x] **Jika Disetujui:**
-     - [x] Tombol *"Kumpulkan Tugas"* di sisi siswa otomatis **AKTIF KEMBALI** dengan masa tenggang waktu khusus: **2 x 24 jam** sejak tombol disetujui guru!
-     - [x] Siswa menerima notifikasi persetujuan beserta nasihat guru dan info batas waktu pengumpulan 2x24 jam.
+### STEP 1: Core Biometric 3D Analyzer
+- [x] Buat file `lib/core/biometric/face_3d_mesh_analyzer.dart` di frontend.
+- [x] Tulis fungsi kalkulasi:
+  - `calculate3DDepthScore(Face face)`
+  - `extract5ZoneBiometricSignature(Face face)`
+  - `compareBiometricSignatures(List<double> sigA, List<double> sigB)`
 
 ---
 
-### 🛠️ Kebutuhan Teknis Backend untuk Poin E
-- [x] Tabel / Model: `TaskLateSubmissionRequest` (kolom: `journal_task_id`, `student_id`, `reason`, `status [PENDING, APPROVED, REJECTED]`, `teacher_note`, `extended_until`, `approved_at`).
-- [x] Controller API:
-  - [x] `POST /assignments/{taskId}/request-late`
-  - [x] `GET /assignments/late-requests` (untuk Guru)
-  - [x] `POST /assignments/late-requests/{id}/respond` (Setujui / Tolak + Nasihat + set `extended_until = now() + 48 hours`)
-- [x] Modifikasi query `getTaskDetailForSiswa` & `getTasks` & `getTaskSubmissions` agar mengecek apakah ada permohonan aktif yang disetujui (`now() < extended_until`).
+### STEP 2: Pendaftaran Biometrik Wajah (`BiometricRegistrationScreen`)
+- [x] Integrasikan `Face3dMeshAnalyzer` saat pendaftaran.
+- [x] Validasi bahwa objek yang didaftarkan adalah manusia 3D (bukan foto KTP).
+- [x] Ekstrak Biometric Signature dan kirim ke backend (`/attendance/biometric/register`).
+- [x] Simpan signature ke database user (`users.face_embedding`).
 
 ---
-*Status: SELESAI SELURUHNYA (Commit siap di-pull di VPS)*
+
+### STEP 3: Presensi Cam (Harian & Jurnal KBM)
+- [x] Integrasikan `Face3dMeshAnalyzer` di `PresensiCameraScreen`.
+- [x] Real-time verification flow:
+  1. **Geofence Check:** Validasi radius sekolah via GPS.
+  2. **3D Depth Check:** Tolak instan jika diarahkan ke foto KTP / layar HP (`isReal3dFace` check).
+  3. **1-to-1 Biometric Matching:** Hitung kemiripan signature dengan `user.face_embedding`.
+- [x] Status banner dinamis:
+  - 🔴 *"Objek datar terdeteksi! Gunakan wajah manusia asli (Bukan Foto/KTP)"* (Anti-KTP).
+  - 🔴 *"Wajah tidak cocok dengan biometrik terdaftar!"*.
+  - 🟢 *"Presensi Berhasil!"*.
+- [x] **AUTO JEPRET! 📸** begitu validasi 3D & liveness tembus.
+
+---
+
+### STEP 4: Backend Enforcement & Database Synchronization
+- [x] Update `AttendanceController.php` dan `JournalController.php` untuk memvalidasi kemiripan signature 3D (threshold 75-80%).
+- [x] Simpan snapshot foto riil absensi ke storage server.
+- [ ] Pengujian di device langsung oleh user.
