@@ -152,8 +152,9 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPresensiCamCard(BuildContext context) {
     return GestureDetector(
