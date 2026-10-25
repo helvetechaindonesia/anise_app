@@ -52,5 +52,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
+
+        // 4. Virtual Time Travel (php artisan server:travel)
+        try {
+            $mockTime = \Illuminate\Support\Facades\Cache::get('app_mock_time');
+            if (!empty($mockTime)) {
+                \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse($mockTime));
+            }
+        } catch (\Throwable $e) {}
     }
 }
