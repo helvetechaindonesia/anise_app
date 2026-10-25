@@ -16,6 +16,13 @@ class AttendanceController extends Controller
 {
     use ApiResponser;
 
+    protected $attendanceService;
+
+    public function __construct(AttendanceService $attendanceService)
+    {
+        $this->attendanceService = $attendanceService;
+    }
+
     public function getNextPresensiStatus(Request $request)
     {
         $user = $request->user();
@@ -62,90 +69,23 @@ class AttendanceController extends Controller
             ]);
         }
 
-        // Prediksi untuk Tenaga Pendidik
-        if ($timeString < '06:00') {
+        // Prediksi untuk Tenaga Pendidik via AttendanceService
+        $prediction = $this->attendanceService->determineNextTeacherStatus($user, $currentTime);
+
+        if (!$prediction['can_scan']) {
             return response()->json([
                 'can_scan' => false,
-                'message' => 'Presensi belum dibuka. Jam masuk dimulai pukul 06.00 WIB.',
-                'target_status' => 'BELUM_DIBUKA',
-                'target_label' => 'Belum Dibuka (Buka 06.00 WIB)',
+                'message' => $prediction['message'] ?? 'Presensi tidak dapat dilakukan saat ini.',
+                'target_status' => $prediction['status'],
+                'target_label' => $prediction['label'],
                 'current_time' => $timeString . ' WIB',
             ]);
-        }
-
-        if ($timeString > '18:00') {
-            return response()->json([
-                'can_scan' => false,
-                'message' => 'Jam presensi hari ini telah berakhir (Tutup pukul 18.00 WIB).',
-                'target_status' => 'DITUTUP',
-                'target_label' => 'Ditutup (Pukul 18.00 WIB)',
-                'current_time' => $timeString . ' WIB',
-            ]);
-        }
-
-        $attendance = DB::table('attendances')->where('user_id', $user->id)->where('tanggal', $today)->first();
-
-        if (!$attendance) {
-            // Tap pertama
-            if ($timeString >= '06:00' && $timeString <= '07:00') {
-                $targetStatus = 'H';
-                $targetLabel = 'Hadir Tepat Waktu (H)';
-            } elseif ($timeString > '07:00' && $timeString <= '12:00') {
-                $targetStatus = 'T';
-                $targetLabel = 'Hadir Terlambat (T)';
-            } else {
-                $targetStatus = 'PA';
-                $targetLabel = 'Pulang Awal (PA) - Catatan: Tidak Absen Masuk (TAM)';
-            }
-        } else {
-            // Tap kedua dst
-            $lastLog = DB::table('presensi_logs')
-                ->where('user_id', $user->id)
-                ->whereDate('scan_time', $today)
-                ->orderBy('scan_time', 'desc')
-                ->first();
-
-            $lastState = $lastLog ? $lastLog->status : $attendance->status;
-
-            if ($timeString >= '16:00' && $timeString <= '18:00') {
-                if ($lastState === 'PA') {
-                    $targetStatus = 'K';
-                    $targetLabel = 'Kembali ke Sekolah (K)';
-                } elseif ($lastState === 'PULANG') {
-                    return response()->json([
-                        'can_scan' => false,
-                        'message' => 'Anda sudah melakukan presensi pulang hari ini.',
-                        'target_status' => 'PULANG_SELESAI',
-                        'target_label' => 'Sudah Pulang Hari Ini',
-                        'current_time' => $timeString . ' WIB',
-                    ]);
-                } else {
-                    $targetStatus = 'PULANG';
-                    $targetLabel = 'Presensi Pulang Resmi';
-                }
-            } else {
-                if ($lastState === 'PA') {
-                    $targetStatus = 'K';
-                    $targetLabel = 'Kembali ke Sekolah (K)';
-                } elseif ($lastState === 'PULANG') {
-                    return response()->json([
-                        'can_scan' => false,
-                        'message' => 'Anda sudah melakukan presensi pulang hari ini.',
-                        'target_status' => 'PULANG_SELESAI',
-                        'target_label' => 'Sudah Pulang Hari Ini',
-                        'current_time' => $timeString . ' WIB',
-                    ]);
-                } else {
-                    $targetStatus = 'PA';
-                    $targetLabel = 'Pulang Awal / Izin Keluar (PA)';
-                }
-            }
         }
 
         return response()->json([
             'can_scan' => true,
-            'target_status' => $targetStatus,
-            'target_label' => $targetLabel,
+            'target_status' => $prediction['status'],
+            'target_label' => $prediction['label'],
             'current_time' => $timeString . ' WIB',
         ]);
     }
@@ -343,49 +283,29 @@ class AttendanceController extends Controller
                 ], 400);
             }
 
+            $nextPrediction = $this->attendanceService->determineNextTeacherStatus($user, $currentTime);
+
+            if (!$nextPrediction['can_scan']) {
+                return response()->json([
+                    'message' => $nextPrediction['message'] ?? 'Presensi tidak dapat dilakukan saat ini.'
+                ], 400);
+            }
+
+            $newStatus = $nextPrediction['status'];
+            $statusDescription = $nextPrediction['label'];
             $attendance = DB::table('attendances')->where('user_id', $user->id)->where('tanggal', $today)->first();
-            $newStatus = '';
-            $statusDescription = '';
 
             if (!$attendance) {
                 // --- TAP PERTAMA HARI INI ---
-                if ($timeString >= '06:00' && $timeString <= '07:00') {
-                    // Masuk Tepat Waktu (Hadir)
-                    $newStatus = 'H';
-                    $statusDescription = 'Hadir Tepat Waktu (H)';
+                if (!empty($nextPrediction['is_tam'])) {
+                    // Rule 2 & 4: Lewat jam 12:00 dan belum ada tap in sebelumnya -> TAM
+                    // Master attendance dibuat dengan status TAM dan jam_masuk null
                     DB::table('attendances')->insert([
                         'id' => Str::uuid(),
                         'user_id' => $user->id,
                         'tanggal' => $today,
-                        'jam_masuk' => $currentTime,
-                        'status' => $newStatus,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                } elseif ($timeString > '07:00' && $timeString <= '12:00') {
-                    // Masuk Terlambat (T)
-                    $newStatus = 'T';
-                    $statusDescription = 'Hadir Terlambat (T)';
-                    DB::table('attendances')->insert([
-                        'id' => Str::uuid(),
-                        'user_id' => $user->id,
-                        'tanggal' => $today,
-                        'jam_masuk' => $currentTime,
-                        'status' => $newStatus,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]);
-                } else {
-                    // Rule 2 & 4: Lewat jam 12:00 dan belum ada tap in sebelumnya -> TAM (Tidak Absen Masuk)
-                    // Maka tap pertama ini langsung dihitung sebagai Pulang Awal (PA)!
-                    $newStatus = 'PA';
-                    $statusDescription = 'Pulang Awal (PA) - Catatan: Tidak Absen Masuk (TAM)';
-                    DB::table('attendances')->insert([
-                        'id' => Str::uuid(),
-                        'user_id' => $user->id,
-                        'tanggal' => $today,
-                        'jam_masuk' => null, // Tidak ada absen masuk
-                        'status' => 'TAM',   // Master attendance tercatat TAM
+                        'jam_masuk' => null,
+                        'status' => 'TAM',
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
@@ -398,60 +318,31 @@ class AttendanceController extends Controller
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
+                } else {
+                    // Masuk normal (Hadir / Terlambat)
+                    DB::table('attendances')->insert([
+                        'id' => Str::uuid(),
+                        'user_id' => $user->id,
+                        'tanggal' => $today,
+                        'jam_masuk' => $currentTime,
+                        'status' => $newStatus,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
                 }
             } else {
                 // --- TAP KEDUA DAN SETERUSNYA HARI INI ---
-                // Ambil status log terakhir untuk mengetahui apakah posisi guru saat ini sedang di dalam atau di luar sekolah
-                $lastLog = DB::table('presensi_logs')
-                    ->where('user_id', $user->id)
-                    ->whereDate('scan_time', $today)
-                    ->orderBy('scan_time', 'desc')
-                    ->first();
+                $updateData = ['updated_at' => now()];
 
-                $lastState = $lastLog ? $lastLog->status : $attendance->status;
-
-                // Rule 5: Rentang Pulang Resmi (16:00 - 18:00 WIB)
-                if ($timeString >= '16:00' && $timeString <= '18:00') {
-                    // Jika tadi berstatus Pulang Awal (PA) tapi belum tap Kembali (K),
-                    // maka tap di rentang jam pulang ini TETAP dihitung sebagai KEMBALI (K)!
-                    if ($lastState === 'PA') {
-                        $newStatus = 'K';
-                        $statusDescription = 'Kembali ke Sekolah (K)';
-                    } elseif ($lastState === 'PULANG') {
-                        return response()->json([
-                            'message' => 'Anda sudah melakukan presensi pulang hari ini.'
-                        ], 400);
-                    } else {
-                        // Jika posisi di sekolah (H, T, atau sudah K), maka dihitung PULANG resmi
-                        $newStatus = 'PULANG';
-                        $statusDescription = 'Presensi Pulang Resmi (PULANG)';
-                        DB::table('attendances')->where('id', $attendance->id)->update([
-                            'jam_pulang' => $currentTime,
-                            'updated_at' => now()
-                        ]);
-                    }
+                if ($newStatus === 'PULANG') {
+                    $updateData['jam_pulang'] = $currentTime;
+                    // Jika sebelumnya TAM, tetap pertahankan status atau catat pulang dengan jam_pulang valid
+                    $updateData['status'] = ($attendance->status === 'TAM') ? 'TAM' : 'PULANG';
                 } else {
-                    // Di luar rentang 16:00 - 18:00 (Siklus Pulang Awal <-> Kembali)
-                    // Rule 3: Jika posisi di sekolah (H, T, K) -> tap berikutnya = Pulang Awal (PA)
-                    // Jika posisi di luar (PA) -> tap berikutnya = Kembali (K)
-                    if ($lastState === 'PA') {
-                        $newStatus = 'K';
-                        $statusDescription = 'Kembali ke Sekolah (K)';
-                    } elseif ($lastState === 'PULANG') {
-                        return response()->json([
-                            'message' => 'Anda sudah melakukan presensi pulang hari ini.'
-                        ], 400);
-                    } else {
-                        $newStatus = 'PA';
-                        $statusDescription = 'Pulang Awal / Izin Keluar (PA)';
-                    }
+                    $updateData['status'] = ($attendance->status === 'TAM') ? 'TAM' : $newStatus;
                 }
 
-                // Update status terkini di tabel master attendances
-                DB::table('attendances')->where('id', $attendance->id)->update([
-                    'status' => ($attendance->status === 'TAM') ? 'TAM' : $newStatus,
-                    'updated_at' => now()
-                ]);
+                DB::table('attendances')->where('id', $attendance->id)->update($updateData);
             }
 
             // Simpan setiap rekam jejak scan ke presensi_logs
@@ -624,103 +515,11 @@ class AttendanceController extends Controller
                 $tamCount = $logs->where('status', 'TAM')->count();
             }
 
-            // Hitung TAP (Tidak Absen Pulang) & Akumulasi KWK (Kurang Waktu Kerja):
-            // Standar jam kerja: 07:00 s/d 16:00 (9 jam = 540 menit).
-            $tapCount = 0;
-            $totalKwkMinutes = 0;
-            $appNow = AppTime::now();
-            $todayStr = $appNow->format('Y-m-d');
-            $currentTimeStr = $appNow->format('H:i');
-
-            foreach ($logs as $log) {
-                $logDateStr = substr((string)$log->tanggal, 0, 10);
-                $isToday = ($logDateStr === $todayStr);
-                $hasReturnedHome = !empty($log->jam_pulang);
-
-                // ATURAN 2: Hari yang belum selesai tidak akan diakumulasi/dihitung.
-                // Hari ini baru akan diakumulasi setelah melewati pukul 18.00 WIB.
-                if ($isToday && $currentTimeStr <= '18:00') {
-                    continue;
-                }
-
-                // Cek apakah hari ini TAP (Tidak Absen Pulang):
-                // Masuk kerja tetapi tidak ada jam pulang dan hari sudah berakhir (lewat 18:00)
-                $isTapDay = false;
-                if (!$hasReturnedHome && in_array($log->status, ['H', 'T', 'K', 'PA', 'TAM'])) {
-                    $tapCount++;
-                    $isTapDay = true;
-                }
-
-                // Ambil seluruh event log scan di tanggal ini
-                $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
-                    return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
-                })->sortBy('scan_time')->values();
-
-                $firstScanEv = $dayEvents->first();
-
-                // ATURAN 3 (PENALTI TAM & TAP BIAR JERA):
-                // Jika TAM (Tidak Absen Masuk): jam masuk otomatis dihitung pukul 12:01:00
-                // Jika TAP (Tidak Absen Pulang): jam pulang otomatis dihitung pukul 15:59:00
-                $effectiveMasuk = null;
-                if ($log->status === 'TAM' || empty($log->jam_masuk)) {
-                    $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
-                } else {
-                    $masukTimeOnly = Carbon::parse($log->jam_masuk)->format('H:i:s');
-                    $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
-                }
-
-                $effectivePulang = null;
-                if ($isTapDay || empty($log->jam_pulang)) {
-                    $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
-                } else {
-                    $pulangTimeOnly = Carbon::parse($log->jam_pulang)->format('H:i:s');
-                    $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
-                }
-
-                // Hitung total rentang kotor kehadiran (Jam Pulang - Jam Masuk) dalam menit
-                $grossDurationMinutes = 0;
-                if ($effectivePulang->gt($effectiveMasuk)) {
-                    $grossDurationMinutes = $effectivePulang->diffInMinutes($effectiveMasuk);
-                }
-
-                // ATURAN 1: Hitung total durasi izin keluar selama di luar sekolah: (Kembali - Pulang Awal)
-                // Diambil dari siklus PA <-> K pada tabel presensi_logs di tanggal tersebut
-                $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
-                    return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
-                })->sortBy('scan_time')->values();
-
-                $totalIzinKeluarMinutes = 0;
-                $tempPaTime = null;
-
-                foreach ($dayEvents as $ev) {
-                    if ($ev->status === 'PA') {
-                        $tempPaTime = Carbon::parse($ev->scan_time);
-                    } elseif ($ev->status === 'K' && $tempPaTime !== null) {
-                        $kTime = Carbon::parse($ev->scan_time);
-                        if ($kTime->gt($tempPaTime)) {
-                            $totalIzinKeluarMinutes += $kTime->diffInMinutes($tempPaTime);
-                        }
-                        $tempPaTime = null; // Reset pasangan siklus
-                    }
-                }
-
-                // Jika status terakhir masih PA sampai jam pulang / akhir hari (tidak pernah tap K)
-                if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
-                    $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
-                }
-
-                // Durasi Bersih Kerja = (Jam Pulang - Jam Masuk) - Total(Kembali - Pulang Awal)
-                $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
-
-                // Standar waktu wajib adalah 8 jam sehari (480 menit).
-                // Jika durasi bersih < 480 menit (8 jam), selisih kekurangannya dihitung sebagai KWK:
-                if ($netWorkingMinutes < 480) {
-                    $totalKwkMinutes += (480 - $netWorkingMinutes);
-                }
-            }
-
-            // Akumulasi KWK: Setiap 480 menit (8 jam) defisit jam kerja = setara 1 Alpha tambahan
-            $kwkAlphaPenalty = floor($totalKwkMinutes / 480);
+            // Hitung TAP (Tidak Absen Pulang) & Akumulasi KWK (Kurang Waktu Kerja) via AttendanceService
+            $kwkSummary = $this->attendanceService->calculateTeacherKwkAndSummary($logs, $allEvents);
+            $tapCount = $kwkSummary['tap_count'];
+            $totalKwkMinutes = $kwkSummary['total_kwk_minutes'];
+            $kwkAlphaPenalty = $kwkSummary['kwk_alpha_penalty'];
             $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'A'])->count() + $kwkAlphaPenalty;
 
             $statusTextMap = [
