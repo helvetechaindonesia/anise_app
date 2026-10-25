@@ -143,64 +143,55 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: AniseAppBar(
+        title: 'Presensi Tenaga Pendidik',
+        onBackPressed: () => Navigator.pop(context),
+      ),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            AniseAppBar(
-              title: 'Presensi Tenaga Pendidik',
-              leading: IconButton(
-                icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 16.h(context)),
-                    const PresensiHeaderWidget(),
-                    SizedBox(height: 20.h(context)),
-                    
-                    // CARD 1: BANNER INFORMASI SHIFT REAL-TIME TENAGA PENDIDIK
-                    _buildShiftBanner(context, shift),
-                    SizedBox(height: 16.h(context)),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 16.h(context)),
+              const PresensiHeaderWidget(),
+              SizedBox(height: 20.h(context)),
+              
+              // CARD 1: BANNER INFORMASI SHIFT REAL-TIME TENAGA PENDIDIK
+              _buildShiftBanner(context, shift),
+              SizedBox(height: 16.h(context)),
 
-                    // CARD 2: TOMBOL PRESENSI CAM DENGAN SIKLUS REAL-TIME
-                    _buildPresensiCamCard(context, shift),
-                    SizedBox(height: 24.h(context)),
-                    
-                    // KARTU REKAP DINAMIS TENAGA PENDIDIK (H, T, TAM, TAP, PA, K, KWK, Cuti, Izin, Sakit, Alpha)
-                    const PresensiRekapWidget(),
-                    SizedBox(height: 24.h(context)),
-                    
-                    _buildSectionTitle(
-                      context,
-                      'Riwayat Kehadiran Pegawai',
-                      'Catatan Masuk, Pulang, dan Izin Dinas',
-                      icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold),
-                      isSmallSub: true,
-                    ),
-                    SizedBox(height: 16.h(context)),
-                    
-                    // DAFTAR RIWAYAT DENGAN LOGIKA TENAGA PENDIDIK
-                    const PresensiRiwayatListWidget(),
-                    SizedBox(height: 24.h(context)),
-                    
-                    // TOMBOL UNDUH LAPORAN EXCEL
-                    AniseButton(
-                      text: 'Unduh Rekap Presensi (.xlsx)',
-                      leadingIcon: PhosphorIcons.fileXls(PhosphorIconsStyle.bold),
-                      isLoading: _isDownloading,
-                      onPressed: _handleDownload,
-                    ),
-                    SizedBox(height: 40.h(context)),
-                  ],
-                ),
+              // CARD 2: TOMBOL PRESENSI CAM DENGAN SIKLUS REAL-TIME
+              _buildPresensiCamCard(context, shift),
+              SizedBox(height: 24.h(context)),
+              
+              // KARTU REKAP DINAMIS TENAGA PENDIDIK (H, T, TAM, TAP, PA, K, KWK, Cuti, Izin, Sakit, Alpha)
+              const PresensiRekapWidget(),
+              SizedBox(height: 24.h(context)),
+              
+              _buildSectionTitle(
+                context,
+                'Riwayat Kehadiran Pegawai',
+                'Catatan Masuk, Pulang, dan Izin Dinas',
+                icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold),
+                isSmallSub: true,
               ),
-            ),
-          ],
+              SizedBox(height: 16.h(context)),
+              
+              // DAFTAR RIWAYAT DENGAN LOGIKA TENAGA PENDIDIK
+              const PresensiRiwayatListWidget(),
+              SizedBox(height: 24.h(context)),
+              
+              // TOMBOL UNDUH LAPORAN EXCEL
+              AniseButton(
+                text: 'Unduh Rekap Presensi (.xlsx)',
+                icon: PhosphorIcons.fileXls(PhosphorIconsStyle.bold),
+                isLoading: _isDownloading,
+                onPressed: _handleDownload,
+              ),
+              SizedBox(height: 40.h(context)),
+            ],
+          ),
         ),
       ),
     );
