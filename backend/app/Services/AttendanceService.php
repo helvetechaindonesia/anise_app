@@ -263,4 +263,102 @@ class AttendanceService
             'kwk_alpha_penalty' => $kwkAlphaPenalty,
         ];
     }
+
+    /**
+     * Sinkronisasi instan TAM & TAP untuk user spesifik saat memanggil API.
+     * Menjamin data TAM (12:01) dan TAP (18:01) langsung tercatat di DB tanpa delay cron.
+     */
+    public function syncSingleUserTamTap(string $userId): void
+    {
+        $appNow = AppTime::now();
+        $today = $appNow->format('Y-m-d');
+        $currentTimeStr = $appNow->format('H:i');
+
+        // Cek hari libur
+        $holidayCheck = $this->holidayService->checkDate($today);
+        if (!empty($holidayCheck['is_holiday'])) {
+            return;
+        }
+
+        // Cek cuti
+        $hasLeave = DB::table('employee_leaves')
+            ->where('employee_id', $userId)
+            ->whereIn('status', ['APPROVED', 'ACC'])
+            ->where('start_date', '<=', $today)
+            ->where(function ($q) use ($today) {
+                $q->where('end_date', '>=', $today)->orWhereNull('end_date');
+            })
+            ->exists();
+
+        if ($hasLeave) {
+            return;
+        }
+
+        // 1. Auto TAM setelah 12:00 (mulai 12:01) jika belum ada presensi hari ini
+        if ($currentTimeStr >= '12:01') {
+            $attendance = DB::table('attendances')
+                ->where('user_id', $userId)
+                ->where('tanggal', $today)
+                ->first();
+
+            if (!$attendance) {
+                $tamScanTime = Carbon::parse($today . ' 12:01:00');
+                DB::table('attendances')->insert([
+                    'id' => Str::uuid(),
+                    'user_id' => $userId,
+                    'tanggal' => $today,
+                    'jam_masuk' => null,
+                    'jam_pulang' => null,
+                    'status' => 'TAM',
+                    'created_at' => $tamScanTime,
+                    'updated_at' => $tamScanTime,
+                ]);
+
+                DB::table('presensi_logs')->insert([
+                    'id' => Str::uuid(),
+                    'user_id' => $userId,
+                    'scan_time' => $tamScanTime,
+                    'status' => 'TAM',
+                    'created_at' => $tamScanTime,
+                    'updated_at' => $tamScanTime,
+                ]);
+            }
+        }
+
+        // 2. Auto TAP setelah 18:00 (mulai 18:01) jika belum tap pulang
+        if ($currentTimeStr >= '18:01') {
+            $attendance = DB::table('attendances')
+                ->where('user_id', $userId)
+                ->where('tanggal', $today)
+                ->first();
+
+            if ($attendance && empty($attendance->jam_pulang) && $attendance->status !== 'TAP') {
+                $tapTime = Carbon::parse($today . ' 15:59:00');
+                DB::table('attendances')
+                    ->where('id', $attendance->id)
+                    ->update([
+                        'jam_pulang' => $tapTime,
+                        'status' => ($attendance->status === 'TAM') ? 'TAM' : 'TAP',
+                        'updated_at' => now(),
+                    ]);
+
+                $hasTapLog = DB::table('presensi_logs')
+                    ->where('user_id', $userId)
+                    ->whereDate('scan_time', $today)
+                    ->where('status', 'TAP')
+                    ->exists();
+
+                if (!$hasTapLog) {
+                    DB::table('presensi_logs')->insert([
+                        'id' => Str::uuid(),
+                        'user_id' => $userId,
+                        'scan_time' => $tapTime,
+                        'status' => 'TAP',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+    }
 }

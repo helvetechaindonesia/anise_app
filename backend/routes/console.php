@@ -14,3 +14,6 @@ Schedule::command('kbm:check-reminders')->everyMinute();
 
 // Jadwalkan reset siklus mingguan KBM setiap hari pukul 01:00 (eksekusi pada hari nonaktif pertama)
 Schedule::command('kbm:weekly-reset')->dailyAt('01:00');
+
+// Otomatisasi TAM (pukul 12:01) dan TAP (pukul 18:01) untuk pegawai presensi
+Schedule::command('attendance:auto-tam-tap')->everyMinute();

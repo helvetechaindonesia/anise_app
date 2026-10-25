@@ -420,19 +420,6 @@ class AttendanceController extends Controller
         $month = (int) $request->query('month', 0);
         $year = (int) $request->query('year', 0);
 
-        $logsQuery = DB::table('attendances')
-            ->where('user_id', $user->id);
-
-        if ($year > 0) {
-            $logsQuery->whereYear('tanggal', $year);
-        }
-        if ($month > 0) {
-            $logsQuery->whereMonth('tanggal', $month);
-        }
-
-        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
-        
-        // Ambil nama role string secara aman dan eksplisit dari relasi atau atribut
         $userRoleName = '';
         if ($user->role && is_object($user->role) && isset($user->role->name)) {
             $userRoleName = $user->role->name;
@@ -445,6 +432,23 @@ class AttendanceController extends Controller
 
         $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) 
             || ($userRole !== 'SISWA' && !empty($userRole));
+
+        // JAMINAN REAL-TIME: Pastikan TAM (12:01) atau TAP (18:01) tersinkronisasi instan saat user membuka riwayat
+        if ($isTeacherOrStaff) {
+            $this->attendanceService->syncSingleUserTamTap($user->id);
+        }
+
+        $logsQuery = DB::table('attendances')
+            ->where('user_id', $user->id);
+
+        if ($year > 0) {
+            $logsQuery->whereYear('tanggal', $year);
+        }
+        if ($month > 0) {
+            $logsQuery->whereMonth('tanggal', $month);
+        }
+
+        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
 
         // =========================================================================
         // 🏫 STATISTIK & RIWAYAT TENAGA PENDIDIK (GURU & KARYAWAN)
