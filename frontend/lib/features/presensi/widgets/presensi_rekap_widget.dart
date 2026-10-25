@@ -6,10 +6,13 @@ import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/anise_expandable_card.dart';
 import '../../../../core/widgets/card_info.dart';
+import '../../auth/models/user_model.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/presensi_provider.dart';
 
 class PresensiRekapWidget extends ConsumerWidget {
-  const PresensiRekapWidget({super.key});
+  final bool? isTenagaPendidik;
+  const PresensiRekapWidget({super.key, this.isTenagaPendidik});
 
   static const List<String> _months = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -37,7 +40,12 @@ class PresensiRekapWidget extends ConsumerWidget {
       periodeStr = '$mName $selectedYear';
     }
 
-    final isTenagaPendidik = summary['user_type'] == 'TENAGA_PENDIDIK';
+    // Cek role user: prioritaskan parameter eksplisit, kemudian authState, lalu summary
+    final authState = ref.watch(authStateProvider);
+    final userRole = authState.user?.role;
+    final bool resolvedIsTenagaPendidik = isTenagaPendidik ??
+        (summary['user_type'] == 'TENAGA_PENDIDIK' ||
+         (userRole != null && userRole != UserRole.siswa));
 
     final hadirPenuh = (summary['hadir'] ?? summary['hadir_penuh'])?.toString() ?? '0';
     final terlambat = summary['terlambat']?.toString() ?? '0';
@@ -51,7 +59,7 @@ class PresensiRekapWidget extends ConsumerWidget {
     final cuti = summary['cuti']?.toString() ?? '0';
     final alpha = summary['alpha']?.toString() ?? '0';
 
-    if (isTenagaPendidik) {
+    if (resolvedIsTenagaPendidik) {
       return Column(
         children: [
           _buildHadirTerlambatRow(context, hadirPenuh, terlambat),

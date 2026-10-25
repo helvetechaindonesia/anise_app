@@ -101,7 +101,7 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
               SizedBox(height: 24.h(context)),
               
               // KARTU REKAP DINAMIS TENAGA PENDIDIK (H, T, PA, K, TAM, TAP, KWK, Cuti, Izin, Sakit, Alpha)
-              const PresensiRekapWidget(),
+              const PresensiRekapWidget(isTenagaPendidik: true),
               SizedBox(height: 24.h(context)),
               
               _buildSectionTitle(

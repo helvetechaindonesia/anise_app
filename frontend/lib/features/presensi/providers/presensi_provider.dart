@@ -45,6 +45,10 @@ final presensiLogProvider = Provider<AsyncValue<List<dynamic>>>((ref) {
 /// Provider rekapitulasi statistik kehadiran bulanan
 final presensiSummaryProvider = Provider<AsyncValue<Map<String, dynamic>>>((ref) {
   return ref.watch(presensiDataProvider).whenData((data) {
-    return (data['summary'] as Map<String, dynamic>?) ?? {};
+    final summary = Map<String, dynamic>.from((data['summary'] as Map<String, dynamic>?) ?? {});
+    if (data.containsKey('user_type')) {
+      summary['user_type'] = data['user_type'];
+    }
+    return summary;
   });
 });

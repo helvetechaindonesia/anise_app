@@ -430,12 +430,34 @@ class AttendanceController extends Controller
                 }
             }
 
-            // Hitung statistik harian Tenaga Pendidik
+            // Hitung statistik presensi Tenaga Pendidik
             $hCount = $logs->where('status', 'H')->count();
             $tCount = $logs->where('status', 'T')->count();
-            $tamCount = $logs->where('status', 'TAM')->count();
-            $paCount = $logs->where('status', 'PA')->count();
-            $kCount = $logs->where('status', 'K')->count();
+
+            // Hitung PA, K, TAM dari presensi_logs agar seluruh riwayat tap tercatat akurat
+            $logsEventsQuery = DB::table('presensi_logs')->where('user_id', $user->id);
+            if ($year > 0) {
+                $logsEventsQuery->whereYear('scan_time', $year);
+            }
+            if ($month > 0) {
+                $logsEventsQuery->whereMonth('scan_time', $month);
+            }
+            $allEvents = $logsEventsQuery->get();
+
+            $paCount = $allEvents->where('status', 'PA')->count();
+            if ($paCount === 0) {
+                $paCount = $logs->where('status', 'PA')->count();
+            }
+
+            $kCount = $allEvents->where('status', 'K')->count();
+            if ($kCount === 0) {
+                $kCount = $logs->where('status', 'K')->count();
+            }
+
+            $tamCount = $allEvents->where('status', 'TAM')->count();
+            if ($tamCount === 0) {
+                $tamCount = $logs->where('status', 'TAM')->count();
+            }
 
             // Hitung TAP (Tidak Absen Pulang): Masuk kerja (H/T) tapi sampai lewat jam 18:00 tidak ada jam_pulang
             $tapCount = 0;
