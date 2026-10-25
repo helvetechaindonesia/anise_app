@@ -15,12 +15,19 @@ class PresensiLog extends Model
         'user_id',
         'scan_time',
         'status',
-        'snapshot_url'
+        'snapshot_url',
+        'latitude',
+        'longitude',
+    ];
+
+    protected $casts = [
+        'scan_time' => 'datetime',
+        'latitude' => 'float',
+        'longitude' => 'float',
     ];
 
     public function user()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
     }
-
 }

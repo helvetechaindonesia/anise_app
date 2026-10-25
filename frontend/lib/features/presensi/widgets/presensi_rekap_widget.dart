@@ -74,7 +74,7 @@ class PresensiRekapWidget extends ConsumerWidget {
             kwkJam: kwkJam,
           ),
           SizedBox(height: 24.h(context)),
-          _buildKetidakhadiranSummary(context, periodeStr, sakit, izin, alpha, cuti: cuti),
+          _buildKetidakhadiranSummary(context, periodeStr, sakit, alpha, cuti: cuti),
         ],
       );
     }
@@ -85,7 +85,7 @@ class PresensiRekapWidget extends ConsumerWidget {
         SizedBox(height: 24.h(context)),
         _buildCombinedStatsCard(context, pulangAwal, kembali),
         SizedBox(height: 24.h(context)),
-        _buildKetidakhadiranSummary(context, periodeStr, sakit, izin, alpha),
+        _buildKetidakhadiranSummary(context, periodeStr, sakit, alpha),
       ],
     );
   }
@@ -98,99 +98,263 @@ class PresensiRekapWidget extends ConsumerWidget {
     required String tapCount,
     String? kwkJam,
   }) {
+    final bool hasKwk = kwkJam != null && kwkJam != '0' && kwkJam != '0.0';
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(24.w(context)),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20.w(context)),
+        border: Border.all(
+          color: AppColors.outlineVariant.withValues(alpha: 0.5),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.onBackground.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: AppColors.onBackground.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 20.h(context), horizontal: 16.w(context)),
-        child: Row(
-          children: [
-            // PA
-            Expanded(
-              child: _buildCombinedStatItem(
-                context,
-                PhosphorIcons.clockAfternoon(PhosphorIconsStyle.fill),
-                'PA',
-                paCount,
-                'Pulang Awal',
-                isAlert: paCount != '0',
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 40.h(context),
-              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
-            ),
-            // Kembali
-            Expanded(
-              child: _buildCombinedStatItem(
-                context,
-                PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.bold),
-                'Kembali',
-                kembaliCount,
-                'Tervalidasi',
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 40.h(context),
-              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
-            ),
-            // TAM
-            Expanded(
-              child: _buildCombinedStatItem(
-                context,
-                PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill),
-                'TAM',
-                tamCount,
-                'Tanpa Masuk',
-                isAlert: tamCount != '0',
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 40.h(context),
-              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
-            ),
-            // TAP
-            Expanded(
-              child: _buildCombinedStatItem(
-                context,
-                PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill),
-                'TAP',
-                tapCount,
-                'Tanpa Pulang',
-                isAlert: tapCount != '0',
-              ),
-            ),
-            if (kwkJam != null && kwkJam != '0' && kwkJam != '0.0') ...[
+      padding: EdgeInsets.all(16.w(context)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Card
+          Row(
+            children: [
               Container(
-                width: 1,
-                height: 40.h(context),
-                color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+                padding: EdgeInsets.all(8.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                ),
+                child: Icon(
+                  PhosphorIcons.clockUser(PhosphorIconsStyle.bold),
+                  color: AppColors.primary,
+                  size: 18.w(context),
+                ),
               ),
+              SizedBox(width: 10.w(context)),
               Expanded(
-                child: _buildCombinedStatItem(
-                  context,
-                  PhosphorIcons.timer(PhosphorIconsStyle.fill),
-                  'KWK',
-                  '$kwkJam j',
-                  'Kurang Jam',
-                  isAlert: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Penyimpangan & Izin Jam Kerja',
+                      style: AppTextStyles.titleSmall(context).copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    Text(
+                      'Monitoring kedisiplinan jam dinas harian',
+                      style: AppTextStyles.bodySmall(context).copyWith(
+                        color: AppColors.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          SizedBox(height: 16.h(context)),
+
+          // Grid 2 Kolom yang lega dan proporsional
+          Row(
+            children: [
+              Expanded(
+                child: _buildPegawaiStatBox(
+                  context,
+                  title: 'Pulang Awal',
+                  badge: 'PA',
+                  value: paCount,
+                  unit: 'Kali',
+                  icon: PhosphorIcons.clockAfternoon(PhosphorIconsStyle.fill),
+                  iconBgColor: paCount != '0'
+                      ? AppColors.error.withValues(alpha: 0.12)
+                      : AppColors.primary.withValues(alpha: 0.08),
+                  iconColor: paCount != '0' ? AppColors.error : AppColors.primary,
+                  isAlert: paCount != '0',
+                ),
+              ),
+              SizedBox(width: 12.w(context)),
+              Expanded(
+                child: _buildPegawaiStatBox(
+                  context,
+                  title: 'Kembali Dinas',
+                  badge: 'K',
+                  value: kembaliCount,
+                  unit: 'Kali',
+                  icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.bold),
+                  iconBgColor: AppColors.secondary.withValues(alpha: 0.12),
+                  iconColor: AppColors.secondary,
+                  isAlert: false,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h(context)),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPegawaiStatBox(
+                  context,
+                  title: 'Tanpa Masuk',
+                  badge: 'TAM',
+                  value: tamCount,
+                  unit: 'Hari',
+                  icon: PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill),
+                  iconBgColor: tamCount != '0'
+                      ? AppColors.error.withValues(alpha: 0.12)
+                      : AppColors.primary.withValues(alpha: 0.08),
+                  iconColor: tamCount != '0' ? AppColors.error : AppColors.primary,
+                  isAlert: tamCount != '0',
+                ),
+              ),
+              SizedBox(width: 12.w(context)),
+              Expanded(
+                child: _buildPegawaiStatBox(
+                  context,
+                  title: 'Tanpa Pulang',
+                  badge: 'TAP',
+                  value: tapCount,
+                  unit: 'Hari',
+                  icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill),
+                  iconBgColor: tapCount != '0'
+                      ? AppColors.error.withValues(alpha: 0.12)
+                      : AppColors.primary.withValues(alpha: 0.08),
+                  iconColor: tapCount != '0' ? AppColors.error : AppColors.primary,
+                  isAlert: tapCount != '0',
+                ),
+              ),
+            ],
+          ),
+
+          // Jika ada data KWK (Kurang Waktu Kerja)
+          if (hasKwk) ...[
+            SizedBox(height: 12.h(context)),
+            _buildPegawaiStatBox(
+              context,
+              title: 'Kurang Waktu Kerja',
+              badge: 'KWK',
+              value: kwkJam,
+              unit: 'Jam',
+              icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
+              iconBgColor: AppColors.warning.withValues(alpha: 0.15),
+              iconColor: AppColors.warning,
+              isAlert: true,
+              isFullWidth: true,
+            ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPegawaiStatBox(
+    BuildContext context, {
+    required String title,
+    required String badge,
+    required String value,
+    required String unit,
+    required IconData icon,
+    required Color iconBgColor,
+    required Color iconColor,
+    required bool isAlert,
+    bool isFullWidth = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: 14.w(context),
+        vertical: 12.h(context),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(14.w(context)),
+        border: Border.all(
+          color: isAlert
+              ? AppColors.error.withValues(alpha: 0.25)
+              : AppColors.outlineVariant.withValues(alpha: 0.35),
+          width: 1,
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.w(context)),
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: iconColor, size: 18.w(context)),
+          ),
+          SizedBox(width: 10.w(context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 5.w(context), vertical: 1.5.h(context)),
+                      decoration: BoxDecoration(
+                        color: isAlert ? AppColors.error.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4.w(context)),
+                      ),
+                      child: Text(
+                        badge,
+                        style: AppTextStyles.labelSmall(context).copyWith(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: isAlert ? AppColors.error : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 5.w(context)),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.bodySmall(context).copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h(context)),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      value,
+                      style: AppTextStyles.titleMedium(context).copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                        color: isAlert ? AppColors.error : AppColors.onSurface,
+                      ),
+                    ),
+                    SizedBox(width: 4.w(context)),
+                    Text(
+                      unit,
+                      style: AppTextStyles.bodySmall(context).copyWith(
+                        fontSize: 10.5,
+                        color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -327,7 +491,7 @@ class PresensiRekapWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String izin, String alpha, {String? cuti}) {
+  Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String alpha, {String? cuti}) {
     return AniseExpandableCard(
       title: 'Rekap Ketidakhadiran & Cuti',
       subtitle: periodeStr,
@@ -335,11 +499,9 @@ class PresensiRekapWidget extends ConsumerWidget {
       child: Column(
         children: [
           _buildSiaRow(context, 'Sakit (S)', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
-          Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-          _buildSiaRow(context, 'Izin Dinas / Pribadi (I)', '$izin Hari', AppColors.secondary, PhosphorIcons.envelope(PhosphorIconsStyle.fill)),
           if (cuti != null) ...[
             Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-            _buildSiaRow(context, 'Cuti Tahunan / Bersama (C)', '$cuti Hari', AppColors.warning, PhosphorIcons.calendarStar(PhosphorIconsStyle.fill)),
+            _buildSiaRow(context, 'Cuti (C)', '$cuti Hari', AppColors.warning, PhosphorIcons.calendarStar(PhosphorIconsStyle.fill)),
           ],
           Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
           _buildSiaRow(context, 'Alpha (A)', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),

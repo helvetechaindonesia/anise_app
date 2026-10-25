@@ -107,7 +107,7 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
               _buildSectionTitle(
                 context,
                 'Riwayat Kehadiran Pegawai',
-                'Catatan Masuk, Pulang, dan Izin Dinas',
+                'Catatan Masuk, Pulang, dan Izin Jam Kerja',
                 icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.bold),
                 isSmallSub: true,
               ),
