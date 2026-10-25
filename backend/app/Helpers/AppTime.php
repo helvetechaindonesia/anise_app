@@ -18,6 +18,14 @@ class AppTime
             if (!empty($mock)) {
                 return Carbon::parse($mock);
             }
+
+            $filePath = storage_path('app/mock_time.txt');
+            if (file_exists($filePath)) {
+                $fileMock = trim(file_get_contents($filePath));
+                if (!empty($fileMock)) {
+                    return Carbon::parse($fileMock);
+                }
+            }
         } catch (\Throwable $e) {}
 
         return Carbon::now();

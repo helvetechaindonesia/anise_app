@@ -32,6 +32,7 @@ class ServerTravelCommand extends Command
         // Jika user mengetik: php artisan server:travel reset
         if ($timeInput === 'reset') {
             Cache::forget('app_mock_time');
+            @unlink(storage_path('app/mock_time.txt'));
             $this->info("✅ Waktu virtual aplikasi DIRESET ke waktu asli sistem.");
             $this->line("Waktu sekarang (Real): " . Carbon::now()->toDateTimeString());
             return 0;
@@ -56,8 +57,9 @@ class ServerTravelCommand extends Command
             $parsed = Carbon::parse($timeInput);
             $formatted = $parsed->format('Y-m-d H:i:s');
             
-            // Simpan waktu virtual di cache (selama 7 hari kecuali direset)
-            Cache::put('app_mock_time', $formatted, now()->addDays(7));
+            // Simpan waktu virtual di cache dan file storage agar 100% terbaca di semua proses PHP-FPM / HTTP
+            Cache::forever('app_mock_time', $formatted);
+            @file_put_contents(storage_path('app/mock_time.txt'), $formatted);
 
             $this->info("🚀 VIRTUAL TIME TRAVEL BERHASIL DIAKTIFKAN!");
             $this->warn("Waktu Virtual Baru : {$formatted} ({$parsed->locale('id')->isoFormat('dddd, D MMMM Y')})");
