@@ -176,8 +176,20 @@ class AttendanceController extends Controller
         $currentTime = AppTime::now();
         $today = $currentTime->format('Y-m-d');
         $timeString = $currentTime->format('H:i');
-        $userRole = strtoupper($user->role_type ?? $user->role ?? '');
-        $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) || !in_array($userRole, ['SISWA']);
+        
+        // Ambil nama role string secara aman dan eksplisit dari relasi atau atribut
+        $userRoleName = '';
+        if ($user->role && is_object($user->role) && isset($user->role->name)) {
+            $userRoleName = $user->role->name;
+        } elseif (!empty($user->role_type)) {
+            $userRoleName = $user->role_type;
+        } elseif (is_string($user->role)) {
+            $userRoleName = $user->role;
+        }
+        $userRole = strtoupper(trim($userRoleName));
+
+        $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) 
+            || ($userRole !== 'SISWA' && !empty($userRole));
 
         // =========================================================================
         // 🏫 CABANG LOGIKA 1: TENAGA PENDIDIK & PEGAWAI (GURU, TU, KARYAWAN)
@@ -390,9 +402,20 @@ class AttendanceController extends Controller
         }
 
         $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
+        
+        // Ambil nama role string secara aman dan eksplisit dari relasi atau atribut
+        $userRoleName = '';
+        if ($user->role && is_object($user->role) && isset($user->role->name)) {
+            $userRoleName = $user->role->name;
+        } elseif (!empty($user->role_type)) {
+            $userRoleName = $user->role_type;
+        } elseif (is_string($user->role)) {
+            $userRoleName = $user->role;
+        }
+        $userRole = strtoupper(trim($userRoleName));
 
-        $userRole = strtoupper($user->role_type ?? $user->role ?? '');
-        $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) || !in_array($userRole, ['SISWA']);
+        $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) 
+            || ($userRole !== 'SISWA' && !empty($userRole));
 
         // =========================================================================
         // 🏫 STATISTIK & RIWAYAT TENAGA PENDIDIK (GURU & KARYAWAN)
