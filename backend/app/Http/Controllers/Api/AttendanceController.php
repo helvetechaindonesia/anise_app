@@ -633,7 +633,8 @@ class AttendanceController extends Controller
             $currentTimeStr = $appNow->format('H:i');
 
             foreach ($logs as $log) {
-                $isToday = ($log->tanggal === $todayStr);
+                $logDateStr = substr((string)$log->tanggal, 0, 10);
+                $isToday = ($logDateStr === $todayStr);
                 $hasReturnedHome = !empty($log->jam_pulang);
 
                 // ATURAN 2: Hari yang belum selesai tidak akan diakumulasi/dihitung.
@@ -650,19 +651,29 @@ class AttendanceController extends Controller
                     $isTapDay = true;
                 }
 
+                // Ambil seluruh event log scan di tanggal ini
+                $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
+                    return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
+                })->sortBy('scan_time')->values();
+
+                $firstScanEv = $dayEvents->first();
+
                 // ATURAN 3:
-                // Jika TAM: jam masuk dihitung otomatis sebagai batas terakhir masuk (07:00)
-                // Jika TAP: jam pulang dihitung otomatis sebagai batas awal pulang (16:00)
+                // Jika TAP: jam pulang dihitung otomatis sebagai batas awal pulang (16:00).
+                // Jika TAM: jam masuk dihitung dari scan pertama saat dia datang/tap PA (misal 12:10),
+                // atau jika sama sekali tidak ada scan masuk, default batas 07:00.
                 $effectiveMasuk = null;
-                if ($log->status === 'TAM' || empty($log->jam_masuk)) {
-                    $effectiveMasuk = Carbon::parse($log->tanggal . ' 07:00:00');
-                } else {
+                if (!empty($log->jam_masuk)) {
                     $effectiveMasuk = Carbon::parse($log->jam_masuk);
+                } elseif ($firstScanEv) {
+                    $effectiveMasuk = Carbon::parse($firstScanEv->scan_time);
+                } else {
+                    $effectiveMasuk = Carbon::parse($logDateStr . ' 07:00:00');
                 }
 
                 $effectivePulang = null;
                 if ($isTapDay || empty($log->jam_pulang)) {
-                    $effectivePulang = Carbon::parse($log->tanggal . ' 16:00:00');
+                    $effectivePulang = Carbon::parse($logDateStr . ' 16:00:00');
                 } else {
                     $effectivePulang = Carbon::parse($log->jam_pulang);
                 }
