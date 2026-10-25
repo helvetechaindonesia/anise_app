@@ -707,12 +707,13 @@ class AttendanceController extends Controller
                     $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
                 }
 
-                // Durasi Bersih Kerja = (Jam Pulang - Jam Masuk) - (Total Durasi Izin Keluar PA-K)
+                // Durasi Bersih Kerja = (Jam Pulang - Jam Masuk) - Total(Kembali - Pulang Awal)
                 $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
 
-                // Jika durasi bersih < 540 menit (9 jam), selisihnya dihitung sebagai KWK
-                if ($netWorkingMinutes < 540) {
-                    $totalKwkMinutes += (540 - $netWorkingMinutes);
+                // Standar waktu wajib adalah 8 jam sehari (480 menit).
+                // Jika durasi bersih < 480 menit (8 jam), selisih kekurangannya dihitung sebagai KWK:
+                if ($netWorkingMinutes < 480) {
+                    $totalKwkMinutes += (480 - $netWorkingMinutes);
                 }
             }
 
