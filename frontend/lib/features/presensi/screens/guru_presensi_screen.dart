@@ -85,13 +85,36 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
       appBar: AniseAppBar(
         title: 'Presensi Tenaga Pendidik',
         onBackPressed: () => Navigator.pop(context),
+        actions: [
+          IconButton(
+            icon: Icon(
+              PhosphorIcons.arrowsClockwise(PhosphorIconsStyle.bold),
+              color: AppColors.onBackground,
+              size: 20.w(context),
+            ),
+            tooltip: 'Segarkan Data',
+            onPressed: () {
+              ref.invalidate(presensiDataProvider);
+            },
+          ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          backgroundColor: AppColors.surface,
+          onRefresh: () async {
+            ref.invalidate(presensiDataProvider);
+            try {
+              await ref.read(presensiDataProvider.future);
+            } catch (_) {}
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               SizedBox(height: 16.h(context)),
               const PresensiHeaderWidget(),
               SizedBox(height: 20.h(context)),
@@ -140,8 +163,7 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
           MaterialPageRoute(builder: (context) => const PresensiCameraScreen()),
         );
         if (result == true) {
-          ref.invalidate(presensiSummaryProvider);
-          ref.invalidate(presensiLogProvider);
+          ref.invalidate(presensiDataProvider);
         }
       },
       child: Container(

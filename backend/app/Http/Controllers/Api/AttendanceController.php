@@ -515,18 +515,50 @@ class AttendanceController extends Controller
                 'ALPHA' => 'Alpha (A)',
             ];
 
-            $formattedLogs = $logs->map(function ($log) use ($user, $statusTextMap) {
+            $formattedLogs = $logs->map(function ($log) use ($user, $statusTextMap, $allEvents) {
                 $statusName = $statusTextMap[$log->status] ?? $log->status;
                 $isLate = ($log->status === 'T' || $log->status === 'TAM');
+
+                // Cari log event di hari tersebut jika jam_masuk kosong
+                $dayEvents = $allEvents->filter(function ($ev) use ($log) {
+                    return substr($ev->scan_time, 0, 10) === $log->tanggal;
+                })->sortBy('scan_time');
+
+                $firstScan = $dayEvents->first();
+                $lastScan = $dayEvents->last();
+
+                $jamMasukStr = $log->jam_masuk 
+                    ? Carbon::parse($log->jam_masuk)->format('H:i') 
+                    : ($firstScan ? Carbon::parse($firstScan->scan_time)->format('H:i') : null);
+
+                $jamPulangStr = $log->jam_pulang 
+                    ? Carbon::parse($log->jam_pulang)->format('H:i') 
+                    : null;
+
+                $waktuStr = '-';
+                if ($jamMasukStr && $jamPulangStr) {
+                    $waktuStr = $jamMasukStr . ' - ' . $jamPulangStr . ' WIB';
+                } elseif ($jamMasukStr) {
+                    $waktuStr = $jamMasukStr . ' WIB';
+                } elseif ($jamPulangStr) {
+                    $waktuStr = $jamPulangStr . ' WIB';
+                }
+
+                // Bangun catatan histori tap harian jika ada aktivitas PA / K
+                $eventsSummary = $dayEvents->pluck('status')->unique()->values()->implode(', ');
+                $catatan = 'Status: ' . $statusName;
+                if ($dayEvents->count() > 1) {
+                    $catatan .= ' (Aktivitas: ' . $eventsSummary . ')';
+                }
 
                 return [
                     'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
                     'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
-                    'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : ($log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') . ' WIB' : '-'),
-                    'jam_masuk' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') : null,
-                    'jam_pulang' => $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') : null,
+                    'waktu' => $waktuStr,
+                    'jam_masuk' => $jamMasukStr,
+                    'jam_pulang' => $jamPulangStr,
                     'lokasi' => 'Presensi Cam Pegawai',
-                    'catatan' => 'Status: ' . $statusName,
+                    'catatan' => $catatan,
                     'status' => $log->status,
                     'status_label' => $statusName,
                     'isLate' => $isLate,
