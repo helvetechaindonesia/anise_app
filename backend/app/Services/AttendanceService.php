@@ -196,33 +196,51 @@ class AttendanceService
                 $isTapDay = true;
             }
 
-            // Effective Masuk (TAM penalti 12:01:00)
-            if ($log->status === 'TAM' || empty($log->jam_masuk)) {
-                $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
-            } else {
+            // Ambil semua event scan di hari ini
+            $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
+                return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
+            })->sortBy('scan_time')->values();
+
+            // 1. Tentukan Jam Masuk Efektif
+            // Jika ada event masuk resmi (H/T) gunakan jam scan masuk, jika TAM (atau tanpa jam masuk) gunakan 12:01:00
+            $firstMasukEvent = $dayEvents->first(function ($ev) {
+                return in_array($ev->status, ['H', 'T']);
+            });
+
+            if ($firstMasukEvent) {
+                $masukTimeOnly = Carbon::parse($firstMasukEvent->scan_time)->format('H:i:s');
+                $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
+            } elseif (!empty($log->jam_masuk) && $log->status !== 'TAM') {
                 $masukTimeOnly = Carbon::parse($log->jam_masuk)->format('H:i:s');
                 $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
+            } else {
+                $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
             }
 
-            // Effective Pulang (TAP penalti 15:59:00)
-            if ($isTapDay || empty($log->jam_pulang)) {
-                $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
-            } else {
+            // 2. Tentukan Jam Pulang Efektif
+            // Cari event scan PULANG di hari ini
+            $pulangEvent = $dayEvents->first(function ($ev) {
+                return $ev->status === 'PULANG';
+            });
+
+            if ($pulangEvent) {
+                $pulangTimeOnly = Carbon::parse($pulangEvent->scan_time)->format('H:i:s');
+                $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
+            } elseif (!empty($log->jam_pulang)) {
                 $pulangTimeOnly = Carbon::parse($log->jam_pulang)->format('H:i:s');
                 $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
+            } else {
+                // Tidak ada jam pulang sampai penutupan dinas (TAP penalti 15:59:00)
+                $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
             }
 
-            // Rentang Kotor Kehadiran (Jam Pulang - Jam Masuk)
+            // 3. Hitung Durasi Kotor (Jam Pulang - Jam Masuk)
             $grossDurationMinutes = 0;
             if ($effectivePulang->gt($effectiveMasuk)) {
                 $grossDurationMinutes = $effectivePulang->diffInMinutes($effectiveMasuk);
             }
 
-            // Izin Keluar: Pasangan Siklus (Kembali - Pulang Awal)
-            $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
-                return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
-            })->sortBy('scan_time')->values();
-
+            // 4. Hitung Izin Keluar (Kembali - Pulang Awal)
             $totalIzinKeluarMinutes = 0;
             $tempPaTime = null;
 
@@ -238,16 +256,15 @@ class AttendanceService
                 }
             }
 
-            // Jika status terakhir masih PA sampai akhir hari (contoh kasus e: PA pukul 13.00 lalu tidak kembali)
-            // Maka jam di luar sekolah dihitung dari PA sampai effectivePulang, sehingga waktu kerja diakumulasikan berhenti di jam PA!
+            // Jika status terakhir masih PA tanpa pernah tap Kembali sampai pulang
             if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
                 $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
             }
 
-            // Durasi Bersih Kerja = Kotor - Izin Keluar
+            // 5. Durasi Bersih Kerja = Kotor - Izin Keluar
             $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
 
-            // Standar kerja 8 jam (480 menit). Defisit = KWK
+            // Standar wajib 8 jam (480 menit). Defisit = KWK
             if ($netWorkingMinutes < 480) {
                 $totalKwkMinutes += (480 - $netWorkingMinutes);
             }

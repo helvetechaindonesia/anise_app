@@ -49,16 +49,22 @@ class AutoTamTapCommand extends Command
             return 0;
         }
 
-        // Ambil semua pegawai aktif (Guru, TU, Staff, dll)
+        // Ambil semua pegawai aktif (Semua non-SISWA: Guru, TU, Staff, dll)
         $teacherRoles = ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN'];
         
         $employees = DB::table('users')
             ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
+            ->where('users.is_active', true)
             ->where(function ($q) use ($teacherRoles) {
                 $q->whereIn(DB::raw('UPPER(roles.name)'), $teacherRoles)
-                  ->orWhereIn(DB::raw('UPPER(users.role_type)'), $teacherRoles);
+                  ->orWhereIn(DB::raw('UPPER(users.role_type)'), $teacherRoles)
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotNull('roles.name')->where(DB::raw('UPPER(roles.name)'), '!=', 'SISWA');
+                  })
+                  ->orWhere(function ($sub) {
+                      $sub->whereNotNull('users.role_type')->where(DB::raw('UPPER(users.role_type)'), '!=', 'SISWA');
+                  });
             })
-            ->where('users.is_active', true)
             ->select('users.id', 'users.full_name')
             ->get();
 
