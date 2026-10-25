@@ -77,6 +77,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // ==========================================
     Route::prefix('attendance')->group(function () {
         Route::get('/', [AttendanceController::class, 'getRiwayatPresensi']);
+        Route::get('/next-status', [AttendanceController::class, 'getNextPresensiStatus']);
         Route::get('/export', [AttendanceController::class, 'exportPresensiXlsx']);
         Route::post('/check-in-cam', [AttendanceController::class, 'submitPresensiCam']);
         Route::post('/biometric/register', [AttendanceController::class, 'registerBiometric']);

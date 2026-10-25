@@ -66,9 +66,32 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
   // Animation controller
   late AnimationController _scannerPulseController;
 
+  // Prediksi Target Status Presensi yang akan dicatat
+  String? _targetStatusLabel;
+  String? _targetStatusCode;
+  bool _canScanByTime = true;
+
+  Future<void> _fetchNextPresensiStatus() async {
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get('/attendance/next-status');
+      if (response.data is Map<String, dynamic> && mounted) {
+        setState(() {
+          _targetStatusLabel = response.data['target_label']?.toString();
+          _targetStatusCode = response.data['target_status']?.toString();
+          _canScanByTime = response.data['can_scan'] == true;
+          if (!_canScanByTime) {
+            _hintMessage = response.data['message']?.toString() ?? "Presensi tidak tersedia saat ini";
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
+    _fetchNextPresensiStatus();
     _scannerPulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -651,6 +674,47 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Target Status Preview Card
+                  if (_targetStatusLabel != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _canScanByTime ? AppColors.primary.withValues(alpha: 0.85) : AppColors.error.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _canScanByTime ? PhosphorIconsFill.info : PhosphorIconsFill.warningCircle,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _canScanByTime 
+                                  ? "Status yang akan dicatat: $_targetStatusLabel"
+                                  : "Peringatan: $_targetStatusLabel",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.labelMedium(context, color: Colors.white).copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -699,7 +763,9 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
                               Text(
                                 widget.kbmTitle != null
                                     ? "Presensi Jurnal: ${widget.kbmTitle}"
-                                    : "Liveness Check Anti-Foto KTP",
+                                    : (_targetStatusLabel != null 
+                                        ? "Siklus Terkini: $_targetStatusLabel"
+                                        : "Liveness Check Anti-Foto KTP"),
                                 style: AppTextStyles.bodySmall(context, color: Colors.white60),
                               ),
                             ],

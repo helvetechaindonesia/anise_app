@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -27,6 +28,24 @@ class GuruPresensiScreen extends ConsumerStatefulWidget {
 
 class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
   bool _isDownloading = false;
+  Timer? _realtimeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh data presensi setiap 15 detik secara realtime
+    _realtimeTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) {
+        ref.invalidate(presensiDataProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _realtimeTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _handleDownload() async {
     if (_isDownloading) return;

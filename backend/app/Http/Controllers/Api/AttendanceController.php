@@ -16,6 +16,140 @@ class AttendanceController extends Controller
 {
     use ApiResponser;
 
+    public function getNextPresensiStatus(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
+
+        $currentTime = AppTime::now();
+        $today = $currentTime->format('Y-m-d');
+        $timeString = $currentTime->format('H:i');
+
+        $userRoleName = '';
+        if ($user->role && is_object($user->role) && isset($user->role->name)) {
+            $userRoleName = $user->role->name;
+        } elseif (!empty($user->role_type)) {
+            $userRoleName = $user->role_type;
+        } elseif (is_string($user->role)) {
+            $userRoleName = $user->role;
+        }
+        $userRole = strtoupper(trim($userRoleName));
+
+        $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) 
+            || ($userRole !== 'SISWA' && !empty($userRole));
+
+        if (!$isTeacherOrStaff) {
+            // Prediksi untuk Siswa
+            $attendance = DB::table('attendances')->where('user_id', $user->id)->where('tanggal', $today)->first();
+            if (!$attendance) {
+                $status = ($timeString > '07:00') ? 'TERLAMBAT' : 'MASUK';
+                $desc = ($timeString > '07:00') ? 'Masuk Terlambat' : 'Masuk Sekolah';
+            } elseif ($attendance->status === 'PULANG') {
+                return response()->json([
+                    'can_scan' => false,
+                    'message' => 'Anda sudah presensi pulang hari ini.'
+                ]);
+            } else {
+                $status = 'PULANG';
+                $desc = 'Presensi Pulang Sekolah';
+            }
+
+            return response()->json([
+                'can_scan' => true,
+                'target_status' => $status,
+                'target_label' => $desc,
+                'current_time' => $timeString . ' WIB',
+            ]);
+        }
+
+        // Prediksi untuk Tenaga Pendidik
+        if ($timeString < '06:00') {
+            return response()->json([
+                'can_scan' => false,
+                'message' => 'Presensi belum dibuka. Jam masuk dimulai pukul 06.00 WIB.',
+                'target_status' => 'BELUM_DIBUKA',
+                'target_label' => 'Belum Dibuka (Buka 06.00 WIB)',
+                'current_time' => $timeString . ' WIB',
+            ]);
+        }
+
+        if ($timeString > '18:00') {
+            return response()->json([
+                'can_scan' => false,
+                'message' => 'Jam presensi hari ini telah berakhir (Tutup pukul 18.00 WIB).',
+                'target_status' => 'DITUTUP',
+                'target_label' => 'Ditutup (Pukul 18.00 WIB)',
+                'current_time' => $timeString . ' WIB',
+            ]);
+        }
+
+        $attendance = DB::table('attendances')->where('user_id', $user->id)->where('tanggal', $today)->first();
+
+        if (!$attendance) {
+            // Tap pertama
+            if ($timeString >= '06:00' && $timeString <= '07:00') {
+                $targetStatus = 'H';
+                $targetLabel = 'Hadir Tepat Waktu (H)';
+            } elseif ($timeString > '07:00' && $timeString <= '12:00') {
+                $targetStatus = 'T';
+                $targetLabel = 'Hadir Terlambat (T)';
+            } else {
+                $targetStatus = 'PA';
+                $targetLabel = 'Pulang Awal (PA) - Catatan: Tidak Absen Masuk (TAM)';
+            }
+        } else {
+            // Tap kedua dst
+            $lastLog = DB::table('presensi_logs')
+                ->where('user_id', $user->id)
+                ->whereDate('scan_time', $today)
+                ->orderBy('scan_time', 'desc')
+                ->first();
+
+            $lastState = $lastLog ? $lastLog->status : $attendance->status;
+
+            if ($timeString >= '16:00' && $timeString <= '18:00') {
+                if ($lastState === 'PA') {
+                    $targetStatus = 'K';
+                    $targetLabel = 'Kembali ke Sekolah (K)';
+                } elseif ($lastState === 'PULANG') {
+                    return response()->json([
+                        'can_scan' => false,
+                        'message' => 'Anda sudah melakukan presensi pulang hari ini.',
+                        'target_status' => 'PULANG_SELESAI',
+                        'target_label' => 'Sudah Pulang Hari Ini',
+                        'current_time' => $timeString . ' WIB',
+                    ]);
+                } else {
+                    $targetStatus = 'PULANG';
+                    $targetLabel = 'Presensi Pulang Resmi';
+                }
+            } else {
+                if ($lastState === 'PA') {
+                    $targetStatus = 'K';
+                    $targetLabel = 'Kembali ke Sekolah (K)';
+                } elseif ($lastState === 'PULANG') {
+                    return response()->json([
+                        'can_scan' => false,
+                        'message' => 'Anda sudah melakukan presensi pulang hari ini.',
+                        'target_status' => 'PULANG_SELESAI',
+                        'target_label' => 'Sudah Pulang Hari Ini',
+                        'current_time' => $timeString . ' WIB',
+                    ]);
+                } else {
+                    $targetStatus = 'PA';
+                    $targetLabel = 'Pulang Awal / Izin Keluar (PA)';
+                }
+            }
+        }
+
+        return response()->json([
+            'can_scan' => true,
+            'target_status' => $targetStatus,
+            'target_label' => $targetLabel,
+            'current_time' => $timeString . ' WIB',
+        ]);
+    }
+
     public function registerBiometric(Request $request)
     {
         $user = $request->user();
@@ -538,57 +672,58 @@ class AttendanceController extends Controller
                 'ALPHA' => 'Alpha (A)',
             ];
 
-            $formattedLogs = $logs->map(function ($log) use ($user, $statusTextMap, $allEvents) {
-                $statusName = $statusTextMap[$log->status] ?? $log->status;
-                $isLate = ($log->status === 'T' || $log->status === 'TAM');
+            // Pemetaan Riwayat Presensi Pegawai: Dicatat per-status event secara akurat
+            $eventItems = collect();
 
-                // Cari log event di hari tersebut jika jam_masuk kosong
-                $dayEvents = $allEvents->filter(function ($ev) use ($log) {
-                    return substr($ev->scan_time, 0, 10) === $log->tanggal;
-                })->sortBy('scan_time');
+            if ($allEvents->isNotEmpty()) {
+                foreach ($allEvents as $ev) {
+                    $evDate = Carbon::parse($ev->scan_time);
+                    $evStatus = $ev->status;
+                    $statusName = $statusTextMap[$evStatus] ?? $evStatus;
+                    $isLate = ($evStatus === 'T' || $evStatus === 'TAM');
 
-                $firstScan = $dayEvents->first();
-                $lastScan = $dayEvents->last();
-
-                $jamMasukStr = $log->jam_masuk 
-                    ? Carbon::parse($log->jam_masuk)->format('H:i') 
-                    : ($firstScan ? Carbon::parse($firstScan->scan_time)->format('H:i') : null);
-
-                $jamPulangStr = $log->jam_pulang 
-                    ? Carbon::parse($log->jam_pulang)->format('H:i') 
-                    : null;
-
-                $waktuStr = '-';
-                if ($jamMasukStr && $jamPulangStr) {
-                    $waktuStr = $jamMasukStr . ' - ' . $jamPulangStr . ' WIB';
-                } elseif ($jamMasukStr) {
-                    $waktuStr = $jamMasukStr . ' WIB';
-                } elseif ($jamPulangStr) {
-                    $waktuStr = $jamPulangStr . ' WIB';
+                    $eventItems->push([
+                        'id' => $ev->id,
+                        'hari' => $evDate->locale('id')->dayName,
+                        'tanggal' => $evDate->translatedFormat('d F Y'),
+                        'waktu' => $evDate->format('H:i') . ' WIB',
+                        'jam_masuk' => $evDate->format('H:i'),
+                        'jam_pulang' => null,
+                        'lokasi' => 'Presensi Cam Pegawai',
+                        'catatan' => 'Pencatatan Status: ' . $statusName,
+                        'status' => $evStatus,
+                        'status_label' => $statusName,
+                        'isLate' => $isLate,
+                        'role' => 'GURU',
+                        'raw_date' => $evDate->format('Y-m-d H:i:s'),
+                    ]);
                 }
+            } else {
+                // Fallback dari master tabel attendances jika presensi_logs kosong
+                foreach ($logs as $log) {
+                    $statusName = $statusTextMap[$log->status] ?? $log->status;
+                    $isLate = ($log->status === 'T' || $log->status === 'TAM');
+                    $waktuStr = $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : ($log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') . ' WIB' : '-');
 
-                // Bangun catatan histori tap harian jika ada aktivitas PA / K
-                $eventsSummary = $dayEvents->pluck('status')->unique()->values()->implode(', ');
-                $catatan = 'Status: ' . $statusName;
-                if ($dayEvents->count() > 1) {
-                    $catatan .= ' (Aktivitas: ' . $eventsSummary . ')';
+                    $eventItems->push([
+                        'id' => $log->id,
+                        'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
+                        'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
+                        'waktu' => $waktuStr,
+                        'jam_masuk' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') : null,
+                        'jam_pulang' => $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') : null,
+                        'lokasi' => 'Presensi Cam Pegawai',
+                        'catatan' => 'Pencatatan Status: ' . $statusName,
+                        'status' => $log->status,
+                        'status_label' => $statusName,
+                        'isLate' => $isLate,
+                        'role' => 'GURU',
+                        'raw_date' => $log->tanggal . ' 00:00:00',
+                    ]);
                 }
+            }
 
-                return [
-                    'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
-                    'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
-                    'waktu' => $waktuStr,
-                    'jam_masuk' => $jamMasukStr,
-                    'jam_pulang' => $jamPulangStr,
-                    'lokasi' => 'Presensi Cam Pegawai',
-                    'catatan' => $catatan,
-                    'status' => $log->status,
-                    'status_label' => $statusName,
-                    'isLate' => $isLate,
-                    'role' => 'GURU',
-                    'raw_date' => $log->tanggal,
-                ];
-            });
+            $formattedLogs = $eventItems;
 
             // Gabungkan izin/cuti resmi pegawai ke dalam daftar log
             $mergedLogs = collect($formattedLogs);
