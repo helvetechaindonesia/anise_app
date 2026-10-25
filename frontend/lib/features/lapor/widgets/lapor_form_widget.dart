@@ -6,19 +6,17 @@ import 'package:image_picker/image_picker.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
-import '../../../../core/network/dio_client.dart';
-import 'package:dio/dio.dart';
-import '../../tata_usaha/screens/tu_kesiswaan_screen.dart';
+import '../providers/report_provider.dart';
 
 class LaporFormWidget extends ConsumerStatefulWidget {
-  const LaporFormWidget({Key? key}) : super(key: key);
+  const LaporFormWidget({super.key});
 
   @override
   ConsumerState<LaporFormWidget> createState() => _LaporFormWidgetState();
 }
 
 class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
-  String _selectedCategory = '';
+  String _selectedCategoryKey = '';
   bool _isAnonymous = false;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
@@ -26,9 +24,21 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
   bool _isLoading = false;
 
   final List<Map<String, dynamic>> _categories = [
-    {'label': 'Fasilitas\nSekolah', 'icon': PhosphorIcons.buildings(PhosphorIconsStyle.fill)},
-    {'label': 'Aduan\nBullying', 'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.fill)},
-    {'label': 'Aspirasi\nSiswa', 'icon': PhosphorIcons.chatTeardropText(PhosphorIconsStyle.fill)},
+    {
+      'key': 'FASILITAS',
+      'label': 'Fasilitas\nSekolah',
+      'icon': PhosphorIcons.buildings(PhosphorIconsStyle.fill)
+    },
+    {
+      'key': 'BULLYING',
+      'label': 'Aduan\nBullying',
+      'icon': PhosphorIcons.usersThree(PhosphorIconsStyle.fill)
+    },
+    {
+      'key': 'ASPIRASI',
+      'label': 'Aspirasi\nSiswa',
+      'icon': PhosphorIcons.chatTeardropText(PhosphorIconsStyle.fill)
+    },
   ];
 
   @override
@@ -49,40 +59,53 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
   }
 
   Future<void> _submitReport() async {
-    if (_selectedCategory.isEmpty || _titleController.text.isEmpty || _descController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kategori, Judul, dan Deskripsi wajib diisi')));
+    if (_selectedCategoryKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan pilih salah satu kategori laporan')),
+      );
+      return;
+    }
+
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Judul laporan wajib diisi')),
+      );
+      return;
+    }
+
+    if (_descController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Deskripsi rincian laporan wajib diisi')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
-    final dio = ref.read(dioProvider);
 
     try {
-      final formData = FormData.fromMap({
-        'category': _selectedCategory.replaceAll('\n', ' '),
-        'report_title': _titleController.text,
-        'report_text': _descController.text,
-        'is_anonymous': _isAnonymous ? 1 : 0,
-      });
+      final complaintService = ref.read(complaintServiceProvider);
+      await complaintService.submitComplaint(
+        category: _selectedCategoryKey,
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+        isAnonymous: _isAnonymous,
+        imageFile: _imageFile,
+      );
 
-      if (_imageFile != null) {
-        formData.files.add(MapEntry(
-          'image',
-          await MultipartFile.fromFile(_imageFile!.path, filename: 'report_image.jpg'),
-        ));
-      }
-
-      final response = await dio.post('/users/reports', data: formData);
-
-      if (response.data['status'] == 'success') {
-        _showSuccessDialog();
-      } else {
-        throw Exception(response.data['message']);
-      }
+      if (!mounted) return;
+      _showSuccessDialog();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengirim laporan: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengirim laporan: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -90,48 +113,54 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(context))),
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(dialogCtx))),
         backgroundColor: AppColors.surface,
-        contentPadding: EdgeInsets.all(24.w(context)),
+        contentPadding: EdgeInsets.all(24.w(dialogCtx)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: EdgeInsets.all(16.w(context)),
+              padding: EdgeInsets.all(16.w(dialogCtx)),
               decoration: const BoxDecoration(
                 color: AppColors.primaryContainer,
                 shape: BoxShape.circle,
               ),
-              child: Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 40.w(context)),
+              child: Icon(
+                PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                color: AppColors.onPrimaryContainer,
+                size: 40.w(dialogCtx),
+              ),
             ),
-            SizedBox(height: 20.h(context)),
+            SizedBox(height: 20.h(dialogCtx)),
             Text(
               'Laporan Terkirim',
-              style: AppTextStyles.titleLarge(context),
+              style: AppTextStyles.titleLarge(dialogCtx),
             ),
-            SizedBox(height: 12.h(context)),
+            SizedBox(height: 12.h(dialogCtx)),
             Text(
-              'Terima kasih atas partisipasi Anda. Laporan Anda telah masuk ke sistem Kesiswaan.',
+              'Terima kasih atas partisipasi Anda. Laporan Anda telah berhasil dicatat dan akan segera ditindaklanjuti oleh pihak sekolah.',
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+              style: AppTextStyles.bodyMedium(dialogCtx,
+                  color: AppColors.onSurface.withValues(alpha: 0.7)),
             ),
-            SizedBox(height: 24.h(context)),
+            SizedBox(height: 24.h(dialogCtx)),
             SizedBox(
               width: double.infinity,
-              height: 48.h(context),
+              height: 48.h(dialogCtx),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context); // close dialog
+                  Navigator.pop(dialogCtx); // close dialog
                   Navigator.pop(context); // close screen
-                  // Navigate to Kesiswaan
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TuKesiswaanScreen()));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.w(dialogCtx))),
                 ),
-                child: Text('Tutup', style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary)),
+                child: Text('Tutup',
+                    style: AppTextStyles.bodyMedium(dialogCtx,
+                        color: AppColors.onPrimary)),
               ),
             ),
           ],
@@ -173,7 +202,8 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
             ),
             Text(
               'Pilih Salah Satu',
-              style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
+              style: AppTextStyles.labelSmall(context,
+                  color: AppColors.onBackground.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -181,15 +211,16 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: _categories.map((cat) {
-            bool isSelected = _selectedCategory == cat['label'];
+            final key = cat['key'] as String;
+            final isSelected = _selectedCategoryKey == key;
             return GestureDetector(
               onTap: () {
                 setState(() {
-                  _selectedCategory = cat['label'];
+                  _selectedCategoryKey = key;
                 });
               },
               child: Container(
-                width: 90.w(context),
+                width: 96.w(context),
                 padding: EdgeInsets.symmetric(vertical: 12.h(context)),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.secondary : AppColors.surface,
@@ -211,7 +242,9 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
                       textAlign: TextAlign.center,
                       style: AppTextStyles.labelSmall(
                         context,
-                        color: isSelected ? AppColors.onSecondary : AppColors.onSurface.withValues(alpha: 0.7),
+                        color: isSelected
+                            ? AppColors.onSecondary
+                            : AppColors.onSurface.withValues(alpha: 0.7),
                         fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                       ),
                     ),
@@ -233,10 +266,12 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
           style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
           decoration: InputDecoration(
             hintText: 'Judul Laporan Singkat',
-            hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+            hintStyle: AppTextStyles.bodyMedium(context,
+                color: AppColors.onSurface.withValues(alpha: 0.5)),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16.w(context)),
               borderSide: const BorderSide(color: AppColors.outline),
@@ -247,7 +282,7 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -258,10 +293,12 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
           maxLines: 5,
           decoration: InputDecoration(
             hintText: 'Jelaskan detail kejadian, lokasi, dan waktu secara rinci...',
-            hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
+            hintStyle: AppTextStyles.bodyMedium(context,
+                color: AppColors.onSurface.withValues(alpha: 0.5)),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16.w(context)),
               borderSide: const BorderSide(color: AppColors.outline),
@@ -272,7 +309,7 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16.w(context)),
-              borderSide: const BorderSide(color: AppColors.primary),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -302,7 +339,8 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
               SizedBox(width: 8.w(context)),
               Text(
                 'Opsional',
-                style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+                style: AppTextStyles.labelSmall(context,
+                    color: AppColors.onSurface.withValues(alpha: 0.7)),
               ),
             ],
           ),
@@ -319,15 +357,12 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
               ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(10.w(context)),
-                        decoration: const BoxDecoration(color: AppColors.primaryContainer, shape: BoxShape.circle),
-                        child: Icon(PhosphorIcons.camera(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer, size: 20.w(context)),
-                      ),
-                    ],
+                  Container(
+                    padding: EdgeInsets.all(10.w(context)),
+                    decoration: const BoxDecoration(
+                        color: AppColors.primaryContainer, shape: BoxShape.circle),
+                    child: Icon(PhosphorIcons.camera(PhosphorIconsStyle.fill),
+                        color: AppColors.onPrimaryContainer, size: 20.w(context)),
                   ),
                   SizedBox(height: 12.h(context)),
                   Text(
@@ -337,7 +372,8 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
                   SizedBox(height: 4.h(context)),
                   Text(
                     'Ketuk untuk memilih foto (JPG, PNG)',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+                    style: AppTextStyles.labelSmall(context,
+                        color: AppColors.onSurface.withValues(alpha: 0.7)),
                   ),
                 ],
               ),
@@ -354,15 +390,13 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 40.w(context),
-                    height: 40.w(context),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8.w(context)),
-                      image: DecorationImage(
-                        image: FileImage(_imageFile!),
-                        fit: BoxFit.cover,
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8.w(context)),
+                    child: Image.file(
+                      _imageFile!,
+                      width: 44.w(context),
+                      height: 44.w(context),
+                      fit: BoxFit.cover,
                     ),
                   ),
                   SizedBox(width: 12.w(context)),
@@ -370,14 +404,23 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Foto Terpilih', style: AppTextStyles.bodySmall(context, color: AppColors.onSurface)),
-                        Text('Siap dikirim', style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.7))),
+                        Text('Foto Terpilih',
+                            style: AppTextStyles.bodySmall(context,
+                                color: AppColors.onSurface)),
+                        Text('Siap dikirim',
+                            style: AppTextStyles.labelSmall(context,
+                                color: AppColors.onSurface.withValues(alpha: 0.7))),
                       ],
                     ),
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _imageFile = null),
-                    child: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 20.w(context)),
+                    child: Container(
+                      padding: EdgeInsets.all(4.w(context)),
+                      child: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold),
+                          color: AppColors.onSurface.withValues(alpha: 0.5),
+                          size: 20.w(context)),
+                    ),
                   ),
                 ],
               ),
@@ -401,8 +444,10 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
         children: [
           Container(
             padding: EdgeInsets.all(10.w(context)),
-            decoration: const BoxDecoration(color: AppColors.primaryContainer, shape: BoxShape.circle),
-            child: Icon(PhosphorIcons.eyeClosed(PhosphorIconsStyle.bold), color: AppColors.onPrimaryContainer, size: 20.w(context)),
+            decoration: const BoxDecoration(
+                color: AppColors.primaryContainer, shape: BoxShape.circle),
+            child: Icon(PhosphorIcons.eyeClosed(PhosphorIconsStyle.bold),
+                color: AppColors.onPrimaryContainer, size: 20.w(context)),
           ),
           SizedBox(width: 16.w(context)),
           Expanded(
@@ -414,17 +459,22 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
                     Expanded(
                       child: Text(
                         'Lapor Secara Anonim',
-                        style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                        style: AppTextStyles.bodyMedium(context,
+                            color: AppColors.onSurface),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     SizedBox(width: 8.w(context)),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
-                      decoration: BoxDecoration(color: AppColors.secondary, borderRadius: BorderRadius.circular(100)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 6.w(context), vertical: 2.h(context)),
+                      decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(100)),
                       child: Text(
                         'Aman',
-                        style: AppTextStyles.labelSmall(context, color: AppColors.onSecondary),
+                        style: AppTextStyles.labelSmall(context,
+                            color: AppColors.onSecondary),
                       ),
                     ),
                   ],
@@ -432,14 +482,15 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
                 SizedBox(height: 4.h(context)),
                 Text(
                   'Identitas dan NISN Anda dirahasiakan sepenuhnya.',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onSurface.withValues(alpha: 0.7)),
+                  style: AppTextStyles.labelMedium(context,
+                      color: AppColors.onSurface.withValues(alpha: 0.7)),
                 ),
               ],
             ),
           ),
           Switch(
             value: _isAnonymous,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
             activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
             inactiveThumbColor: AppColors.onSurface.withValues(alpha: 0.5),
             inactiveTrackColor: AppColors.backgroundLight,
@@ -458,12 +509,14 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(PhosphorIcons.info(PhosphorIconsStyle.fill), color: AppColors.onBackground.withValues(alpha: 0.5), size: 16.w(context)),
+        Icon(PhosphorIcons.info(PhosphorIconsStyle.fill),
+            color: AppColors.onBackground.withValues(alpha: 0.5), size: 16.w(context)),
         SizedBox(width: 8.w(context)),
         Expanded(
           child: Text(
             'Laporan palsu atau fitnah dapat dikenakan sanksi tata tertib siswa SMA N 1 Peunaron.',
-            style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
+            style: AppTextStyles.labelMedium(context,
+                color: AppColors.onBackground.withValues(alpha: 0.7)),
           ),
         ),
       ],
@@ -478,22 +531,29 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
         onPressed: _isLoading ? null : _submitReport,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.w(context))),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.w(context))),
           elevation: 0,
         ),
-        child: _isLoading 
-          ? const CircularProgressIndicator(color: Colors.white)
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.fill), color: AppColors.onPrimary, size: 20.w(context)),
-                SizedBox(width: 12.w(context)),
-                Text(
-                  'Kirim Laporan Resmi',
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimary),
-                ),
-              ],
-            ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(PhosphorIcons.paperPlaneRight(PhosphorIconsStyle.fill),
+                      color: AppColors.onPrimary, size: 20.w(context)),
+                  SizedBox(width: 12.w(context)),
+                  Text(
+                    'Kirim Laporan Resmi',
+                    style: AppTextStyles.bodyMedium(context,
+                        color: AppColors.onPrimary),
+                  ),
+                ],
+              ),
       ),
     );
   }

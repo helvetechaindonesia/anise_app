@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\LeaveController;
 use App\Http\Controllers\Api\DisciplineController;
 use App\Http\Controllers\Api\HelpdeskController;
+use App\Http\Controllers\Api\ComplaintController;
 
 use App\Http\Controllers\Api\AssessmentController;
 use App\Http\Controllers\Api\LetterController;
@@ -160,8 +161,16 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     });
 
     // ==========================================
-    // 8. HELPDESK & PENGADUAN
+    // 8. HELPDESK & PENGADUAN (COMPLAINTS)
     // ==========================================
+    Route::prefix('complaints')->group(function () {
+        Route::get('/', [ComplaintController::class, 'index']);
+        Route::post('/', [ComplaintController::class, 'store']);
+        Route::get('/{id}', [ComplaintController::class, 'show']);
+        Route::put('/{id}/status', [ComplaintController::class, 'updateStatus'])->middleware('role:TATA_USAHA,KEPALA_SEKOLAH,GURU,GURU_BK,SUPER_ADMIN');
+        Route::delete('/{id}', [ComplaintController::class, 'destroy']);
+    });
+
     Route::prefix('helpdesk')->group(function () {
         Route::middleware('role:SISWA')->post('/', [HelpdeskController::class, 'submitStudentReport']);
         Route::middleware('role:TATA_USAHA')->get('/all', [HelpdeskController::class, 'getStudentReports']);

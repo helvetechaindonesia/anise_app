@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import '../../notifications/screens/notification_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../widgets/lapor_form_widget.dart';
 
 class LaporKesiswaanScreen extends StatelessWidget {
-  const LaporKesiswaanScreen({Key? key}) : super(key: key);
+  const LaporKesiswaanScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +24,6 @@ class LaporKesiswaanScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(height: 16.h(context)),
-
                     _buildInfoBanner(context),
                     SizedBox(height: 24.h(context)),
                     const LaporFormWidget(),
@@ -97,5 +95,3 @@ class LaporKesiswaanScreen extends StatelessWidget {
     );
   }
 }
-
-
