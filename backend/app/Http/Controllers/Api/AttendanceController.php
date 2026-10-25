@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Helpers\AppTime;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class AttendanceController extends Controller
@@ -172,8 +173,8 @@ class AttendanceController extends Controller
             }
         }
 
-        $today = now()->format('Y-m-d');
-        $currentTime = now();
+        $currentTime = AppTime::now();
+        $today = $currentTime->format('Y-m-d');
         $timeString = $currentTime->format('H:i');
         $userRole = strtoupper($user->role_type ?? $user->role ?? '');
         $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) || !in_array($userRole, ['SISWA']);
@@ -186,6 +187,13 @@ class AttendanceController extends Controller
             if ($timeString < '06:00') {
                 return response()->json([
                     'message' => 'Presensi belum dibuka. Jam masuk dimulai pukul 06.00 WIB.'
+                ], 400);
+            }
+
+            // Rule 6: Jam Presensi Telah Ditutup (Lewat 18:00 WIB)
+            if ($timeString > '18:00') {
+                return response()->json([
+                    'message' => 'Jam presensi hari ini telah berakhir (Tutup pukul 18.00 WIB).'
                 ], 400);
             }
 
@@ -462,9 +470,11 @@ class AttendanceController extends Controller
             // Hitung TAP (Tidak Absen Pulang): Masuk kerja (H/T) tapi sampai lewat jam 18:00 tidak ada jam_pulang
             $tapCount = 0;
             $totalKwkMinutes = 0;
+            $appNow = AppTime::now();
+            $todayStr = $appNow->format('Y-m-d');
 
             foreach ($logs as $log) {
-                $isToday = ($log->tanggal === now()->format('Y-m-d'));
+                $isToday = ($log->tanggal === $todayStr);
                 $hasReturnedHome = !empty($log->jam_pulang);
 
                 // Jika bukan hari ini dan tidak ada jam pulang -> TAP
@@ -476,7 +486,7 @@ class AttendanceController extends Controller
                 // Standar jam kerja: 07:00 s/d 16:00 (9 jam = 540 menit).
                 if ($log->jam_masuk) {
                     $masukTime = Carbon::parse($log->jam_masuk);
-                    $pulangTime = $log->jam_pulang ? Carbon::parse($log->jam_pulang) : ($isToday ? now() : Carbon::parse($log->tanggal . ' 16:00:00'));
+                    $pulangTime = $log->jam_pulang ? Carbon::parse($log->jam_pulang) : ($isToday ? $appNow : Carbon::parse($log->tanggal . ' 16:00:00'));
                     
                     // Total menit hadir di sekolah
                     $durasiMenit = $pulangTime->diffInMinutes($masukTime);
