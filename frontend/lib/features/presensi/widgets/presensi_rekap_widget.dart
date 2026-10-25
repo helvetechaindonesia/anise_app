@@ -41,7 +41,7 @@ class PresensiRekapWidget extends ConsumerWidget {
     }
 
     // Cek role user: prioritaskan parameter eksplisit, kemudian authState, lalu summary
-    final authState = ref.watch(authStateProvider);
+    final authState = ref.watch(authProvider);
     final userRole = authState.user?.role;
     final bool resolvedIsTenagaPendidik = isTenagaPendidik ??
         (summary['user_type'] == 'TENAGA_PENDIDIK' ||
