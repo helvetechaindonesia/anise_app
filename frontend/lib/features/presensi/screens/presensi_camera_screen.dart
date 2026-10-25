@@ -531,11 +531,11 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
                     await _controller!.startImageStream(_processCameraFrame);
                   }
                 } else {
-                  await _initCamera();
+                  await _initializeCamera();
                 }
               } catch (e) {
                 debugPrint("Restart stream error: $e, re-initializing camera...");
-                await _initCamera();
+                await _initializeCamera();
               }
             },
           );

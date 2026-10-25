@@ -66,7 +66,7 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusColor = AppColors.warning;
               statusIcon = PhosphorIcons.envelopeSimple(PhosphorIconsStyle.fill);
             } else if (statusUpper == 'C' || labelLower.contains('cuti')) {
-              statusColor = AppColors.tertiary;
+              statusColor = AppColors.warning;
               statusIcon = PhosphorIcons.calendarStar(PhosphorIconsStyle.fill);
             } else if (statusUpper == 'A' || labelLower.contains('alpha')) {
               statusColor = AppColors.error;
@@ -76,6 +76,8 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusColor = AppColors.primary;
               statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
             }
+
+            final Color badgeColor = statusColor;
 
             // Atur metadata icon & text (tampilkan catatan jika waktu kosong)
             IconData metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
@@ -100,7 +102,7 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusColor: statusColor,
               showDivider: !isLast,
               dividerThickness: 2.0.h(context),
-              bottomWidget: (statusLower != 'hadir' && validator.isNotEmpty)
+              bottomWidget: (rawStatus != 'H' && rawStatus != 'MASUK' && validator.isNotEmpty)
                   ? Container(
                       padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
                       decoration: BoxDecoration(
