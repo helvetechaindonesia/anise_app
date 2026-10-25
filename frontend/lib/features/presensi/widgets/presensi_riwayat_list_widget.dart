@@ -31,54 +31,59 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
             final isLast = index == logData.length - 1;
 
             final bool isLate = log['isLate'] as bool? ?? false;
-            final String status = log['status']?.toString() ?? 'Hadir';
+            final String rawStatus = log['status']?.toString() ?? 'H';
+            final String statusLabel = log['status_label']?.toString() ?? log['status']?.toString() ?? 'Hadir';
             final String validator = log['validator']?.toString() ?? '';
             final String waktu = log['waktu']?.toString() ?? '-';
+            final String? jamPulang = log['jam_pulang']?.toString();
             final String? catatan = log['catatan']?.toString();
 
             Color statusColor;
             IconData statusIcon;
-            Color badgeColor;
 
-            final statusLower = status.toLowerCase();
-            if (isLate || statusLower.contains('terlambat')) {
+            final statusUpper = rawStatus.toUpperCase();
+            final labelLower = statusLabel.toLowerCase();
+
+            if (statusUpper == 'T' || labelLower.contains('terlambat')) {
               statusColor = AppColors.error;
               statusIcon = PhosphorIcons.warningCircle(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.error;
-            } else if (statusLower.contains('sakit')) {
-              statusColor = AppColors.info;
-              statusIcon = PhosphorIcons.firstAid(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.info;
-            } else if (statusLower.contains('izin')) {
-              statusColor = AppColors.warning;
-              statusIcon = PhosphorIcons.envelopeSimple(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.warning;
-            } else if (statusLower.contains('alpha')) {
+            } else if (statusUpper == 'TAM') {
               statusColor = AppColors.error;
-              statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.error;
-            } else if (statusLower.contains('pulang') || statusLower == 'pa') {
+              statusIcon = PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill);
+            } else if (statusUpper == 'TAP') {
+              statusColor = AppColors.error;
+              statusIcon = PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill);
+            } else if (statusUpper == 'PA' || labelLower.contains('pulang awal')) {
               statusColor = AppColors.warning;
               statusIcon = PhosphorIcons.clockAfternoon(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.warning;
-            } else if (statusLower == 'kembali' || statusLower == 'k') {
-              statusColor = AppColors.secondary;
+            } else if (statusUpper == 'K' || labelLower.contains('kembali')) {
+              statusColor = AppColors.info;
               statusIcon = PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.bold);
-              badgeColor = AppColors.secondary;
+            } else if (statusUpper == 'S' || labelLower.contains('sakit')) {
+              statusColor = AppColors.info;
+              statusIcon = PhosphorIcons.firstAid(PhosphorIconsStyle.fill);
+            } else if (statusUpper == 'I' || labelLower.contains('izin')) {
+              statusColor = AppColors.warning;
+              statusIcon = PhosphorIcons.envelopeSimple(PhosphorIconsStyle.fill);
+            } else if (statusUpper == 'C' || labelLower.contains('cuti')) {
+              statusColor = AppColors.tertiary;
+              statusIcon = PhosphorIcons.calendarStar(PhosphorIconsStyle.fill);
+            } else if (statusUpper == 'A' || labelLower.contains('alpha')) {
+              statusColor = AppColors.error;
+              statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
             } else {
-              // Hadir Tepat Waktu
-              statusColor = AppColors.secondary;
+              // H (Hadir Tepat) atau PULANG
+              statusColor = AppColors.primary;
               statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
-              badgeColor = AppColors.secondary;
             }
 
             // Atur metadata icon & text (tampilkan catatan jika waktu kosong)
             IconData metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
-            String metaText = 'Jam Masuk: $waktu';
+            String metaText = 'Waktu: $waktu';
 
             if (waktu != '-' && waktu.isNotEmpty) {
               metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
-              metaText = 'Jam Masuk: $waktu';
+              metaText = jamPulang != null ? 'Masuk: $waktu • Pulang: $jamPulang WIB' : 'Waktu: $waktu';
             } else if (catatan != null && catatan.isNotEmpty) {
               metaIcon = PhosphorIcons.notepad(PhosphorIconsStyle.regular);
               metaText = catatan;
@@ -90,7 +95,7 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               title: log['tanggal']?.toString() ?? '',
               metadataIcon: metaIcon,
               metadataText: metaText,
-              statusText: 'Status: $status',
+              statusText: statusLabel,
               statusIcon: statusIcon,
               statusColor: statusColor,
               showDivider: !isLast,

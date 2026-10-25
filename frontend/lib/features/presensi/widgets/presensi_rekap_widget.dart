@@ -27,13 +27,33 @@ class PresensiRekapWidget extends ConsumerWidget {
         ? _months[currentMonthIndex]
         : _months[DateTime.now().month - 1];
 
-    final hadirPenuh = summary['hadir_penuh']?.toString() ?? '0';
+    final isTenagaPendidik = summary['user_type'] == 'TENAGA_PENDIDIK';
+
+    final hadirPenuh = (summary['hadir'] ?? summary['hadir_penuh'])?.toString() ?? '0';
     final terlambat = summary['terlambat']?.toString() ?? '0';
+    final tidakAbsenMasuk = summary['tidak_absen_masuk']?.toString() ?? '0';
+    final tidakAbsenPulang = summary['tidak_absen_pulang']?.toString() ?? '0';
     final pulangAwal = summary['pulang_awal']?.toString() ?? '0';
     final kembali = summary['kembali']?.toString() ?? '0';
+    final kwkJam = summary['kwk_jam']?.toString() ?? '0';
     final sakit = summary['sakit']?.toString() ?? '0';
     final izin = summary['izin']?.toString() ?? '0';
+    final cuti = summary['cuti']?.toString() ?? '0';
     final alpha = summary['alpha']?.toString() ?? '0';
+
+    if (isTenagaPendidik) {
+      return Column(
+        children: [
+          _buildHadirTerlambatRow(context, hadirPenuh, terlambat),
+          SizedBox(height: 16.h(context)),
+          _buildPegawaiDisiplinRow(context, tidakAbsenMasuk, tidakAbsenPulang),
+          SizedBox(height: 16.h(context)),
+          _buildCombinedStatsCard(context, pulangAwal, kembali, kwkJam: kwkJam),
+          SizedBox(height: 24.h(context)),
+          _buildKetidakhadiranSummary(context, '$monthName $currentYear', sakit, izin, alpha, cuti: cuti),
+        ],
+      );
+    }
 
     return Column(
       children: [
@@ -42,6 +62,38 @@ class PresensiRekapWidget extends ConsumerWidget {
         _buildCombinedStatsCard(context, pulangAwal, kembali),
         SizedBox(height: 24.h(context)),
         _buildKetidakhadiranSummary(context, '$monthName $currentYear', sakit, izin, alpha),
+      ],
+    );
+  }
+
+  Widget _buildPegawaiDisiplinRow(BuildContext context, String tamCount, String tapCount) {
+    return Row(
+      children: [
+        Expanded(
+          child: CardInfo(
+            title: 'TAM (Tanpa Masuk)',
+            value: tamCount,
+            unit: 'Hari',
+            icon: PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill),
+            iconBgColor: AppColors.errorContainer,
+            iconColor: AppColors.error,
+            titleColor: AppColors.error,
+            valueColor: AppColors.error,
+          ),
+        ),
+        SizedBox(width: 12.w(context)),
+        Expanded(
+          child: CardInfo(
+            title: 'TAP (Tanpa Pulang)',
+            value: tapCount,
+            unit: 'Hari',
+            icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill),
+            iconBgColor: AppColors.errorContainer,
+            iconColor: AppColors.error,
+            titleColor: AppColors.error,
+            valueColor: AppColors.error,
+          ),
+        ),
       ],
     );
   }
@@ -79,7 +131,7 @@ class PresensiRekapWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildCombinedStatsCard(BuildContext context, String paCount, String kembaliCount) {
+  Widget _buildCombinedStatsCard(BuildContext context, String paCount, String kembaliCount, {String? kwkJam}) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.primaryContainer,
@@ -120,6 +172,23 @@ class PresensiRekapWidget extends ConsumerWidget {
                 'Tervalidasi',
               ),
             ),
+            if (kwkJam != null) ...[
+              Container(
+                width: 1,
+                height: 40.h(context),
+                color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+              ),
+              Expanded(
+                child: _buildCombinedStatItem(
+                  context,
+                  PhosphorIcons.timer(PhosphorIconsStyle.fill),
+                  'KWK',
+                  '$kwkJam Jam',
+                  'Kurang Kerja',
+                  isAlert: kwkJam != '0' && kwkJam != '0.0',
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -161,18 +230,22 @@ class PresensiRekapWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String izin, String alpha) {
+  Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String izin, String alpha, {String? cuti}) {
     return AniseExpandableCard(
-      title: 'Rekap Ketidakhadiran',
+      title: 'Rekap Ketidakhadiran & Cuti',
       subtitle: periodeStr,
       icon: PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
       child: Column(
         children: [
-          _buildSiaRow(context, 'Sakit', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
+          _buildSiaRow(context, 'Sakit (S)', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
           Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-          _buildSiaRow(context, 'Izin', '$izin Hari', AppColors.secondary, PhosphorIcons.envelope(PhosphorIconsStyle.fill)),
+          _buildSiaRow(context, 'Izin Dinas / Pribadi (I)', '$izin Hari', AppColors.secondary, PhosphorIcons.envelope(PhosphorIconsStyle.fill)),
+          if (cuti != null) ...[
+            Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
+            _buildSiaRow(context, 'Cuti Tahunan / Bersama (C)', '$cuti Hari', AppColors.tertiary, PhosphorIcons.calendarStar(PhosphorIconsStyle.fill)),
+          ],
           Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-          _buildSiaRow(context, 'Alpha', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),
+          _buildSiaRow(context, 'Alpha (A)', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),
         ],
       ),
     );
