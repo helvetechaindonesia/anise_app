@@ -247,16 +247,20 @@ class AttendanceService
             foreach ($dayEvents as $ev) {
                 if ($ev->status === 'PA') {
                     $tempPaTime = Carbon::parse($ev->scan_time);
-                } elseif ($ev->status === 'K' && $tempPaTime !== null) {
-                    $kTime = Carbon::parse($ev->scan_time);
-                    if ($kTime->gt($tempPaTime)) {
-                        $totalIzinKeluarMinutes += $kTime->diffInMinutes($tempPaTime);
+                } elseif ($ev->status === 'K') {
+                    if ($tempPaTime !== null) {
+                        $kTime = Carbon::parse($ev->scan_time);
+                        // Jika jam K lebih besar dari PA, tambahkan selisih menitnya. Jika sama menit (misal 12:15 ke 12:15), selisihnya 0 menit.
+                        if ($kTime->gte($tempPaTime)) {
+                            $totalIzinKeluarMinutes += $kTime->diffInMinutes($tempPaTime);
+                        }
                     }
+                    // PA resmi ditutup oleh event Kembali (K)
                     $tempPaTime = null;
                 }
             }
 
-            // Jika status terakhir masih PA tanpa pernah tap Kembali sampai pulang
+            // Jika status terakhir masih PA tanpa pernah tap Kembali sampai jam pulang
             if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
                 $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
             }
