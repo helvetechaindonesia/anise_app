@@ -659,16 +659,13 @@ class AttendanceController extends Controller
                 $firstScanEv = $dayEvents->first();
 
                 // ATURAN 3:
-                // Jika TAP: jam pulang dihitung otomatis sebagai batas awal pulang (16:00).
-                // Jika TAM: jam masuk dihitung dari scan pertama saat dia datang/tap PA (misal 12:10),
-                // atau jika sama sekali tidak ada scan masuk, default batas 07:00.
+                // Jika TAM: jam masuk dihitung otomatis sebagai jam dan batas terakhir masuk (07:00:00).
+                // Jika TAP: jam pulang dihitung otomatis sebagai jam dan batas pertama pulang (16:00:00).
                 $effectiveMasuk = null;
-                if (!empty($log->jam_masuk)) {
-                    $effectiveMasuk = Carbon::parse($log->jam_masuk);
-                } elseif ($firstScanEv) {
-                    $effectiveMasuk = Carbon::parse($firstScanEv->scan_time);
-                } else {
+                if ($log->status === 'TAM' || empty($log->jam_masuk)) {
                     $effectiveMasuk = Carbon::parse($logDateStr . ' 07:00:00');
+                } else {
+                    $effectiveMasuk = Carbon::parse($log->jam_masuk);
                 }
 
                 $effectivePulang = null;
@@ -684,10 +681,10 @@ class AttendanceController extends Controller
                     $grossDurationMinutes = $effectivePulang->diffInMinutes($effectiveMasuk);
                 }
 
-                // ATURAN 1: Hitung total durasi izin keluar selama di luar sekolah: (Pulang Awal - Kembali)
+                // ATURAN 1: Hitung total durasi izin keluar selama di luar sekolah: (Kembali - Pulang Awal)
                 // Diambil dari siklus PA <-> K pada tabel presensi_logs di tanggal tersebut
-                $dayEvents = $allEvents->filter(function ($ev) use ($log) {
-                    return substr($ev->scan_time, 0, 10) === $log->tanggal;
+                $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
+                    return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
                 })->sortBy('scan_time')->values();
 
                 $totalIzinKeluarMinutes = 0;
@@ -705,7 +702,7 @@ class AttendanceController extends Controller
                     }
                 }
 
-                // Jika status terakhir masih PA sampai jam pulang / akhir hari
+                // Jika status terakhir masih PA sampai jam pulang / akhir hari (tidak pernah tap K)
                 if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
                     $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
                 }
