@@ -1,0 +1,350 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AcademicYear;
+use App\Helpers\AppTime;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class AttendanceHistoryService
+{
+    protected AttendanceService $attendanceService;
+
+    public function __construct(AttendanceService $attendanceService)
+    {
+        $this->attendanceService = $attendanceService;
+    }
+
+    /**
+     * Memproses riwayat dan ringkasan statistik untuk Tenaga Pendidik / Pegawai
+     */
+    public function getTeacherHistory($user, int $month, int $year): array
+    {
+        // 1. Sinkronisasi instan TAM & TAP
+        $this->attendanceService->syncSingleUserTamTap($user->id);
+
+        // 2. Query data attendances master
+        $logsQuery = DB::table('attendances')->where('user_id', $user->id);
+        if ($year > 0) $logsQuery->whereYear('tanggal', $year);
+        if ($month > 0) $logsQuery->whereMonth('tanggal', $month);
+        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
+
+        // 3. Query cuti & izin pegawai (employee_leaves)
+        $sakitCount = 0;
+        $izinCount = 0;
+        $cutiCount = 0;
+        $approvedLeaves = collect();
+
+        if (Schema::hasTable('employee_leaves')) {
+            $leavesQuery = DB::table('employee_leaves')
+                ->where('employee_id', $user->id)
+                ->whereIn('status', ['APPROVED', 'ACC']);
+
+            if ($year > 0 || $month > 0) {
+                $leavesQuery->where(function ($q) use ($year, $month) {
+                    $q->where(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('start_date', $year);
+                        if ($month > 0) $sub->whereMonth('start_date', $month);
+                    })->orWhere(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('end_date', $year);
+                        if ($month > 0) $sub->whereMonth('end_date', $month);
+                    });
+                });
+            }
+            $approvedLeaves = $leavesQuery->get();
+
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
+                        $type = strtoupper($leave->type ?? '');
+                        if ($type === 'SAKIT') $sakitCount++;
+                        elseif ($type === 'CUTI') $cutiCount++;
+                        elseif ($type === 'IZIN' || $type === 'DINAS_LUAR') $izinCount++;
+                    }
+                }
+            }
+        }
+
+        // 4. Hitung presensi_logs
+        $logsEventsQuery = DB::table('presensi_logs')->where('user_id', $user->id);
+        if ($year > 0) $logsEventsQuery->whereYear('scan_time', $year);
+        if ($month > 0) $logsEventsQuery->whereMonth('scan_time', $month);
+        $allEvents = $logsEventsQuery->get();
+
+        $hCount = $logs->where('status', 'H')->count();
+        $tCount = $logs->where('status', 'T')->count();
+        $paCount = $allEvents->where('status', 'PA')->count() ?: $logs->where('status', 'PA')->count();
+        $kCount = $allEvents->where('status', 'K')->count() ?: $logs->where('status', 'K')->count();
+        $tamCount = $allEvents->where('status', 'TAM')->count() ?: $logs->where('status', 'TAM')->count();
+
+        // 5. Hitung KWK & TAP lewat kalkulator AttendanceService
+        $kwkSummary = $this->attendanceService->calculateTeacherKwkAndSummary($logs, $allEvents);
+        $tapCount = $kwkSummary['tap_count'];
+        $totalKwkMinutes = $kwkSummary['total_kwk_minutes'];
+        $kwkAlphaPenalty = $kwkSummary['kwk_alpha_penalty'];
+        $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'A'])->count() + $kwkAlphaPenalty;
+
+        $statusTextMap = [
+            'H' => 'Hadir Tepat (H)',
+            'T' => 'Terlambat (T)',
+            'TAM' => 'Tidak Absen Masuk (TAM)',
+            'TAP' => 'Tidak Absen Pulang (TAP)',
+            'PA' => 'Pulang Awal (PA)',
+            'K' => 'Kembali (K)',
+            'PULANG' => 'Pulang Resmi',
+            'SAKIT' => 'Sakit (S)',
+            'IZIN' => 'Izin (I)',
+            'CUTI' => 'Cuti (C)',
+            'ALPHA' => 'Alpha (A)',
+        ];
+
+        // 6. Buat Event Items
+        $eventItems = collect();
+        if ($allEvents->isNotEmpty()) {
+            foreach ($allEvents as $ev) {
+                $evDate = Carbon::parse($ev->scan_time);
+                $evStatus = $ev->status;
+                $statusName = $statusTextMap[$evStatus] ?? $evStatus;
+                $isLate = ($evStatus === 'T' || $evStatus === 'TAM');
+
+                $eventItems->push([
+                    'id' => $ev->id,
+                    'hari' => $evDate->locale('id')->dayName,
+                    'tanggal' => $evDate->translatedFormat('d F Y'),
+                    'waktu' => $evDate->format('H:i') . ' WIB',
+                    'jam_masuk' => $evDate->format('H:i'),
+                    'jam_pulang' => null,
+                    'lokasi' => 'Presensi Cam Pegawai',
+                    'catatan' => 'Pencatatan Status: ' . $statusName,
+                    'status' => $evStatus,
+                    'status_label' => $statusName,
+                    'isLate' => $isLate,
+                    'role' => 'GURU',
+                    'raw_date' => $evDate->format('Y-m-d H:i:s'),
+                ]);
+            }
+        } else {
+            foreach ($logs as $log) {
+                $statusName = $statusTextMap[$log->status] ?? $log->status;
+                $isLate = ($log->status === 'T' || $log->status === 'TAM');
+                $waktuStr = $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : ($log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') . ' WIB' : '-');
+
+                $eventItems->push([
+                    'id' => $log->id,
+                    'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
+                    'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
+                    'waktu' => $waktuStr,
+                    'jam_masuk' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') : null,
+                    'jam_pulang' => $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') : null,
+                    'lokasi' => 'Presensi Cam Pegawai',
+                    'catatan' => 'Pencatatan Status: ' . $statusName,
+                    'status' => $log->status,
+                    'status_label' => $statusName,
+                    'isLate' => $isLate,
+                    'role' => 'GURU',
+                    'raw_date' => $log->tanggal . ' 00:00:00',
+                ]);
+            }
+        }
+
+        // 7. Gabungkan izin resmi
+        $mergedLogs = collect($eventItems);
+        if ($approvedLeaves->isNotEmpty()) {
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
+                        $dateStr = $c->format('Y-m-d');
+                        if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
+                            $leaveType = strtoupper($leave->type ?? 'IZIN');
+                            $leaveLabel = $statusTextMap[$leaveType] ?? $leaveType;
+                            $mergedLogs->push([
+                                'hari' => $c->locale('id')->dayName,
+                                'tanggal' => $c->translatedFormat('d F Y'),
+                                'waktu' => '-',
+                                'jam_masuk' => null,
+                                'jam_pulang' => null,
+                                'lokasi' => 'Surat Dinas Elektronik (ACC)',
+                                'catatan' => $leave->reason ?? ('Pengajuan ' . $leaveLabel),
+                                'status' => $leaveType,
+                                'status_label' => $leaveLabel,
+                                'isLate' => false,
+                                'role' => 'GURU',
+                                'raw_date' => $dateStr,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        $sortedLogs = $mergedLogs->sortByDesc(function ($item) {
+            return $item['raw_date'] ?? Carbon::parse($item['tanggal'])->format('Y-m-d');
+        })->values();
+
+        return [
+            'month' => $month,
+            'year' => $year,
+            'user_type' => 'TENAGA_PENDIDIK',
+            'summary' => [
+                'hadir' => $hCount,
+                'terlambat' => $tCount,
+                'tidak_absen_masuk' => $tamCount,
+                'tidak_absen_pulang' => $tapCount,
+                'pulang_awal' => $paCount,
+                'kembali' => $kCount,
+                'kwk_jam' => round($totalKwkMinutes / 60, 1),
+                'kwk_alpha_penalty' => $kwkAlphaPenalty,
+                'sakit' => $sakitCount,
+                'izin' => $izinCount,
+                'cuti' => $cutiCount,
+                'alpha' => $alphaCount,
+            ],
+            'logs' => $sortedLogs,
+        ];
+    }
+
+    /**
+     * Memproses riwayat dan ringkasan statistik untuk Siswa
+     */
+    public function getStudentHistory($user, int $month, int $year): array
+    {
+        $logsQuery = DB::table('attendances')->where('user_id', $user->id);
+        if ($year > 0) $logsQuery->whereYear('tanggal', $year);
+        if ($month > 0) $logsQuery->whereMonth('tanggal', $month);
+        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
+
+        $hadirPenuhCount = $logs->whereIn('status', ['MASUK', 'Hadir', 'Hadir Tepat', 'PULANG', 'Pulang Tepat'])->count();
+        $terlambatCount = $logs->whereIn('status', ['TERLAMBAT', 'Terlambat', 'TAM'])->count();
+        $pulangAwalCount = $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
+        $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
+
+        $sakitCount = 0;
+        $izinCount = 0;
+        $approvedLeaves = collect();
+
+        if (Schema::hasTable('student_leaves')) {
+            $studentLeavesQuery = DB::table('student_leaves')
+                ->where('student_id', $user->id)
+                ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI']);
+
+            if ($year > 0 || $month > 0) {
+                $studentLeavesQuery->where(function ($q) use ($year, $month) {
+                    $q->where(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('start_date', $year);
+                        if ($month > 0) $sub->whereMonth('start_date', $month);
+                    })->orWhere(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('end_date', $year);
+                        if ($month > 0) $sub->whereMonth('end_date', $month);
+                    });
+                });
+            }
+            $approvedLeaves = $studentLeavesQuery->get();
+
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
+                        $type = strtoupper($leave->type ?? '');
+                        if ($type === 'SAKIT') $sakitCount++;
+                        elseif ($type === 'IZIN') $izinCount++;
+                    }
+                }
+            }
+        }
+
+        $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
+
+        $formattedLogs = $logs->map(function ($log) use ($user) {
+            $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K']);
+            $statusMap = [
+                'MASUK' => 'Hadir', 
+                'Hadir' => 'Hadir',
+                'K' => 'Kembali', 
+                'PA' => 'Pulang Awal', 
+                'TERLAMBAT' => 'Terlambat',
+                'Terlambat' => 'Terlambat',
+                'SAKIT' => 'Sakit',
+                'IZIN' => 'Izin',
+                'ALPHA' => 'Alpha',
+            ];
+            $statusName = $statusMap[$log->status] ?? $log->status;
+
+            return [
+                'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
+                'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
+                'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-',
+                'lokasi' => 'Gerbang Utama',
+                'catatan' => 'Status: ' . $statusName,
+                'status' => $statusName,
+                'isLate' => $isLate,
+                'role' => 'SISWA',
+                'raw_date' => $log->tanggal,
+            ];
+        });
+
+        $mergedLogs = collect($formattedLogs);
+        if ($approvedLeaves->isNotEmpty()) {
+            foreach ($approvedLeaves as $leave) {
+                $startDate = Carbon::parse($leave->start_date);
+                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+
+                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
+                        $dateStr = $c->format('Y-m-d');
+                        if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
+                            $leaveStatus = ucfirst(strtolower($leave->type));
+                            $mergedLogs->push([
+                                'hari' => $c->locale('id')->dayName,
+                                'tanggal' => $c->translatedFormat('d F Y'),
+                                'waktu' => '-',
+                                'lokasi' => 'Surat Elektronik (ACC)',
+                                'catatan' => $leave->reason ?? ('Pengajuan ' . $leaveStatus),
+                                'status' => $leaveStatus,
+                                'isLate' => false,
+                                'role' => 'SISWA',
+                                'raw_date' => $dateStr,
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+
+        $sortedLogs = $mergedLogs->sortByDesc(function ($item) {
+            return $item['raw_date'] ?? Carbon::parse($item['tanggal'])->format('Y-m-d');
+        })->values();
+
+        return [
+            'month' => $month,
+            'year' => $year,
+            'user_type' => 'SISWA',
+            'summary' => [
+                'hadir_penuh' => $hadirPenuhCount,
+                'terlambat' => $terlambatCount,
+                'pulang_awal' => $pulangAwalCount,
+                'kembali' => $kembaliCount,
+                'sakit' => $sakitCount,
+                'izin' => $izinCount,
+                'alpha' => $alphaCount,
+            ],
+            'logs' => $sortedLogs,
+        ];
+    }
+}
