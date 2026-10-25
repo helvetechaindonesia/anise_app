@@ -51,6 +51,38 @@ class DevController extends Controller
         }
     }
 
+    public function statusPresensi(Request $request)
+    {
+        $appTime = \App\Helpers\AppTime::now();
+        $realTime = \Carbon\Carbon::now();
+        $mockCache = \Illuminate\Support\Facades\Cache::get('app_mock_time');
+        $mockFile = file_exists(storage_path('app/mock_time.txt')) ? trim(file_get_contents(storage_path('app/mock_time.txt'))) : null;
+
+        $user = \App\Models\User::where('full_name', 'like', '%Afrida%')->first();
+        $roleName = $user && $user->role ? $user->role->name : ($user ? $user->role_type : 'NONE');
+
+        $latestAttendances = \App\Models\Attendance::latest()->take(5)->get();
+        $latestLogs = \App\Models\PresensiLog::latest()->take(5)->get();
+
+        return response()->json([
+            'status' => 'OK',
+            'time_info' => [
+                'effective_app_time' => $appTime->toDateTimeString(),
+                'real_system_time' => $realTime->toDateTimeString(),
+                'mock_time_cache' => $mockCache,
+                'mock_time_file' => $mockFile,
+            ],
+            'sample_user_afrida' => [
+                'id' => $user?->id,
+                'name' => $user?->full_name,
+                'role_id' => $user?->role_id,
+                'resolved_role_name' => $roleName,
+            ],
+            'latest_attendances_table' => $latestAttendances,
+            'latest_presensi_logs_table' => $latestLogs,
+        ]);
+    }
+
     public function getContact(Request $request)
     {
         $developer = \App\Models\Developer::first();

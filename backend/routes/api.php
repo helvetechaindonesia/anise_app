@@ -52,6 +52,7 @@ Route::prefix('auth')->group(function () {
 // DEVELOPER & HELPDESK INFO (Public)
 // ==========================================
 Route::get('/dev/contact', [DevController::class, 'getContact']);
+Route::get('/dev/status-presensi', [DevController::class, 'statusPresensi']);
 Route::match(['get', 'post'], '/dev/seed-home-data', [DevController::class, 'seedHomeData']);
 Route::match(['get', 'post'], '/dev/trigger-kbm-reminders', [JournalController::class, 'triggerKbmReminders']);
 Route::match(['get', 'post'], '/dev/reset-clean', [DevController::class, 'resetClean']);
