@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/anise_empty_state.dart';
@@ -24,16 +23,32 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
           );
         }
 
+        // Urutkan list data agar yang paling baru selalu berada di posisi paling atas
+        final sortedList = List<dynamic>.from(logData);
+        sortedList.sort((a, b) {
+          final mapA = a as Map<String, dynamic>;
+          final mapB = b as Map<String, dynamic>;
+
+          final dateA = mapA['raw_date']?.toString() ?? mapA['tanggal']?.toString() ?? '';
+          final dateB = mapB['raw_date']?.toString() ?? mapB['tanggal']?.toString() ?? '';
+
+          // Urutkan dari tanggal terbaru ke terlama
+          final cmp = dateB.compareTo(dateA);
+          if (cmp != 0) return cmp;
+
+          // Jika tanggal sama, bandingkan jam masuk atau waktu
+          final timeA = mapA['jam_masuk']?.toString() ?? mapA['waktu']?.toString() ?? '';
+          final timeB = mapB['jam_masuk']?.toString() ?? mapB['waktu']?.toString() ?? '';
+          return timeB.compareTo(timeA);
+        });
+
         return Column(
-          children: logData.asMap().entries.map((entry) {
+          children: sortedList.asMap().entries.map((entry) {
             final index = entry.key;
             final log = entry.value as Map<String, dynamic>;
-            final isLast = index == logData.length - 1;
-
-            final bool isLate = log['isLate'] as bool? ?? false;
+            final isLast = index == sortedList.length - 1;
             final String rawStatus = log['status']?.toString() ?? 'H';
             final String statusLabel = log['status_label']?.toString() ?? log['status']?.toString() ?? 'Hadir';
-            final String validator = log['validator']?.toString() ?? '';
             final String waktu = log['waktu']?.toString() ?? '-';
             final String? jamPulang = log['jam_pulang']?.toString();
             final String? catatan = log['catatan']?.toString();
@@ -77,8 +92,6 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
             }
 
-            final Color badgeColor = statusColor;
-
             // Atur metadata icon & text (tampilkan catatan jika waktu kosong)
             IconData metaIcon = PhosphorIcons.clock(PhosphorIconsStyle.regular);
             String metaText = 'Waktu: $waktu';
@@ -102,32 +115,6 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               statusColor: statusColor,
               showDivider: !isLast,
               dividerThickness: 2.0.h(context),
-              bottomWidget: (rawStatus != 'H' && rawStatus != 'MASUK' && validator.isNotEmpty)
-                  ? Container(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8.w(context)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            PhosphorIcons.shieldCheck(PhosphorIconsStyle.fill),
-                            size: 13.w(context),
-                            color: badgeColor,
-                          ),
-                          SizedBox(width: 5.w(context)),
-                          Text(
-                            validator,
-                            style: AppTextStyles.labelSmall(context, color: badgeColor).copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : null,
             );
           }).toList(),
         );

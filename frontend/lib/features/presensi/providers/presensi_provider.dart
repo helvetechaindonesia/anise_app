@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/dio_client.dart';
 
-/// Provider bulan yang dipilih (default auto-aktif ke bulan saat ini: 1-12)
-final selectedMonthProvider = StateProvider<int>((ref) => DateTime.now().month);
+/// Provider bulan yang dipilih (0 = Semua Bulan, 1-12 = Januari - Desember)
+final selectedMonthProvider = StateProvider<int>((ref) => 0);
 
-/// Provider tahun yang dipilih (default auto-aktif ke tahun saat ini)
-final selectedYearProvider = StateProvider<int>((ref) => DateTime.now().year);
+/// Provider tahun yang dipilih (0 = Semua Tahun, atau tahun spesifik seperti 2026)
+final selectedYearProvider = StateProvider<int>((ref) => 0);
 
 /// Provider data presensi gabungan (summary & logs) dari backend
 final presensiDataProvider = FutureProvider<Map<String, dynamic>>((ref) async {

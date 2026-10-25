@@ -78,69 +78,8 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
     }
   }
 
-  /// Menentukan status real-time siklus kerja tenaga pendidik berdasarkan jam saat ini
-  Map<String, dynamic> _getCurrentShiftStatus() {
-    final now = DateTime.now();
-    final hour = now.hour;
-    final minute = now.minute;
-    final currentMinutes = hour * 60 + minute;
-
-    // 06:00 - 07:00 (Hadir Tepat)
-    if (currentMinutes >= 360 && currentMinutes <= 420) {
-      return {
-        'title': 'Presensi Masuk Tepat Waktu (H)',
-        'subtitle': 'Batas waktu tepat sampai 07:00 WIB',
-        'badge': '06:00 - 07:00 WIB',
-        'color': AppColors.secondary,
-        'icon': PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
-      };
-    }
-    // 07:01 - 12:00 (Terlambat)
-    else if (currentMinutes > 420 && currentMinutes <= 720) {
-      return {
-        'title': 'Presensi Masuk Terlambat (T)',
-        'subtitle': 'Batas akhir absen masuk pukul 12:00 WIB',
-        'badge': '07:01 - 12:00 WIB',
-        'color': AppColors.warning,
-        'icon': PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
-      };
-    }
-    // 12:01 - 15:59 (Jam Dinas / Pulang Awal - Kembali)
-    else if (currentMinutes > 720 && currentMinutes < 960) {
-      return {
-        'title': 'Siklus Keluar/Kembali Dinas (PA / K)',
-        'subtitle': 'Tap ganjil = Pulang Awal, Tap genap = Kembali',
-        'badge': 'Jam Kerja Aktif',
-        'color': AppColors.info,
-        'icon': PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.bold),
-      };
-    }
-    // 16:00 - 18:00 (Jam Pulang Resmi)
-    else if (currentMinutes >= 960 && currentMinutes <= 1080) {
-      return {
-        'title': 'Presensi Pulang Resmi (PULANG)',
-        'subtitle': 'Batas waktu presensi pulang sampai 18:00 WIB',
-        'badge': '16:00 - 18:00 WIB',
-        'color': AppColors.secondary,
-        'icon': PhosphorIcons.house(PhosphorIconsStyle.fill),
-      };
-    }
-    // Di luar jam dinas (< 06:00 atau > 18:00)
-    else {
-      return {
-        'title': 'Di Luar Jam Presensi',
-        'subtitle': currentMinutes < 360 ? 'Presensi masuk buka pukul 06:00 WIB' : 'Jam presensi telah berakhir (TAP)',
-        'badge': 'Tutup',
-        'color': AppColors.error,
-        'icon': PhosphorIcons.clock(PhosphorIconsStyle.fill),
-      };
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final shift = _getCurrentShiftStatus();
-
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AniseAppBar(
@@ -157,15 +96,11 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
               const PresensiHeaderWidget(),
               SizedBox(height: 20.h(context)),
               
-              // CARD 1: BANNER INFORMASI SHIFT REAL-TIME TENAGA PENDIDIK
-              _buildShiftBanner(context, shift),
-              SizedBox(height: 16.h(context)),
-
-              // CARD 2: TOMBOL PRESENSI CAM DENGAN SIKLUS REAL-TIME
-              _buildPresensiCamCard(context, shift),
+              // TOMBOL PRESENSI CAM PEGAWAI
+              _buildPresensiCamCard(context),
               SizedBox(height: 24.h(context)),
               
-              // KARTU REKAP DINAMIS TENAGA PENDIDIK (H, T, TAM, TAP, PA, K, KWK, Cuti, Izin, Sakit, Alpha)
+              // KARTU REKAP DINAMIS TENAGA PENDIDIK (H, T, PA, K, TAM, TAP, KWK, Cuti, Izin, Sakit, Alpha)
               const PresensiRekapWidget(),
               SizedBox(height: 24.h(context)),
               
@@ -197,66 +132,7 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
     );
   }
 
-  Widget _buildShiftBanner(BuildContext context, Map<String, dynamic> shift) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
-      decoration: BoxDecoration(
-        color: (shift['color'] as Color).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12.w(context)),
-        border: Border.all(color: (shift['color'] as Color).withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(shift['icon'] as IconData, color: shift['color'] as Color, size: 22.w(context)),
-          SizedBox(width: 12.w(context)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Siklus Presensi Saat Ini',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 2.h(context)),
-                      decoration: BoxDecoration(
-                        color: shift['color'] as Color,
-                        borderRadius: BorderRadius.circular(6.w(context)),
-                      ),
-                      child: Text(
-                        shift['badge'] as String,
-                        style: AppTextStyles.labelSmall(context, color: AppColors.primaryDark).copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 2.h(context)),
-                Text(
-                  shift['title'] as String,
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onBackground).copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  shift['subtitle'] as String,
-                  style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.7)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPresensiCamCard(BuildContext context, Map<String, dynamic> shift) {
+  Widget _buildPresensiCamCard(BuildContext context) {
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(

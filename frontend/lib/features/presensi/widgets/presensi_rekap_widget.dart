@@ -21,11 +21,21 @@ class PresensiRekapWidget extends ConsumerWidget {
     final summaryAsync = ref.watch(presensiSummaryProvider);
     final summary = summaryAsync.value ?? {};
 
-    final currentMonthIndex = ref.watch(selectedMonthProvider) - 1;
-    final currentYear = ref.watch(selectedYearProvider);
-    final monthName = (currentMonthIndex >= 0 && currentMonthIndex < _months.length)
-        ? _months[currentMonthIndex]
-        : _months[DateTime.now().month - 1];
+    final selectedMonth = ref.watch(selectedMonthProvider);
+    final selectedYear = ref.watch(selectedYearProvider);
+
+    final String periodeStr;
+    if (selectedMonth == 0 && selectedYear == 0) {
+      periodeStr = 'Semua Periode';
+    } else if (selectedMonth == 0) {
+      periodeStr = 'Semua Bulan $selectedYear';
+    } else if (selectedYear == 0) {
+      final mName = (selectedMonth >= 1 && selectedMonth <= 12) ? _months[selectedMonth - 1] : '';
+      periodeStr = '$mName (Semua Tahun)';
+    } else {
+      final mName = (selectedMonth >= 1 && selectedMonth <= 12) ? _months[selectedMonth - 1] : '';
+      periodeStr = '$mName $selectedYear';
+    }
 
     final isTenagaPendidik = summary['user_type'] == 'TENAGA_PENDIDIK';
 
@@ -46,11 +56,17 @@ class PresensiRekapWidget extends ConsumerWidget {
         children: [
           _buildHadirTerlambatRow(context, hadirPenuh, terlambat),
           SizedBox(height: 16.h(context)),
-          _buildPegawaiDisiplinRow(context, tidakAbsenMasuk, tidakAbsenPulang),
-          SizedBox(height: 16.h(context)),
-          _buildCombinedStatsCard(context, pulangAwal, kembali, kwkJam: kwkJam),
+          // CARD GABUNGAN: TAM, TAP, PA, Kembali (+ KWK jika ada)
+          _buildPegawaiCombinedStatsCard(
+            context,
+            paCount: pulangAwal,
+            kembaliCount: kembali,
+            tamCount: tidakAbsenMasuk,
+            tapCount: tidakAbsenPulang,
+            kwkJam: kwkJam,
+          ),
           SizedBox(height: 24.h(context)),
-          _buildKetidakhadiranSummary(context, '$monthName $currentYear', sakit, izin, alpha, cuti: cuti),
+          _buildKetidakhadiranSummary(context, periodeStr, sakit, izin, alpha, cuti: cuti),
         ],
       );
     }
@@ -61,40 +77,113 @@ class PresensiRekapWidget extends ConsumerWidget {
         SizedBox(height: 24.h(context)),
         _buildCombinedStatsCard(context, pulangAwal, kembali),
         SizedBox(height: 24.h(context)),
-        _buildKetidakhadiranSummary(context, '$monthName $currentYear', sakit, izin, alpha),
+        _buildKetidakhadiranSummary(context, periodeStr, sakit, izin, alpha),
       ],
     );
   }
 
-  Widget _buildPegawaiDisiplinRow(BuildContext context, String tamCount, String tapCount) {
-    return Row(
-      children: [
-        Expanded(
-          child: CardInfo(
-            title: 'TAM (Tanpa Masuk)',
-            value: tamCount,
-            unit: 'Hari',
-            icon: PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill),
-            iconBgColor: AppColors.error.withValues(alpha: 0.15),
-            iconColor: AppColors.error,
-            titleColor: AppColors.error,
-            valueColor: AppColors.error,
+  Widget _buildPegawaiCombinedStatsCard(
+    BuildContext context, {
+    required String paCount,
+    required String kembaliCount,
+    required String tamCount,
+    required String tapCount,
+    String? kwkJam,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(24.w(context)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.onBackground.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 20.h(context), horizontal: 16.w(context)),
+        child: Row(
+          children: [
+            // PA
+            Expanded(
+              child: _buildCombinedStatItem(
+                context,
+                PhosphorIcons.clockAfternoon(PhosphorIconsStyle.fill),
+                'PA',
+                paCount,
+                'Pulang Awal',
+                isAlert: paCount != '0',
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 40.h(context),
+              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+            ),
+            // Kembali
+            Expanded(
+              child: _buildCombinedStatItem(
+                context,
+                PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.bold),
+                'Kembali',
+                kembaliCount,
+                'Tervalidasi',
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 40.h(context),
+              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+            ),
+            // TAM
+            Expanded(
+              child: _buildCombinedStatItem(
+                context,
+                PhosphorIcons.clockClockwise(PhosphorIconsStyle.fill),
+                'TAM',
+                tamCount,
+                'Tanpa Masuk',
+                isAlert: tamCount != '0',
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 40.h(context),
+              color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+            ),
+            // TAP
+            Expanded(
+              child: _buildCombinedStatItem(
+                context,
+                PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill),
+                'TAP',
+                tapCount,
+                'Tanpa Pulang',
+                isAlert: tapCount != '0',
+              ),
+            ),
+            if (kwkJam != null && kwkJam != '0' && kwkJam != '0.0') ...[
+              Container(
+                width: 1,
+                height: 40.h(context),
+                color: AppColors.onPrimaryContainer.withValues(alpha: 0.2),
+              ),
+              Expanded(
+                child: _buildCombinedStatItem(
+                  context,
+                  PhosphorIcons.timer(PhosphorIconsStyle.fill),
+                  'KWK',
+                  '$kwkJam j',
+                  'Kurang Jam',
+                  isAlert: true,
+                ),
+              ),
+            ],
+          ],
         ),
-        SizedBox(width: 12.w(context)),
-        Expanded(
-          child: CardInfo(
-            title: 'TAP (Tanpa Pulang)',
-            value: tapCount,
-            unit: 'Hari',
-            icon: PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.fill),
-            iconBgColor: AppColors.error.withValues(alpha: 0.15),
-            iconColor: AppColors.error,
-            titleColor: AppColors.error,
-            valueColor: AppColors.error,
-          ),
-        ),
-      ],
+      ),
     );
   }
 

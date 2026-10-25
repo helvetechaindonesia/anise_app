@@ -368,16 +368,20 @@ class AttendanceController extends Controller
         $user = $request->user();
         if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
-        $month = (int) $request->query('month', now()->month);
-        $year = (int) $request->query('year', now()->year);
+        $month = (int) $request->query('month', 0);
+        $year = (int) $request->query('year', 0);
 
         $logsQuery = DB::table('attendances')
-            ->where('user_id', $user->id)
-            ->whereYear('tanggal', $year)
-            ->whereMonth('tanggal', $month)
-            ->orderBy('tanggal', 'desc');
+            ->where('user_id', $user->id);
 
-        $logs = $logsQuery->get();
+        if ($year > 0) {
+            $logsQuery->whereYear('tanggal', $year);
+        }
+        if ($month > 0) {
+            $logsQuery->whereMonth('tanggal', $month);
+        }
+
+        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
 
         $userRole = strtoupper($user->role_type ?? $user->role ?? '');
         $isTeacherOrStaff = in_array($userRole, ['GURU', 'TATA_USAHA', 'KEPALA_SEKOLAH', 'STAFF', 'SECURITY', 'CLEANING_SERVICE', 'LABORAN', 'PUSTAKAWAN']) || !in_array($userRole, ['SISWA']);
@@ -393,23 +397,30 @@ class AttendanceController extends Controller
             $approvedLeaves = collect();
 
             if (Schema::hasTable('employee_leaves')) {
-                $approvedLeaves = DB::table('employee_leaves')
+                $leavesQuery = DB::table('employee_leaves')
                     ->where('employee_id', $user->id)
-                    ->whereIn('status', ['APPROVED', 'ACC'])
-                    ->where(function ($q) use ($year, $month) {
+                    ->whereIn('status', ['APPROVED', 'ACC']);
+
+                if ($year > 0 || $month > 0) {
+                    $leavesQuery->where(function ($q) use ($year, $month) {
                         $q->where(function ($sub) use ($year, $month) {
-                            $sub->whereYear('start_date', $year)->whereMonth('start_date', $month);
+                            if ($year > 0) $sub->whereYear('start_date', $year);
+                            if ($month > 0) $sub->whereMonth('start_date', $month);
                         })->orWhere(function ($sub) use ($year, $month) {
-                            $sub->whereYear('end_date', $year)->whereMonth('end_date', $month);
+                            if ($year > 0) $sub->whereYear('end_date', $year);
+                            if ($month > 0) $sub->whereMonth('end_date', $month);
                         });
-                    })
-                    ->get();
+                    });
+                }
+                $approvedLeaves = $leavesQuery->get();
 
                 foreach ($approvedLeaves as $leave) {
                     $startDate = Carbon::parse($leave->start_date);
                     $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
                     for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                        if ((int)$c->year === $year && (int)$c->month === $month) {
+                        $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                        $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                        if ($matchYear && $matchMonth) {
                             $type = strtoupper($leave->type ?? '');
                             if ($type === 'SAKIT') $sakitCount++;
                             elseif ($type === 'CUTI') $cutiCount++;
@@ -500,7 +511,9 @@ class AttendanceController extends Controller
                     $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                     for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                        if ((int)$c->year === $year && (int)$c->month === $month) {
+                        $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                        $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                        if ($matchYear && $matchMonth) {
                             $dateStr = $c->format('Y-m-d');
                             if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
                                 $leaveType = strtoupper($leave->type ?? 'IZIN');
@@ -564,24 +577,31 @@ class AttendanceController extends Controller
         $approvedLeaves = collect();
 
         if (Schema::hasTable('student_leaves')) {
-            $approvedLeaves = DB::table('student_leaves')
+            $studentLeavesQuery = DB::table('student_leaves')
                 ->where('student_id', $user->id)
-                ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
-                ->where(function ($q) use ($year, $month) {
+                ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI']);
+
+            if ($year > 0 || $month > 0) {
+                $studentLeavesQuery->where(function ($q) use ($year, $month) {
                     $q->where(function ($sub) use ($year, $month) {
-                        $sub->whereYear('start_date', $year)->whereMonth('start_date', $month);
+                        if ($year > 0) $sub->whereYear('start_date', $year);
+                        if ($month > 0) $sub->whereMonth('start_date', $month);
                     })->orWhere(function ($sub) use ($year, $month) {
-                        $sub->whereYear('end_date', $year)->whereMonth('end_date', $month);
+                        if ($year > 0) $sub->whereYear('end_date', $year);
+                        if ($month > 0) $sub->whereMonth('end_date', $month);
                     });
-                })
-                ->get();
+                });
+            }
+            $approvedLeaves = $studentLeavesQuery->get();
 
             foreach ($approvedLeaves as $leave) {
                 $startDate = Carbon::parse($leave->start_date);
                 $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                    if ((int)$c->year === $year && (int)$c->month === $month) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
                         $type = strtoupper($leave->type ?? '');
                         if ($type === 'SAKIT') $sakitCount++;
                         elseif ($type === 'IZIN') $izinCount++;
@@ -627,7 +647,9 @@ class AttendanceController extends Controller
                 $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                    if ((int)$c->year === $year && (int)$c->month === $month) {
+                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                    if ($matchYear && $matchMonth) {
                         $dateStr = $c->format('Y-m-d');
                         if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
                             $leaveStatus = ucfirst(strtolower($leave->type));
@@ -717,8 +739,8 @@ class AttendanceController extends Controller
                 return response()->json(['message' => 'Unauthorized: Token autentikasi tidak valid atau telah berakhir.'], 401);
             }
 
-            $month = (int) $request->query('month', now()->month);
-            $year = (int) $request->query('year', now()->year);
+            $month = (int) $request->query('month', 0);
+            $year = (int) $request->query('year', 0);
 
             // Student metadata
             $nisn = '-';
@@ -741,23 +763,30 @@ class AttendanceController extends Controller
             // Logs from attendances
             $logs = collect();
             if (Schema::hasTable('attendances')) {
-                $logs = DB::table('attendances')
-                    ->where('user_id', $user->id)
-                    ->whereYear('tanggal', $year)
-                    ->whereMonth('tanggal', $month)
-                    ->orderBy('tanggal', 'asc')
-                    ->get();
+                $logsQuery = DB::table('attendances')
+                    ->where('user_id', $user->id);
+                if ($year > 0) {
+                    $logsQuery->whereYear('tanggal', $year);
+                }
+                if ($month > 0) {
+                    $logsQuery->whereMonth('tanggal', $month);
+                }
+                $logs = $logsQuery->orderBy('tanggal', 'asc')->get();
             }
 
             // Approved Leaves
             $leaves = collect();
             if (Schema::hasTable('student_leaves')) {
-                $leaves = DB::table('student_leaves')
+                $leavesQuery = DB::table('student_leaves')
                     ->where('student_id', $user->id)
-                    ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI'])
-                    ->whereYear('start_date', $year)
-                    ->whereMonth('start_date', $month)
-                    ->get();
+                    ->whereIn('status', ['APPROVED', 'ACC', 'ACC_GURU_WALI']);
+                if ($year > 0) {
+                    $leavesQuery->whereYear('start_date', $year);
+                }
+                if ($month > 0) {
+                    $leavesQuery->whereMonth('start_date', $month);
+                }
+                $leaves = $leavesQuery->get();
             }
 
             // Late reports approved by wali kelas (gunakan discipline_reports jika ada)
