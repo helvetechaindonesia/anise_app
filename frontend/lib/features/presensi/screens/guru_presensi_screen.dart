@@ -26,23 +26,33 @@ class GuruPresensiScreen extends ConsumerStatefulWidget {
   ConsumerState<GuruPresensiScreen> createState() => _GuruPresensiScreenState();
 }
 
-class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
+class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> with WidgetsBindingObserver {
   bool _isDownloading = false;
   Timer? _realtimeTimer;
 
   @override
   void initState() {
     super.initState();
-    // Auto-refresh data presensi setiap 15 detik secara realtime
-    _realtimeTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Auto-refresh data presensi setiap 5 detik secara realtime
+    _realtimeTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
-        ref.invalidate(presensiDataProvider);
+        ref.refresh(presensiDataProvider);
       }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.refresh(presensiDataProvider);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _realtimeTimer?.cancel();
     super.dispose();
   }
@@ -182,8 +192,8 @@ class _GuruPresensiScreenState extends ConsumerState<GuruPresensiScreen> {
           context,
           MaterialPageRoute(builder: (context) => const PresensiCameraScreen()),
         );
-        if (result == true) {
-          ref.invalidate(presensiDataProvider);
+        if (result == true && mounted) {
+          ref.refresh(presensiDataProvider);
         }
       },
       child: Container(

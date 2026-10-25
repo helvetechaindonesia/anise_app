@@ -497,6 +497,9 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
 
       final msg = response.data['message'] ?? 'Presensi berhasil dicatat!';
 
+      // Instant Live Sync: Langsung refresh data presensi saat API sukses
+      ref.refresh(presensiDataProvider);
+
       AniseFeedbackDialog.showSuccess(
         context,
         title: "Presensi Berhasil!",
