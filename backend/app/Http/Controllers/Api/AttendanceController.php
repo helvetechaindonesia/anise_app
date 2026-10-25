@@ -658,19 +658,19 @@ class AttendanceController extends Controller
 
                 $firstScanEv = $dayEvents->first();
 
-                // ATURAN 3:
-                // Jika TAM: jam masuk dihitung otomatis sebagai jam dan batas terakhir masuk (07:00:00).
-                // Jika TAP: jam pulang dihitung otomatis sebagai jam dan batas pertama pulang (16:00:00).
+                // ATURAN 3 (PENALTI TAM & TAP BIAR JERA):
+                // Jika TAM (Tidak Absen Masuk): jam masuk otomatis dihitung pukul 12:01:00
+                // Jika TAP (Tidak Absen Pulang): jam pulang otomatis dihitung pukul 15:59:00
                 $effectiveMasuk = null;
                 if ($log->status === 'TAM' || empty($log->jam_masuk)) {
-                    $effectiveMasuk = Carbon::parse($logDateStr . ' 07:00:00');
+                    $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
                 } else {
                     $effectiveMasuk = Carbon::parse($log->jam_masuk);
                 }
 
                 $effectivePulang = null;
                 if ($isTapDay || empty($log->jam_pulang)) {
-                    $effectivePulang = Carbon::parse($logDateStr . ' 16:00:00');
+                    $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
                 } else {
                     $effectivePulang = Carbon::parse($log->jam_pulang);
                 }
