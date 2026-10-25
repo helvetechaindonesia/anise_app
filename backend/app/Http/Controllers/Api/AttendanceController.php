@@ -665,14 +665,16 @@ class AttendanceController extends Controller
                 if ($log->status === 'TAM' || empty($log->jam_masuk)) {
                     $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
                 } else {
-                    $effectiveMasuk = Carbon::parse($log->jam_masuk);
+                    $masukTimeOnly = Carbon::parse($log->jam_masuk)->format('H:i:s');
+                    $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
                 }
 
                 $effectivePulang = null;
                 if ($isTapDay || empty($log->jam_pulang)) {
                     $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
                 } else {
-                    $effectivePulang = Carbon::parse($log->jam_pulang);
+                    $pulangTimeOnly = Carbon::parse($log->jam_pulang)->format('H:i:s');
+                    $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
                 }
 
                 // Hitung total rentang kotor kehadiran (Jam Pulang - Jam Masuk) dalam menit
