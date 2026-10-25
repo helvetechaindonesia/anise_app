@@ -624,33 +624,87 @@ class AttendanceController extends Controller
                 $tamCount = $logs->where('status', 'TAM')->count();
             }
 
-            // Hitung TAP (Tidak Absen Pulang): Masuk kerja (H/T) tapi sampai lewat jam 18:00 tidak ada jam_pulang
+            // Hitung TAP (Tidak Absen Pulang) & Akumulasi KWK (Kurang Waktu Kerja):
+            // Standar jam kerja: 07:00 s/d 16:00 (9 jam = 540 menit).
             $tapCount = 0;
             $totalKwkMinutes = 0;
             $appNow = AppTime::now();
             $todayStr = $appNow->format('Y-m-d');
+            $currentTimeStr = $appNow->format('H:i');
 
             foreach ($logs as $log) {
                 $isToday = ($log->tanggal === $todayStr);
                 $hasReturnedHome = !empty($log->jam_pulang);
 
-                // Jika bukan hari ini dan tidak ada jam pulang -> TAP
-                if (!$isToday && !$hasReturnedHome && in_array($log->status, ['H', 'T', 'K', 'PA'])) {
-                    $tapCount++;
+                // ATURAN 2: Hari yang belum selesai tidak akan diakumulasi/dihitung.
+                // Hari ini baru akan diakumulasi setelah melewati pukul 18.00 WIB.
+                if ($isToday && $currentTimeStr <= '18:00') {
+                    continue;
                 }
 
-                // Hitung KWK (Kurang Waktu Kerja):
-                // Standar jam kerja: 07:00 s/d 16:00 (9 jam = 540 menit).
-                if ($log->jam_masuk) {
-                    $masukTime = Carbon::parse($log->jam_masuk);
-                    $pulangTime = $log->jam_pulang ? Carbon::parse($log->jam_pulang) : ($isToday ? $appNow : Carbon::parse($log->tanggal . ' 16:00:00'));
-                    
-                    // Total menit hadir di sekolah
-                    $durasiMenit = $pulangTime->diffInMinutes($masukTime);
-                    // Jika pulang lebih awal dari 16:00 atau durasi < 540 menit
-                    if ($durasiMenit < 540) {
-                        $totalKwkMinutes += (540 - $durasiMenit);
+                // Cek apakah hari ini TAP (Tidak Absen Pulang):
+                // Masuk kerja tetapi tidak ada jam pulang dan hari sudah berakhir (lewat 18:00)
+                $isTapDay = false;
+                if (!$hasReturnedHome && in_array($log->status, ['H', 'T', 'K', 'PA', 'TAM'])) {
+                    $tapCount++;
+                    $isTapDay = true;
+                }
+
+                // ATURAN 3:
+                // Jika TAM: jam masuk dihitung otomatis sebagai batas terakhir masuk (07:00)
+                // Jika TAP: jam pulang dihitung otomatis sebagai batas awal pulang (16:00)
+                $effectiveMasuk = null;
+                if ($log->status === 'TAM' || empty($log->jam_masuk)) {
+                    $effectiveMasuk = Carbon::parse($log->tanggal . ' 07:00:00');
+                } else {
+                    $effectiveMasuk = Carbon::parse($log->jam_masuk);
+                }
+
+                $effectivePulang = null;
+                if ($isTapDay || empty($log->jam_pulang)) {
+                    $effectivePulang = Carbon::parse($log->tanggal . ' 16:00:00');
+                } else {
+                    $effectivePulang = Carbon::parse($log->jam_pulang);
+                }
+
+                // Hitung total rentang kotor kehadiran (Jam Pulang - Jam Masuk) dalam menit
+                $grossDurationMinutes = 0;
+                if ($effectivePulang->gt($effectiveMasuk)) {
+                    $grossDurationMinutes = $effectivePulang->diffInMinutes($effectiveMasuk);
+                }
+
+                // ATURAN 1: Hitung total durasi izin keluar selama di luar sekolah: (Pulang Awal - Kembali)
+                // Diambil dari siklus PA <-> K pada tabel presensi_logs di tanggal tersebut
+                $dayEvents = $allEvents->filter(function ($ev) use ($log) {
+                    return substr($ev->scan_time, 0, 10) === $log->tanggal;
+                })->sortBy('scan_time')->values();
+
+                $totalIzinKeluarMinutes = 0;
+                $tempPaTime = null;
+
+                foreach ($dayEvents as $ev) {
+                    if ($ev->status === 'PA') {
+                        $tempPaTime = Carbon::parse($ev->scan_time);
+                    } elseif ($ev->status === 'K' && $tempPaTime !== null) {
+                        $kTime = Carbon::parse($ev->scan_time);
+                        if ($kTime->gt($tempPaTime)) {
+                            $totalIzinKeluarMinutes += $kTime->diffInMinutes($tempPaTime);
+                        }
+                        $tempPaTime = null; // Reset pasangan siklus
                     }
+                }
+
+                // Jika status terakhir masih PA sampai jam pulang / akhir hari
+                if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
+                    $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
+                }
+
+                // Durasi Bersih Kerja = (Jam Pulang - Jam Masuk) - (Total Durasi Izin Keluar PA-K)
+                $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
+
+                // Jika durasi bersih < 540 menit (9 jam), selisihnya dihitung sebagai KWK
+                if ($netWorkingMinutes < 540) {
+                    $totalKwkMinutes += (540 - $netWorkingMinutes);
                 }
             }
 
