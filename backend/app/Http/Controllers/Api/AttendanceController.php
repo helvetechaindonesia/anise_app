@@ -300,12 +300,15 @@ class AttendanceController extends Controller
                 // --- TAP PERTAMA HARI INI ---
                 if (!empty($nextPrediction['is_tam'])) {
                     // Rule 2 & 4: Lewat jam 12:00 dan belum ada tap in sebelumnya -> TAM
-                    // Master attendance dibuat dengan status TAM dan jam_masuk null
+                    // Jika tap pertama terjadi di jam pulang (16:00 - 18:00), maka langsung isi jam_pulang!
+                    $jamPulangVal = ($newStatus === 'PULANG') ? $currentTime : null;
+
                     DB::table('attendances')->insert([
                         'id' => Str::uuid(),
                         'user_id' => $user->id,
                         'tanggal' => $today,
                         'jam_masuk' => null,
+                        'jam_pulang' => $jamPulangVal,
                         'status' => 'TAM',
                         'created_at' => now(),
                         'updated_at' => now()

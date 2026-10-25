@@ -9,6 +9,13 @@ use Illuminate\Support\Str;
 
 class AttendanceService
 {
+    protected HolidayService $holidayService;
+
+    public function __construct(HolidayService $holidayService)
+    {
+        $this->holidayService = $holidayService;
+    }
+
     /**
      * Tentukan status presensi berikutnya untuk pegawai (Guru / Karyawan).
      * Digunakan secara seragam oleh getNextPresensiStatus() dan submitPresensiCam().
@@ -64,12 +71,22 @@ class AttendanceService
                     'is_first_tap' => true,
                     'is_tam' => false,
                 ];
-            } else {
-                // Lewat 12:00 dan belum ada tap -> TAM, tap pertama dihitung sebagai Pulang Awal (PA)
+            } elseif ($timeString > '12:00' && $timeString < '16:00') {
+                // Lewat 12:00 dan belum ada tap -> TAM, tap pertama di rentang siang dihitung sebagai Pulang Awal (PA)
                 return [
                     'can_scan' => true,
                     'status' => 'PA',
                     'label' => 'Pulang Awal (PA) - Catatan: Tidak Absen Masuk (TAM)',
+                    'is_first_tap' => true,
+                    'is_tam' => true,
+                ];
+            } else {
+                // Rentang Jam Pulang Resmi (16:00 - 18:00 WIB) tapi belum pernah tap sama sekali dari pagi:
+                // Langsung dicatat sebagai PULANG resmi dengan catatan TAM (masuk dihitung 12:01)!
+                return [
+                    'can_scan' => true,
+                    'status' => 'PULANG',
+                    'label' => 'Presensi Pulang Resmi (PULANG) - Catatan: Tidak Absen Masuk (TAM)',
                     'is_first_tap' => true,
                     'is_tam' => true,
                 ];
@@ -145,6 +162,7 @@ class AttendanceService
      * Standar jam kerja wajib: 8 jam (480 menit).
      * Sanksi TAM: Jam masuk otomatis dihitung 12:01.
      * Sanksi TAP: Jam pulang otomatis dicatat 15:59 (diakumulasi setelah 18:00 WIB).
+     * Hari libur/non-aktif: dilewati (tidak dihitung defisit KWK).
      */
     public function calculateTeacherKwkAndSummary($logs, $allEvents): array
     {
@@ -159,6 +177,12 @@ class AttendanceService
             $logDateStr = substr((string)$log->tanggal, 0, 10);
             $isToday = ($logDateStr === $todayStr);
             $hasReturnedHome = !empty($log->jam_pulang);
+
+            // ATURAN HARI NON-AKTIF: Cek apakah hari libur rutin (weekend) atau libur khusus sekolah
+            $holidayCheck = $this->holidayService->checkDate($logDateStr);
+            if (!empty($holidayCheck['is_holiday'])) {
+                continue; // Hari non-aktif tidak dihitung KWK
+            }
 
             // Hari aktif hari ini tidak diakumulasi sebelum melewati pukul 18.00 WIB
             if ($isToday && $currentTimeStr <= '18:00') {
@@ -214,7 +238,8 @@ class AttendanceService
                 }
             }
 
-            // Jika status terakhir masih PA sampai akhir hari
+            // Jika status terakhir masih PA sampai akhir hari (contoh kasus e: PA pukul 13.00 lalu tidak kembali)
+            // Maka jam di luar sekolah dihitung dari PA sampai effectivePulang, sehingga waktu kerja diakumulasikan berhenti di jam PA!
             if ($tempPaTime !== null && $effectivePulang->gt($tempPaTime)) {
                 $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
             }
