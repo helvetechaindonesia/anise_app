@@ -153,6 +153,7 @@ class KpiController extends Controller
                     $q->whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA']);
                 })
                 ->where('is_active', true)
+                ->with(['guruProfile', 'role'])
                 ->orderBy('full_name', 'asc')
                 ->get();
 
@@ -170,7 +171,7 @@ class KpiController extends Controller
                         'user_id' => $tendik->id,
                         'full_name' => $tendik->full_name,
                         'username' => $tendik->username,
-                        'nip' => $tendik->nip ?? $tendik->unique_id,
+                        'nip' => $tendik->guruProfile?->nip_nuptk ?? ($tendik->unique_id ?? '-'),
                         'role_type' => $tendik->role_type,
                         'avatar' => $tendik->avatar ?? $tendik->profile_picture,
                         'is_evaluated' => $eval !== null,

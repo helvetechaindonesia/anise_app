@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/main_header.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/constants/api_constants.dart';
 import '../widgets/predikat_kinerja_card.dart';
@@ -57,6 +57,98 @@ class _KepsekEvaluasiTendikScreenState extends ConsumerState<KepsekEvaluasiTendi
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showAcademicYearPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: 24.w(context), vertical: 20.h(context)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24.w(context))),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40.w(context),
+                  height: 4.h(context),
+                  margin: EdgeInsets.only(bottom: 16.h(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.outline.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: AppColors.primary, size: 20.w(context)),
+                  SizedBox(width: 8.w(context)),
+                  Text(
+                    'Pilih Semester / Tahun Ajaran',
+                    style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h(context)),
+              ..._academicYears.map((ay) {
+                final bool isSelected = _selectedAcademicYear?['id']?.toString() == ay['id']?.toString();
+                final semesterLabel = ay['semester'] == 'GENAP' ? 'Semester Genap' : 'Semester Ganjil';
+
+                return InkWell(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _fetchEvaluations(ay['id']?.toString());
+                  },
+                  borderRadius: BorderRadius.circular(14.w(context)),
+                  child: Container(
+                    margin: EdgeInsets.only(bottom: 10.h(context)),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 12.h(context)),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primaryContainer.withValues(alpha: 0.35) : AppColors.surfaceVariant.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(14.w(context)),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.15),
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ay['name'] ?? 'Tahun Ajaran',
+                              style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 2.h(context)),
+                            Text(
+                              semesterLabel,
+                              style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                        if (isSelected)
+                          Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.primary, size: 20.w(context)),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              SizedBox(height: 10.h(context)),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showEvaluationModal(Map<String, dynamic> tendik) {
@@ -357,7 +449,10 @@ class _KepsekEvaluasiTendikScreenState extends ConsumerState<KepsekEvaluasiTendi
       backgroundColor: AppColors.backgroundLight,
       body: CustomScrollView(
         slivers: [
-          const MainHeader(),
+          const SliverSubHeader(
+            title: 'Evaluasi Tendik',
+            subtitle: 'Penilaian Kinerja Semester',
+          ),
 
           SliverToBoxAdapter(
             child: Padding(
@@ -365,54 +460,73 @@ class _KepsekEvaluasiTendikScreenState extends ConsumerState<KepsekEvaluasiTendi
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 16.h(context)),
+                  SizedBox(height: 14.h(context)),
 
-                  // Header Title & Academic Year Filter
+                  // Header Baris Sub-Judul & Filter Tahun Ajaran (Pill Button Style)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'PENILAIAN KUALITATIF',
-                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                          SizedBox(height: 4.h(context)),
+                          SizedBox(height: 2.h(context)),
                           Text(
-                            'Evaluasi Tendik',
-                            style: AppTextStyles.headlineMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w800),
+                            'Tenaga Pendidik',
+                            style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ],
                       ),
 
-                      // Academic Year Dropdown Picker
+                      // Filter Tahun Akademik / Semester (Bentuk Tombol Pill "Pilih Tanggal")
                       if (_academicYears.isNotEmpty)
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 4.h(context)),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(12.w(context)),
-                            border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedAcademicYear?['id']?.toString(),
-                              items: _academicYears.map((ay) {
-                                return DropdownMenuItem<String>(
-                                  value: ay['id']?.toString(),
+                        GestureDetector(
+                          onTap: () => _showAcademicYearPicker(),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryContainer,
+                              borderRadius: BorderRadius.circular(16.w(context)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
+                                  color: AppColors.onPrimaryContainer,
+                                  size: 13.w(context),
+                                ),
+                                SizedBox(width: 4.w(context)),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(maxWidth: 120.w(context)),
                                   child: Text(
-                                    '${ay['name']} (${ay['semester'] ?? 'Smt'})',
-                                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
+                                    _selectedAcademicYear != null
+                                        ? '${_selectedAcademicYear!['name']} (${_selectedAcademicYear!['semester'] == 'GENAP' ? 'Genap' : 'Ganjil'})'
+                                        : 'Pilih Semester',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.labelSmall(
+                                      context,
+                                      color: AppColors.onPrimaryContainer,
+                                    ).copyWith(fontWeight: FontWeight.w700, fontSize: 11),
                                   ),
-                                );
-                              }).toList(),
-                              onChanged: (newId) {
-                                if (newId != null) {
-                                  _fetchEvaluations(newId);
-                                }
-                              },
+                                ),
+                                SizedBox(width: 2.w(context)),
+                                Icon(
+                                  PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
+                                  color: AppColors.onPrimaryContainer,
+                                  size: 11.w(context),
+                                ),
+                              ],
                             ),
                           ),
                         ),
