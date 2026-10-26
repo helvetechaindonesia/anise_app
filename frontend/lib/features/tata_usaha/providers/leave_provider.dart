@@ -32,6 +32,17 @@ final myLeavesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   }
 });
 
+// Backward-compatible aliases untuk layar lama/legacy
+final dispensasiListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final allLeaves = await ref.watch(perijinanInboxProvider.future);
+  return allLeaves.where((item) => item['type']?.toString().toUpperCase() == 'DISPENSASI').toList();
+});
+
+final izinListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final allLeaves = await ref.watch(perijinanInboxProvider.future);
+  return allLeaves.where((item) => item['type']?.toString().toUpperCase() == 'IZIN').toList();
+});
+
 class LeaveNotifier extends StateNotifier<bool> {
   final Ref ref;
   LeaveNotifier(this.ref) : super(false);
