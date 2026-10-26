@@ -8,10 +8,10 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
-import '../screens/presensi_camera_screen.dart';
+import '../../presensi/screens/presensi_camera_screen.dart';
 
 class IjinCameraAutoCaptureScreen extends StatefulWidget {
-  const IjinCameraAutoCaptureScreen({Key? key}) : super(key: key);
+  const IjinCameraAutoCaptureScreen({super.key});
 
   @override
   State<IjinCameraAutoCaptureScreen> createState() => _IjinCameraAutoCaptureScreenState();
