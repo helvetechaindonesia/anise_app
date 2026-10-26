@@ -39,7 +39,7 @@ class _PoinActivityListWidgetState extends ConsumerState<PoinActivityListWidget>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Riwayat Pelanggaran & Pengurangan Poin',
+          'Riwayat Pelanggaran',
           style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
             fontWeight: FontWeight.bold,
           ),

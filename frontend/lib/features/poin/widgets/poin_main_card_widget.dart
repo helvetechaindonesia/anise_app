@@ -16,7 +16,6 @@ class PoinMainCardWidget extends ConsumerWidget {
     final balanceData = balanceAsync.valueOrNull ?? {};
     final num balanceVal = balanceData['balance'] ?? 100;
     final int todayViolations = balanceData['today_violations'] ?? 0;
-    final int remainingToday = balanceData['remaining_violations_today'] ?? (3 - todayViolations);
 
     // Format nilai balance (misal 98.9 atau 100)
     final String balanceStr = (balanceVal % 1 == 0) ? balanceVal.toInt().toString() : balanceVal.toStringAsFixed(1);
@@ -52,17 +51,6 @@ class PoinMainCardWidget extends ConsumerWidget {
                     ),
                   ),
                 ],
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                ),
-                child: Text(
-                  'Awal: 100 Poin',
-                  style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary),
-                ),
               ),
             ],
           ),
@@ -110,23 +98,14 @@ class PoinMainCardWidget extends ConsumerWidget {
           Divider(color: AppColors.onPrimaryContainer.withValues(alpha: 0.15), height: 1),
           SizedBox(height: 12.h(context)),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimaryContainer),
-                  SizedBox(width: 6.w(context)),
-                  Text(
-                    'Hari Ini: $todayViolations/3 Pelanggaran',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+              Icon(PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimaryContainer),
+              SizedBox(width: 6.w(context)),
               Text(
-                'Sisa Kuota: $remainingToday kali',
-                style: AppTextStyles.labelSmall(context, color: remainingToday == 0 ? AppColors.error : AppColors.onPrimaryContainer),
+                'Hari Ini: $todayViolations/3 Pelanggaran',
+                style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
