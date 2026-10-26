@@ -69,11 +69,25 @@ class DevController extends Controller
         $mockCache = \Illuminate\Support\Facades\Cache::get('app_mock_time');
         $mockFile = file_exists(storage_path('app/mock_time.txt')) ? trim(file_get_contents(storage_path('app/mock_time.txt'))) : null;
 
-        $user = \App\Models\User::where('full_name', 'like', '%Afrida%')->first();
-        $roleName = $user && $user->role ? $user->role->name : ($user ? $user->role_type : 'NONE');
-
         $latestAttendances = \App\Models\Attendance::latest()->take(5)->get();
         $latestLogs = \App\Models\PresensiLog::latest()->take(5)->get();
+
+        $activeUserId = $latestAttendances->first()?->user_id;
+        $activeUser = $activeUserId ? \App\Models\User::find($activeUserId) : null;
+        $activeRoleName = $activeUser && $activeUser->role ? $activeUser->role->name : ($activeUser ? $activeUser->role_type : 'NONE');
+
+        // Cari semua user dengan nama mirip
+        $matchedUsers = \App\Models\User::where('full_name', 'like', '%Afrida%')
+            ->orWhere('full_name', 'like', '%Safrida%')
+            ->get()
+            ->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->full_name,
+                'email' => $u->email,
+                'role_id' => $u->role_id,
+                'role_type' => $u->role_type,
+                'role_name' => $u->role?->name,
+            ]);
 
         return response()->json([
             'status' => 'OK',
@@ -83,12 +97,15 @@ class DevController extends Controller
                 'mock_time_cache' => $mockCache,
                 'mock_time_file' => $mockFile,
             ],
-            'sample_user_afrida' => [
-                'id' => $user?->id,
-                'name' => $user?->full_name,
-                'role_id' => $user?->role_id,
-                'resolved_role_name' => $roleName,
+            'actual_attendance_user' => [
+                'id' => $activeUser?->id,
+                'name' => $activeUser?->full_name,
+                'email' => $activeUser?->email,
+                'role_id' => $activeUser?->role_id,
+                'role_type' => $activeUser?->role_type,
+                'resolved_role_name' => $activeRoleName,
             ],
+            'matched_users_afrida' => $matchedUsers,
             'latest_attendances_table' => $latestAttendances,
             'latest_presensi_logs_table' => $latestLogs,
         ]);
