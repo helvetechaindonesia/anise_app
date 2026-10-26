@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/widgets/anise_layanan_cepat.dart';
 
@@ -11,16 +12,20 @@ import '../../berkas/screens/berkas_saya_screen.dart';
 import '../../presensi/screens/guru_presensi_screen.dart';
 import '../../penilaian/screens/guru_agenda_penilaian_screen.dart';
 import '../../bk/screens/bk_disiplin_screen.dart';
-import '../../tata_usaha/screens/tu_dispensasi_screen.dart';
-import '../../tata_usaha/screens/tu_izin_screen.dart';
+import '../../tata_usaha/screens/ajukan_ijin_screen.dart';
+import '../../tata_usaha/screens/perijinan_screen.dart';
+import '../../auth/providers/auth_provider.dart';
 
-class GuruLayananCepatWidget extends StatelessWidget {
+class GuruLayananCepatWidget extends ConsumerWidget {
   final Function(int)? onNavigateTab;
 
   const GuruLayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    final isWaliKelas = user?.isWaliKelas ?? false;
+
     final items = [
       QuickActionItem(
         icon: PhosphorIcons.fingerprint(PhosphorIconsStyle.bold),
@@ -79,16 +84,19 @@ class GuruLayananCepatWidget extends StatelessWidget {
         label: 'Disiplin',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BkDisiplinScreen())),
       ),
-      QuickActionItem(
-        icon: PhosphorIcons.scroll(PhosphorIconsStyle.bold),
-        label: 'Dispensasi',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuDispensasiScreen())),
-      ),
+      // Menu Ajukan Ijin (Eksklusif Pegawai ke Kepsek)
       QuickActionItem(
         icon: PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold),
-        label: 'Izin Siswa',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuIzinScreen())),
+        label: 'Ajukan Ijin',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AjukanIjinScreen())),
       ),
+      // Menu Perijinan (Eksklusif Tenaga Pendidik yang berstatus WALI KELAS)
+      if (isWaliKelas)
+        QuickActionItem(
+          icon: PhosphorIcons.scroll(PhosphorIconsStyle.bold),
+          label: 'Perijinan',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PerijinanScreen())),
+        ),
     ];
 
     return AniseLayananCepat(items: items);

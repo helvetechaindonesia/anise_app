@@ -63,7 +63,8 @@ class UserModel {
         break;
     }
 
-    bool hasWaliKelas = json['wali_kelas'] != null && (json['wali_kelas'] as List).isNotEmpty;
+    bool hasWaliKelas = json['is_wali_kelas'] == true || 
+        (json['wali_kelas'] != null && (json['wali_kelas'] as List).isNotEmpty);
     bool hasWaliAsuh = json['guru_wali_students'] != null && (json['guru_wali_students'] as List).isNotEmpty;
     
     List<String> assignments = [];

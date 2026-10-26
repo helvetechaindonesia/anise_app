@@ -58,7 +58,7 @@ class User extends Authenticatable
     }
 
     // Append custom attribute
-    protected $appends = ['role_type', 'profile_picture'];
+    protected $appends = ['role_type', 'profile_picture', 'is_wali_kelas'];
 
     public function getRoleTypeAttribute()
     {
@@ -68,6 +68,11 @@ class User extends Authenticatable
     public function getProfilePictureAttribute()
     {
         return $this->avatar;
+    }
+
+    public function getIsWaliKelasAttribute(): bool
+    {
+        return \App\Models\SchoolClass::where('wali_kelas_id', $this->id)->exists();
     }
 
     // Relationships

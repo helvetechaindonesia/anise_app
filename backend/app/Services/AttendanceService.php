@@ -266,12 +266,24 @@ class AttendanceService
                 $totalIzinKeluarMinutes += $effectivePulang->diffInMinutes($tempPaTime);
             }
 
-            // 5. Durasi Bersih Kerja = Kotor - Izin Keluar
-            $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
+            // Cek apakah pegawai memiliki DISPENSASI resmi yang disetujui pada hari ini
+            $hasDispensasi = DB::table('leaves')
+                ->where('user_id', $log->user_id)
+                ->where('type', 'DISPENSASI')
+                ->where('status', 'APPROVED')
+                ->where('start_date', '<=', $logDateStr)
+                ->where('end_date', '>=', $logDateStr)
+                ->exists();
 
-            // Standar wajib 8 jam (480 menit). Defisit = KWK
-            if ($netWorkingMinutes < 480) {
-                $totalKwkMinutes += (480 - $netWorkingMinutes);
+            // 5. Durasi Bersih Kerja = Kotor - Izin Keluar (Jika didukung dispensasi disetujui, pulang pada jam tersebut adalah Pulang Resmi tanpa defisit KWK)
+            if ($hasDispensasi) {
+                $netWorkingMinutes = 480; // Dianggap memenuhi kuota hari dinas resmi
+            } else {
+                $netWorkingMinutes = max(0, $grossDurationMinutes - $totalIzinKeluarMinutes);
+                // Standar wajib 8 jam (480 menit). Defisit = KWK
+                if ($netWorkingMinutes < 480) {
+                    $totalKwkMinutes += (480 - $netWorkingMinutes);
+                }
             }
         }
 
@@ -302,15 +314,25 @@ class AttendanceService
             return;
         }
 
-        // Cek cuti
-        $hasLeave = DB::table('employee_leaves')
-            ->where('employee_id', $userId)
-            ->whereIn('status', ['APPROVED', 'ACC'])
+        // Cek cuti / izin dari tabel leaves (tabel umum) dan employee_leaves
+        $hasLeave = DB::table('leaves')
+            ->where('user_id', $userId)
+            ->whereIn('type', ['IZIN', 'SAKIT'])
+            ->where('status', 'APPROVED')
             ->where('start_date', '<=', $today)
-            ->where(function ($q) use ($today) {
-                $q->where('end_date', '>=', $today)->orWhereNull('end_date');
-            })
+            ->where('end_date', '>=', $today)
             ->exists();
+
+        if (!$hasLeave && \Illuminate\Support\Facades\Schema::hasTable('employee_leaves')) {
+            $hasLeave = DB::table('employee_leaves')
+                ->where('employee_id', $userId)
+                ->whereIn('status', ['APPROVED', 'ACC'])
+                ->where('start_date', '<=', $today)
+                ->where(function ($q) use ($today) {
+                    $q->where('end_date', '>=', $today)->orWhereNull('end_date');
+                })
+                ->exists();
+        }
 
         if ($hasLeave) {
             return;
@@ -472,6 +494,14 @@ class AttendanceService
         $hadirCount = 0;
 
         foreach ($students as $studentId) {
+            // Cek apakah siswa memiliki izin/sakit/dispensasi yang DISETUJUI hari ini
+            $approvedLeave = DB::table('leaves')
+                ->where('user_id', $studentId)
+                ->where('status', 'APPROVED')
+                ->where('start_date', '<=', $dateStr)
+                ->where('end_date', '>=', $dateStr)
+                ->first();
+
             // Cek apakah ada record terlambat yang valid (INPUT atau LAPORAN approved)
             $isLate = DB::table('disiplin_reports')
                 ->where('siswa_id', $studentId)
@@ -490,6 +520,31 @@ class AttendanceService
                 ->where('user_id', $studentId)
                 ->where('tanggal', $dateStr)
                 ->first();
+
+            if ($approvedLeave) {
+                // Jika memiliki izin/sakit yang disetujui, akumulasi adaptif: bebas dari alpa/terlambat
+                $leaveStatus = $approvedLeave->type === 'SAKIT' ? 'S' : ($approvedLeave->type === 'DISPENSASI' ? 'PA' : 'I');
+                if ($attendance) {
+                    DB::table('attendances')
+                        ->where('id', $attendance->id)
+                        ->update([
+                            'status' => $leaveStatus,
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    DB::table('attendances')->insert([
+                        'id' => (string) Str::uuid(),
+                        'user_id' => $studentId,
+                        'tanggal' => $dateStr,
+                        'jam_masuk' => $approvedLeave->type === 'DISPENSASI' ? Carbon::parse($dateStr . ' 07:00:00') : null,
+                        'jam_pulang' => $approvedLeave->type === 'DISPENSASI' && $approvedLeave->exit_time ? Carbon::parse($dateStr . ' ' . $approvedLeave->exit_time) : null,
+                        'status' => $leaveStatus,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+                continue;
+            }
 
             if ($attendance) {
                 if ($isLate) {

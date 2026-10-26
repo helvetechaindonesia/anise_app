@@ -125,6 +125,33 @@ class FileStorageService
     }
 
     /**
+     * Simpan foto face snapshot kamera izin / dispensasi
+     * Format: leaves/{siswa|pegawai}/{TAHUN}/{BULAN}/{IDENTIFIER}/face_{timestamp}.jpg
+     */
+    public static function storeLeaveFaceSnapshot(UploadedFile $file, User $user): string
+    {
+        $year = date('Y');
+        $month = date('m');
+        $role = strtolower($user->role_type ?? 'siswa');
+
+        if ($role === 'siswa') {
+            $classCode = Str::upper(Str::slug($user->siswaProfile?->schoolClass?->code ?? 'KELAS'));
+            $nis = $user->siswaProfile?->nis ?? $user->username ?? substr($user->id, 0, 8);
+            $slug = Str::slug($user->full_name ?? $user->username ?? 'siswa');
+            $targetDirectory = "leaves/siswa/{$year}/{$month}/{$classCode}/{$nis}_{$slug}";
+        } else {
+            $nip = $user->guruProfile?->nip ?? $user->username ?? substr($user->id, 0, 8);
+            $slug = Str::slug($user->full_name ?? $user->username ?? 'pegawai');
+            $targetDirectory = "leaves/pegawai/{$year}/{$month}/{$nip}_{$slug}";
+        }
+
+        $ext = $file->getClientOriginalExtension() ?: 'jpg';
+        $filename = "face_" . time() . "_" . Str::random(4) . ".{$ext}";
+
+        return $file->storeAs($targetDirectory, $filename, 'public');
+    }
+
+    /**
      * Simpan bukti aduan / laporan (Reports)
      * Format: reports/{pengaduan|disiplin|helpdesk}/{TAHUN}/{BULAN}/report_{ID}/bukti_{timestamp}.{ext}
      */

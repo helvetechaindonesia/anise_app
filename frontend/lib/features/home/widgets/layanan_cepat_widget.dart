@@ -10,8 +10,7 @@ import '../../poin/screens/poin_screen.dart';
 import '../../penilaian/screens/agenda_penilaian_screen.dart';
 import '../../lapor/screens/lapor_kesiswaan_screen.dart';
 import '../../berkas/screens/berkas_saya_screen.dart';
-import '../../tata_usaha/screens/siswa_ajukan_dispensasi_screen.dart';
-import '../../tata_usaha/screens/siswa_ajukan_izin_screen.dart';
+import '../../tata_usaha/screens/ajukan_ijin_screen.dart';
 import '../../bk/screens/siswa_ajukan_bimbingan_screen.dart';
 
 class LayananCepatWidget extends StatelessWidget {
@@ -75,14 +74,9 @@ class LayananCepatWidget extends StatelessWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BerkasSayaScreen())),
       ),
       QuickActionItem(
-        icon: PhosphorIcons.scroll(PhosphorIconsStyle.bold),
-        label: 'Dispensasi',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAjukanDispensasiScreen())),
-      ),
-      QuickActionItem(
         icon: PhosphorIcons.envelopeOpen(PhosphorIconsStyle.bold),
-        label: 'Izin',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAjukanIzinScreen())),
+        label: 'Ajukan Ijin',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AjukanIjinScreen())),
       ),
       QuickActionItem(
         icon: PhosphorIcons.chats(PhosphorIconsStyle.bold),

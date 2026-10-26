@@ -149,6 +149,7 @@ class AuthController extends Controller
                     'gender' => $user->gender,
                     'religion' => $user->religion,
                     'is_active' => $user->is_active,
+                    'is_wali_kelas' => $user->is_wali_kelas,
                 ]
             ]
         ]);

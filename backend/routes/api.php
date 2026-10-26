@@ -89,8 +89,11 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 3. PERIZINAN & DISPENSASI (LEAVES)
     // ==========================================
     Route::prefix('leaves')->group(function () {
-        Route::get('/', [LeaveController::class, 'getStudentLeaves']); // TU/Guru lihat semua
-        Route::post('/', [LeaveController::class, 'submitStudentLeave']); // Siswa submit
+        Route::post('/', [LeaveController::class, 'submitLeave']); // Siswa & Pegawai submit
+        Route::get('/my', [LeaveController::class, 'getMyLeaves']); // Riwayat saya
+        Route::get('/pending', [LeaveController::class, 'getPendingLeaves'])->middleware('role:GURU,GURU_BK,KEPALA_SEKOLAH,SUPER_ADMIN'); // Inbox Wali Kelas / Kepsek
+        Route::put('/{id}/status', [LeaveController::class, 'updateLeaveStatus'])->middleware('role:GURU,GURU_BK,KEPALA_SEKOLAH,SUPER_ADMIN');
+        Route::put('/{id}/confirm-return', [LeaveController::class, 'confirmReturn'])->middleware('role:GURU,GURU_BK,KEPALA_SEKOLAH,SUPER_ADMIN');
     });
 
     // ==========================================
