@@ -206,6 +206,9 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::middleware('role:GURU_BK')->group(function () {
             Route::get('/requests', [CounselingController::class, 'guruBkIndex']);
             Route::put('/{id}/status', [CounselingController::class, 'updateStatus']);
+            Route::get('/klasikal/options', [CounselingController::class, 'getKlasikalOptions']);
+            Route::get('/klasikal/schedules', [CounselingController::class, 'getKlasikalSchedules']);
+            Route::post('/guru-bk/create', [CounselingController::class, 'storeByGuruBk']);
         });
     });
 

@@ -15,11 +15,13 @@ class CounselingRequest extends Model
         'id',
         'student_id',
         'guru_bk_id',
+        'initiator',
         'topic',
         'schedule_date',
         'schedule_time',
         'description',
         'status',
+        'counseling_result',
     ];
 
     public function student()

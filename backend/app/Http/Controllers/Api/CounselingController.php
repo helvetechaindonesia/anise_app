@@ -5,10 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 use App\Models\CounselingRequest;
+use App\Models\SchoolClass;
+use App\Models\Schedule;
+use App\Models\Journal;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\ClassStudent;
 
 class CounselingController extends Controller
 {
@@ -21,7 +27,6 @@ class CounselingController extends Controller
             $roleBk = Role::where('name', 'GURU_BK')->first();
             $roleBkId = $roleBk ? $roleBk->id : null;
 
-            // Cari semua user dengan role GURU_BK atau yang memiliki nama BK
             $guruList = User::where('is_active', true)
                 ->where(function ($q) use ($roleBkId) {
                     if ($roleBkId) {
@@ -41,7 +46,6 @@ class CounselingController extends Controller
                     ];
                 });
 
-            // Jika belum ada data guru BK spesifik, fallback ke guru umum agar dropdown tidak kosong
             if ($guruList->isEmpty()) {
                 $roleGuru = Role::where('name', 'GURU')->first();
                 $guruList = User::where('is_active', true)
@@ -67,7 +71,187 @@ class CounselingController extends Controller
     }
 
     /**
-     * POST /counseling — Siswa submit pengajuan bimbingan dengan memilih Guru BK.
+     * GET /counseling/klasikal/options — Mengambil data kelas untuk bimbingan klasikal.
+     */
+    public function getKlasikalOptions(Request $request)
+    {
+        try {
+            $classes = SchoolClass::orderBy('grade_level', 'asc')
+                ->orderBy('name', 'asc')
+                ->get()
+                ->map(function ($c) {
+                    return [
+                        'id' => $c->id,
+                        'name' => ($c->grade_level ? "{$c->grade_level} " : "") . $c->name,
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'classes' => $classes,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * GET /counseling/klasikal/schedules — Mengambil daftar jadwal pelajaran asli di suatu kelas.
+     */
+    public function getKlasikalSchedules(Request $request)
+    {
+        $request->validate([
+            'class_id' => 'required|exists:classes,id',
+        ]);
+
+        try {
+            $schedules = Schedule::where('class_id', $request->class_id)
+                ->with(['teacher', 'subject', 'class'])
+                ->get()
+                ->filter(function ($s) {
+                    return $s->teacher && $s->subject && $s->subject->code !== 'KEG';
+                })
+                ->map(function ($s) {
+                    $teacherName = $s->teacher ? ($s->teacher->full_name ?: $s->teacher->username) : 'Guru Pengajar';
+                    $subjectName = $s->subject ? $s->subject->name : 'Mata Pelajaran';
+                    $time = substr($s->start_time, 0, 5) . ' - ' . substr($s->end_time, 0, 5);
+                    return [
+                        'id' => $s->id,
+                        'teacher_id' => $s->teacher_id,
+                        'teacher_name' => $teacherName,
+                        'subject_id' => $s->subject_id,
+                        'subject_name' => $subjectName,
+                        'day_of_week' => $s->day_of_week,
+                        'start_time' => $s->start_time,
+                        'end_time' => $s->end_time,
+                        'time_label' => "{$s->day_of_week}, {$time} WIB",
+                        'display_label' => "{$teacherName} • {$subjectName} ({$time})",
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $schedules,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/guru-bk/create — Guru BK membuat jadwal bimbingan (Klasikal, Individu, atau Kelompok).
+     */
+    public function storeByGuruBk(Request $request)
+    {
+        $request->validate([
+            'type'          => 'required|in:KLASIKAL,INDIVIDU,KELOMPOK',
+            'topic'         => 'required|string',
+            'schedule_date' => 'required|date',
+            'schedule_time' => 'required|string',
+            'description'   => 'nullable|string',
+            // Untuk Klasikal:
+            'class_id'      => 'required_if:type,KLASIKAL|nullable|exists:classes,id',
+            'schedule_id'   => 'required_if:type,KLASIKAL|nullable|exists:schedules,id',
+            // Untuk Individu / Kelompok:
+            'student_ids'   => 'required_if:type,INDIVIDU,KELOMPOK|array',
+            'student_ids.*' => 'exists:users,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $type = $request->type;
+            $results = [];
+
+            if ($type === 'KLASIKAL') {
+                $schedule = Schedule::with(['subject', 'class', 'teacher'])->findOrFail($request->schedule_id);
+
+                // 1. Ambil seluruh siswa aktif di kelas tersebut
+                $studentIds = ClassStudent::where('class_id', $request->class_id)
+                    ->where('status', 'ACTIVE')
+                    ->pluck('student_id');
+
+                $repStudentId = $studentIds->first() ?? $user->id;
+
+                // 2. Buat record di counseling_requests
+                $counseling = CounselingRequest::create([
+                    'id'            => (string) Str::uuid(),
+                    'student_id'    => $repStudentId,
+                    'guru_bk_id'    => $user->id,
+                    'initiator'     => 'GURU_BK',
+                    'topic'         => "[Bimbingan Klasikal] " . $request->topic,
+                    'schedule_date' => $request->schedule_date,
+                    'schedule_time' => $request->schedule_time,
+                    'description'   => $request->description ?? "Bimbingan Klasikal menggantikan jadwal {$schedule->subject?->name} ({$schedule->teacher?->full_name})",
+                    'status'        => 'APPROVED',
+                ]);
+
+                // 3. Menimpa Jurnal KBM (Classroom Hijacking)
+                // Buat atau Update Journal untuk jadwal dan tanggal tersebut atas nama Guru BK
+                $journal = Journal::updateOrCreate(
+                    [
+                        'schedule_id'   => $schedule->id,
+                        'teaching_date' => $request->schedule_date,
+                    ],
+                    [
+                        'teacher_id'       => $user->id,
+                        'class_id'         => $schedule->class_id,
+                        'subject_id'       => $schedule->subject_id,
+                        'topic_material'   => "Bimbingan Klasikal BK: " . $request->topic,
+                        'description'      => $request->description ?? "Sesi bimbingan klasikal oleh Guru BK {$user->full_name}",
+                        'is_bk_sosialisasi'=> true,
+                        'status'           => 'Aktif',
+                        'published_at'     => now(),
+                    ]
+                );
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Bimbingan klasikal berhasil dijadwalkan dan telah menimpa jurnal kelas!',
+                    'data' => [
+                        'counseling' => $counseling,
+                        'journal' => $journal,
+                    ]
+                ]);
+            }
+
+            // INDIVIDU atau KELOMPOK
+            $studentIds = $request->student_ids ?? [];
+            if ($type === 'INDIVIDU' && count($studentIds) > 1) {
+                $studentIds = array_slice($studentIds, 0, 1);
+            }
+
+            $prefixTopic = ($type === 'KELOMPOK') ? "[Bimbingan Kelompok] " : "[Bimbingan Individu] ";
+
+            foreach ($studentIds as $sId) {
+                $c = CounselingRequest::create([
+                    'id'            => (string) Str::uuid(),
+                    'student_id'    => $sId,
+                    'guru_bk_id'    => $user->id,
+                    'initiator'     => 'GURU_BK',
+                    'topic'         => $prefixTopic . $request->topic,
+                    'schedule_date' => $request->schedule_date,
+                    'schedule_time' => $request->schedule_time,
+                    'description'   => $request->description,
+                    'status'        => 'APPROVED',
+                ]);
+                $results[] = $c;
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jadwal bimbingan berhasil dibuat untuk siswa terkait!',
+                'data' => $results,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling — Siswa submit pengajuan bimbingan mandiri dengan memilih Guru BK.
      */
     public function store(Request $request)
     {
@@ -86,6 +270,7 @@ class CounselingController extends Controller
                 'id'            => (string) Str::uuid(),
                 'student_id'    => $user->id,
                 'guru_bk_id'    => $request->guru_bk_id,
+                'initiator'     => 'STUDENT',
                 'topic'         => $request->topic,
                 'schedule_date' => $request->schedule_date,
                 'schedule_time' => $request->schedule_time,
@@ -100,14 +285,22 @@ class CounselingController extends Controller
     }
 
     /**
-     * GET /counseling/siswa — Siswa melihat seluruh riwayat pengajuan bimbingannya.
+     * GET /counseling/siswa — Siswa melihat seluruh riwayat pengajuan bimbingannya (mandiri + panggilan BK).
      */
     public function siswaIndex()
     {
         try {
             $user = Auth::user();
-            $data = CounselingRequest::where('student_id', $user->id)
+
+            // Cari kelas siswa untuk bimbingan klasikal
+            $classStudent = ClassStudent::where('student_id', $user->id)->where('status', 'ACTIVE')->first();
+            $classId = $classStudent?->class_id;
+
+            $data = CounselingRequest::where(function ($q) use ($user) {
+                    $q->where('student_id', $user->id);
+                })
                 ->with('guruBk')
+                ->orderBy('schedule_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($c) {
@@ -118,6 +311,7 @@ class CounselingController extends Controller
                         'schedule_time' => $c->schedule_time,
                         'description'   => $c->description,
                         'status'        => $c->status,
+                        'initiator'     => $c->initiator ?? 'STUDENT',
                         'guru_bk_name'  => $c->guruBk ? ($c->guruBk->full_name ?: $c->guruBk->username) : 'Guru BK',
                         'created_at'    => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
                     ];
@@ -130,7 +324,7 @@ class CounselingController extends Controller
     }
 
     /**
-     * GET /counseling/guru-bk/requests — Guru BK melihat permohonan bimbingan yang masuk ke dirinya.
+     * GET /counseling/guru-bk/requests — Guru BK melihat permohonan bimbingan yang masuk ke dirinya sesuai filter tanggal.
      */
     public function guruBkIndex(Request $request)
     {
@@ -139,7 +333,7 @@ class CounselingController extends Controller
 
             $query = CounselingRequest::where(function ($q) use ($user) {
                     $q->where('guru_bk_id', $user->id)
-                      ->orWhereNull('guru_bk_id'); // Memungkinkan melihat bimbingan unassigned
+                      ->orWhereNull('guru_bk_id');
                 })
                 ->with(['student.siswaProfile.schoolClass', 'student']);
 
@@ -162,6 +356,7 @@ class CounselingController extends Controller
                         'schedule_time' => $c->schedule_time,
                         'description'   => $c->description,
                         'status'        => $c->status,
+                        'initiator'     => $c->initiator ?? 'STUDENT',
                         'created_at'    => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
                     ];
                 });

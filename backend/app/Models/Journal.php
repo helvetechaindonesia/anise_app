@@ -28,11 +28,13 @@ class Journal extends Model
         'latitude',
         'longitude',
         'filled_at',
-        'class_notes'
+        'class_notes',
+        'is_bk_sosialisasi',
     ];
 
     protected $casts = [
         'has_task' => 'boolean',
+        'is_bk_sosialisasi' => 'boolean',
     ];
 
     public function schedule()

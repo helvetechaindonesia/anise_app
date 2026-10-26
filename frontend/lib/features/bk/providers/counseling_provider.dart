@@ -72,6 +72,40 @@ final bkCounselingRequestsProvider = FutureProvider.autoDispose<List<Map<String,
   }
 });
 
+// Provider daftar opsi kelas untuk Bimbingan Klasikal
+final bkKlasikalClassesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/counseling/klasikal/options');
+    if (response.data['status'] == 'success' && response.data['data']['classes'] is List) {
+      return (response.data['data']['classes'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    return [];
+  } catch (e) {
+    print('Error fetching klasikal classes: $e');
+    return [];
+  }
+});
+
+// Provider daftar jadwal mapel asli per kelas untuk Bimbingan Klasikal
+final bkKlasikalSchedulesProvider = FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, classId) async {
+  if (classId.isEmpty) return [];
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get(
+      '/counseling/klasikal/schedules',
+      queryParameters: {'class_id': classId},
+    );
+    if (response.data['status'] == 'success' && response.data['data'] is List) {
+      return (response.data['data'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    return [];
+  } catch (e) {
+    print('Error fetching klasikal schedules: $e');
+    return [];
+  }
+});
+
 // Notifier untuk submit & approval pengajuan bimbingan
 class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
   final Dio _dio;
@@ -96,6 +130,38 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
         'description': description,
       });
       state = const AsyncValue.data(null);
+      _ref.invalidate(siswaKonsultasiProvider);
+      return response.data['status'] == 'success';
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> createByGuruBk({
+    required String type, // 'KLASIKAL', 'INDIVIDU', 'KELOMPOK'
+    required String topic,
+    required String scheduleDate,
+    required String scheduleTime,
+    String? description,
+    String? classId,
+    String? scheduleId,
+    List<String>? studentIds,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _dio.post('/counseling/guru-bk/create', data: {
+        'type': type,
+        'topic': topic,
+        'schedule_date': scheduleDate,
+        'schedule_time': scheduleTime,
+        'description': description,
+        if (classId != null) 'class_id': classId,
+        if (scheduleId != null) 'schedule_id': scheduleId,
+        if (studentIds != null) 'student_ids': studentIds,
+      });
+      state = const AsyncValue.data(null);
+      _ref.invalidate(bkCounselingRequestsProvider);
       _ref.invalidate(siswaKonsultasiProvider);
       return response.data['status'] == 'success';
     } catch (e, st) {
