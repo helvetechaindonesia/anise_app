@@ -231,23 +231,6 @@ class PresensiRekapWidget extends ConsumerWidget {
               ),
             ],
           ),
-
-          // Jika ada data KWK (Kurang Waktu Kerja)
-          if (hasKwk) ...[
-            SizedBox(height: 12.h(context)),
-            _buildPegawaiStatBox(
-              context,
-              title: 'Kurang Waktu Kerja',
-              badge: 'KWK',
-              value: kwkJam,
-              unit: 'Jam',
-              icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
-              iconBgColor: AppColors.warning.withValues(alpha: 0.15),
-              iconColor: AppColors.warning,
-              isAlert: true,
-              isFullWidth: true,
-            ),
-          ],
         ],
       ),
     );
