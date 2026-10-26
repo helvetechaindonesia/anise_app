@@ -31,7 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'Pantau jadwal akademik, presensi pintar dengan biometrik wajah, jurnal KBM, dan kedisiplinan sekolah dalam satu genggaman modern.',
       'icon': PhosphorIcons.graduationCap(PhosphorIconsStyle.fill),
       'iconColor': AppColors.primary,
-      'badge': 'SMKN 1 KAWALI',
+      'badge': 'SMA N 1 PEUNARON',
     },
     {
       'title': 'Terhubung & Terintegrasi',
