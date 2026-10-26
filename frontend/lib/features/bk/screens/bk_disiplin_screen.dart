@@ -335,7 +335,8 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
               final student = report['siswa'];
               final status = report['status'];
               
-              Color pointColor = status == 'INPUT' ? AppColors.error : AppColors.warning;
+              final canApprove = report['can_approve'] == true;
+              final isGuruWali = report['is_guru_wali'] == true;
 
               return Column(
                 children: [
@@ -345,6 +346,9 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
                     report['category'] ?? '-',
                     status ?? 'LAPORAN',
                     pointColor,
+                    reportId: report['id'],
+                    canApprove: canApprove,
+                    isGuruWali: isGuruWali,
                   ),
                   if (idx < reports.length - 1)
                     Padding(
@@ -362,7 +366,16 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
     );
   }
 
-  Widget _buildStudentDisciplineRow(BuildContext context, String name, String category, String status, Color pointColor) {
+  Widget _buildStudentDisciplineRow(
+    BuildContext context,
+    String name,
+    String category,
+    String status,
+    Color pointColor, {
+    dynamic reportId,
+    bool canApprove = false,
+    bool isGuruWali = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -405,16 +418,39 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
           ),
         ),
         SizedBox(width: 8.w(context)),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-          decoration: BoxDecoration(
-            color: pointColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12.w(context)),
-          ),
-          child: Text(
-            status,
-            style: AppTextStyles.labelSmall(context, color: pointColor).copyWith(fontWeight: FontWeight.w700),
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
+              decoration: BoxDecoration(
+                color: pointColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12.w(context)),
+              ),
+              child: Text(
+                status,
+                style: AppTextStyles.labelSmall(context, color: pointColor).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (canApprove && reportId != null) ...[
+              SizedBox(width: 6.w(context)),
+              IconButton(
+                icon: const Icon(PhosphorIconsFill.checkCircle, color: AppColors.primary, size: 22),
+                tooltip: 'Setujui Laporan (Sebagai Guru Wali)',
+                onPressed: () async {
+                  final ok = await ref.read(disiplinNotifierProvider.notifier).approveReport(reportId: reportId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Laporan siswa berhasil disetujui!' : 'Gagal menyetujui laporan'),
+                        backgroundColor: ok ? AppColors.success : AppColors.error,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ],
         ),
       ],
     );

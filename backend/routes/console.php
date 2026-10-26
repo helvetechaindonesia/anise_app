@@ -17,3 +17,9 @@ Schedule::command('kbm:weekly-reset')->dailyAt('01:00');
 
 // Otomatisasi TAM (pukul 12:01) dan TAP (pukul 18:01) untuk pegawai presensi
 Schedule::command('attendance:auto-tam-tap')->everyMinute();
+
+// Otomatisasi Masuk Sementara Seluruh Siswa pada pukul 07:00 WIB
+Schedule::command('student:auto-morning-attendance')->dailyAt('07:00');
+
+// Finalisasi Akumulasi Presensi Siswa pada pukul 18:01 WIB
+Schedule::command('student:finalize-attendance')->dailyAt('18:01');

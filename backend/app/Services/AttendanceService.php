@@ -383,4 +383,150 @@ class AttendanceService
             }
         }
     }
+
+    /**
+     * 1. Otomatisasi Masuk Sementara Seluruh Siswa pada Pukul 07.00 WIB.
+     * Membuat record attendance awal dengan status 'MASUK' (Hadir Tepat Waktu) untuk semua siswa aktif.
+     */
+    public function autoGenerateMorningStudentAttendance(string $targetDate = null): int
+    {
+        $dateStr = $targetDate ?? AppTime::now()->format('Y-m-d');
+        
+        // Cek apakah hari libur/non-aktif
+        $holidayCheck = $this->holidayService->checkDate($dateStr);
+        if (!empty($holidayCheck['is_holiday'])) {
+            return 0;
+        }
+
+        // Ambil role SISWA
+        $siswaRole = DB::table('roles')->where(DB::raw('UPPER(name)'), 'SISWA')->first();
+        $siswaRoleId = $siswaRole ? $siswaRole->id : null;
+
+        $students = DB::table('users')
+            ->where('is_active', true)
+            ->where(function ($q) use ($siswaRoleId) {
+                if ($siswaRoleId) {
+                    $q->where('role_id', $siswaRoleId);
+                }
+                $q->orWhere(DB::raw('UPPER(role_type)'), 'SISWA');
+            })
+            ->pluck('id');
+
+        $createdCount = 0;
+        $morningTime = Carbon::parse($dateStr . ' 07:00:00');
+
+        foreach ($students as $studentId) {
+            $exists = DB::table('attendances')
+                ->where('user_id', $studentId)
+                ->where('tanggal', $dateStr)
+                ->exists();
+
+            if (!$exists) {
+                DB::table('attendances')->insert([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $studentId,
+                    'tanggal' => $dateStr,
+                    'jam_masuk' => $morningTime,
+                    'jam_pulang' => null,
+                    'status' => 'MASUK',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $createdCount++;
+            }
+        }
+
+        return $createdCount;
+    }
+
+    /**
+     * 2. Finalisasi Presensi Siswa pada Pukul 18.01 WIB.
+     * Mengecek apakah ada laporan keterlambatan valid (INPUT atau LAPORAN yang di-approve Guru Wali).
+     * Jika ada, status presensi diupdate menjadi 'TERLAMBAT'.
+     * Jika tidak ada, dipastikan statusnya tetap 'MASUK' (Hadir Tepat Waktu).
+     */
+    public function finalizeStudentAttendance(string $targetDate = null): array
+    {
+        $dateStr = $targetDate ?? AppTime::now()->format('Y-m-d');
+
+        // Cek hari libur
+        $holidayCheck = $this->holidayService->checkDate($dateStr);
+        if (!empty($holidayCheck['is_holiday'])) {
+            return ['terlambat' => 0, 'hadir' => 0];
+        }
+
+        $siswaRole = DB::table('roles')->where(DB::raw('UPPER(name)'), 'SISWA')->first();
+        $siswaRoleId = $siswaRole ? $siswaRole->id : null;
+
+        $students = DB::table('users')
+            ->where('is_active', true)
+            ->where(function ($q) use ($siswaRoleId) {
+                if ($siswaRoleId) {
+                    $q->where('role_id', $siswaRoleId);
+                }
+                $q->orWhere(DB::raw('UPPER(role_type)'), 'SISWA');
+            })
+            ->pluck('id');
+
+        $terlambatCount = 0;
+        $hadirCount = 0;
+
+        foreach ($students as $studentId) {
+            // Cek apakah ada record terlambat yang valid (INPUT atau LAPORAN approved)
+            $isLate = DB::table('disiplin_reports')
+                ->where('siswa_id', $studentId)
+                ->whereDate('created_at', $dateStr)
+                ->where(function ($q) {
+                    $q->where(DB::raw('UPPER(category)'), 'LIKE', '%TERLAMBAT%')
+                      ->orWhere(DB::raw('UPPER(category)'), 'LIKE', '%TELAT%');
+                })
+                ->where(function ($q) {
+                    $q->where('status', 'INPUT')
+                      ->orWhere('status', 'APPROVED');
+                })
+                ->exists();
+
+            $attendance = DB::table('attendances')
+                ->where('user_id', $studentId)
+                ->where('tanggal', $dateStr)
+                ->first();
+
+            if ($attendance) {
+                if ($isLate) {
+                    DB::table('attendances')
+                        ->where('id', $attendance->id)
+                        ->update([
+                            'status' => 'TERLAMBAT',
+                            'updated_at' => now(),
+                        ]);
+                    $terlambatCount++;
+                } else {
+                    // Pastikan tetap MASUK / Hadir jika belum diset izin/sakit
+                    if (in_array($attendance->status, ['MASUK', 'H'])) {
+                        $hadirCount++;
+                    }
+                }
+            } else {
+                // Jika belum ada record attendance sama sekali, buatkan
+                DB::table('attendances')->insert([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => $studentId,
+                    'tanggal' => $dateStr,
+                    'jam_masuk' => Carbon::parse($dateStr . ' 07:00:00'),
+                    'jam_pulang' => null,
+                    'status' => $isLate ? 'TERLAMBAT' : 'MASUK',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                if ($isLate) {
+                    $terlambatCount++;
+                } else {
+                    $hadirCount++;
+                }
+            }
+        }
+
+        return ['terlambat' => $terlambatCount, 'hadir' => $hadirCount];
+    }
 }

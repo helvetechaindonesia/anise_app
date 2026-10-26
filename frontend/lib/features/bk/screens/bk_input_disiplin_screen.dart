@@ -14,7 +14,9 @@ class BkInputDisiplinScreen extends ConsumerStatefulWidget {
 }
 
 class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
-  int? _selectedStudentId;
+  String? _selectedStudentId;
+  String? _selectedStudentName;
+  bool _isMyStudent = false;
   String? _kategoriPelanggaran;
   final TextEditingController _notesController = TextEditingController();
   
@@ -36,17 +38,18 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
       return;
     }
 
-    final success = await ref.read(disiplinNotifierProvider.notifier).submitReport(
+    final res = await ref.read(disiplinNotifierProvider.notifier).submitReport(
       siswaId: _selectedStudentId!,
       category: _kategoriPelanggaran!,
       notes: _notesController.text,
     );
 
-    if (success) {
-      _showSnackbar('Laporan kedisiplinan berhasil dikirim', AppColors.success);
+    if (res['success'] == true) {
+      final msg = res['message']?.toString() ?? 'Laporan kedisiplinan berhasil dikirim';
+      _showSnackbar(msg, AppColors.success);
       if (mounted) Navigator.pop(context);
     } else {
-      _showSnackbar('Gagal mengirim laporan', AppColors.error);
+      _showSnackbar(res['message']?.toString() ?? 'Gagal mengirim laporan', AppColors.error);
     }
   }
 
@@ -148,7 +151,9 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
           },
           onSelected: (Map<String, dynamic> selection) {
             setState(() {
-              _selectedStudentId = selection['id'];
+              _selectedStudentId = selection['id']?.toString();
+              _selectedStudentName = selection['full_name']?.toString();
+              _isMyStudent = selection['is_my_student'] == true;
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
@@ -215,6 +220,50 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
             );
           },
         ),
+        if (_selectedStudentId != null) ...[
+          Spacing.custom(context, 8),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+            decoration: BoxDecoration(
+              color: _isMyStudent
+                  ? AppColors.menuPastelGreen.withValues(alpha: 0.15)
+                  : AppColors.menuPastelOrange.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8.w(context)),
+              border: Border.all(
+                color: _isMyStudent
+                    ? AppColors.menuPastelGreen
+                    : AppColors.menuPastelOrange,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _isMyStudent
+                      ? PhosphorIconsFill.checkCircle
+                      : PhosphorIconsFill.info,
+                  size: 16.w(context),
+                  color: _isMyStudent
+                      ? AppColors.primary
+                      : AppColors.warning,
+                ),
+                SizedBox(width: 8.w(context)),
+                Expanded(
+                  child: Text(
+                    _isMyStudent
+                        ? "Anda adalah Guru Wali siswa ini. Status: INPUT (Langsung Sah)."
+                        : "Bukan Guru Wali siswa ini. Status: LAPORAN (Perlu persetujuan Guru Wali).",
+                    style: AppTextStyles.labelSmall(
+                      context,
+                      color: _isMyStudent
+                          ? AppColors.primary
+                          : AppColors.warning,
+                    ).copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

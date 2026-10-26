@@ -186,6 +186,8 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::middleware('role:GURU')->group(function () {
             Route::post('/reports', [DisciplineController::class, 'submitDisiplinReport']);
             Route::get('/reports', [DisciplineController::class, 'getDisiplinReports']);
+            Route::get('/students', [DisciplineController::class, 'getStudentsList']);
+            Route::put('/reports/{id}/approve', [DisciplineController::class, 'approveDisiplinReport']);
         });
     });
 
