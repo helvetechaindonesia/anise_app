@@ -122,6 +122,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::post('/{journalId}/comments', [JournalController::class, 'submitComment']);
         Route::get('/{journalId}/download', [JournalController::class, 'downloadAttachment']);
         Route::get('/off-days', [JournalController::class, 'getOffDays']);
+        Route::get('/all', [JournalController::class, 'getAllJournalsForMonitoring']);
 
         Route::middleware('role:SISWA')->group(function () {
             Route::get('/siswa', [JournalController::class, 'getSiswaJournals']);
@@ -217,7 +218,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // ==========================================
     // 13. KURIKULUM (MASTER DATA)
     // ==========================================
-    Route::prefix('curriculum')->middleware('role:TATA_USAHA')->group(function () {
+    Route::prefix('curriculum')->middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
         // 1. Kelas & Wali Kelas
         Route::get('/classes', [CurriculumController::class, 'getClasses']);
         Route::post('/classes', [CurriculumController::class, 'storeClass']);
@@ -266,7 +267,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     });
 
     // Alias untuk /school/holidays sesuai test suite
-    Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
+    Route::prefix('school')->middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
         Route::get('/holidays', [HolidayController::class, 'index']);
         Route::post('/holidays', [HolidayController::class, 'store']);
         Route::get('/holidays/{id}', [HolidayController::class, 'show']);
@@ -279,8 +280,8 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 14. MANAJEMEN USER
     // ==========================================
     Route::prefix('users')->group(function () {
-        // Master Data Users & Roles (TU Only)
-        Route::middleware('role:TATA_USAHA')->group(function () {
+        // Master Data Users & Roles (TU & Kepsek)
+        Route::middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
             Route::get('/', [UserController::class, 'getUsers']);
             Route::post('/', [UserController::class, 'storeUser']);
             Route::put('/{id}', [UserController::class, 'updateUser']);
@@ -318,7 +319,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // ==========================================
     // 15. MANAJEMEN SEKOLAH
     // ==========================================
-    Route::prefix('school')->middleware('role:TATA_USAHA')->group(function () {
+    Route::prefix('school')->middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
         Route::get('/geofence', [SchoolController::class, 'getGeofenceSettings']);
         Route::post('/geofence', [SchoolController::class, 'updateGeofenceSettings']);
         Route::get('/operational-settings', [SchoolController::class, 'getOperationalSettings']);
@@ -330,9 +331,9 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     });
 
     // ==========================================
-    // 15B. MASTER DATA & PARSER ALIASES (TU Only)
+    // 15B. MASTER DATA & PARSER ALIASES (TU & Kepsek)
     // ==========================================
-    Route::prefix('master')->middleware('role:TATA_USAHA')->group(function () {
+    Route::prefix('master')->middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
         // Users (Master User)
         Route::get('/users', [UserController::class, 'getUsers']);
         Route::post('/users', [UserController::class, 'storeUser']);
@@ -384,7 +385,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::get('/schedules', [CurriculumController::class, 'getSchedules']);
     });
 
-    Route::prefix('parse')->middleware('role:TATA_USAHA')->group(function () {
+    Route::prefix('parse')->middleware('role:TATA_USAHA,KEPALA_SEKOLAH')->group(function () {
         Route::post('/master-kelas', [ExcelParserController::class, 'parseMasterKelas']);
         Route::post('/master-role', [ExcelParserController::class, 'parseMasterRole']);
         Route::post('/master-jabatan', [ExcelParserController::class, 'parseMasterJabatan']);

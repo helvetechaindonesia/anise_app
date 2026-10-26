@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../core/constants/colors.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_model.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_card.dart';
@@ -203,6 +205,7 @@ class GuruJurnalCard extends ConsumerWidget {
           userRating: userRating,
           customActionWidget: _buildActionArea(
             context,
+            ref,
             status,
             isScheduleOnly,
             isCheckedIn,
@@ -455,6 +458,7 @@ class GuruJurnalCard extends ConsumerWidget {
           // 3. ACTION AREA BERDASARKAN STATUS
           _buildActionArea(
             context,
+            ref,
             status,
             isScheduleOnly,
             isCheckedIn,
@@ -476,6 +480,7 @@ class GuruJurnalCard extends ConsumerWidget {
 
   Widget _buildActionArea(
     BuildContext context,
+    WidgetRef ref,
     String status,
     bool isScheduleOnly,
     bool isCheckedIn,
@@ -490,6 +495,68 @@ class GuruJurnalCard extends ConsumerWidget {
     required int startMinutes,
     required int endMinutes,
   }) {
+    final currentUser = ref.watch(authProvider).user;
+    final bool isKepsek = currentUser?.role == UserRole.kepalaSekolah;
+
+    // JIKA USER ADALAH KEPALA SEKOLAH: Murni Pemantauan Jurnal Saja (Tanpa input terbit / isi / presensi)
+    if (isKepsek) {
+      if (isScheduleOnly) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(PhosphorIcons.clockCountdown(PhosphorIconsStyle.bold), color: AppColors.onBackground.withValues(alpha: 0.6), size: 16.w(context)),
+                SizedBox(width: 6.w(context)),
+                Text(
+                  'Belum Terbit',
+                  style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.7)).copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            Text(
+              'Jadwal Reguler',
+              style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.5)),
+            ),
+          ],
+        );
+      } else {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isFilled ? PhosphorIcons.checkCircle(PhosphorIconsStyle.fill) : PhosphorIcons.notebook(PhosphorIconsStyle.fill),
+                  color: isFilled ? AppColors.secondary : AppColors.primary,
+                  size: 16.w(context),
+                ),
+                SizedBox(width: 6.w(context)),
+                Text(
+                  isFilled ? 'KBM Selesai' : (status == 'Aktif' ? 'Sedang KBM' : 'Jurnal Terbit'),
+                  style: AppTextStyles.labelSmall(context, color: isFilled ? AppColors.secondary : AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GuruJurnalDetailScreen(journal: journal),
+                  ),
+                );
+              },
+              child: Text(
+                'Pantau Detail >',
+                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
     // KASUS 1: TERLEWAT
     if (status == 'Terlewat') {
       return Container(

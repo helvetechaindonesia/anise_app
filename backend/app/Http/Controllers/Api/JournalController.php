@@ -974,6 +974,224 @@ class JournalController extends Controller
         }
     }
 
+    /**
+     * Mengambil SEMUA jurnal mengajar dan jadwal KBM untuk monitoring Kepala Sekolah (tanpa segmentasi guru).
+     */
+    public function getAllJournalsForMonitoring()
+    {
+        try {
+            $user = Auth::user();
+
+            // 1. Ambil seluruh jadwal KBM reguler di sekolah dengan relasi guru, mapel, kelas
+            $schedules = Schedule::with(['subject', 'class.major', 'teacher'])
+                ->get();
+
+            // 2. Ambil seluruh jurnal mengajar yang diterbitkan oleh seluruh guru
+            $withRelations = ['schedule.subject', 'schedule.class', 'subject', 'teacher'];
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_tasks')) {
+                $withRelations[] = 'tasks';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                $withRelations[] = 'comments';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                $withRelations[] = 'reviews';
+            }
+
+            $journals = Journal::with($withRelations)
+                ->orderBy('teaching_date', 'desc')
+                ->get();
+
+            $myLikedIds = collect();
+            $mySavedIds = collect();
+            if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                $myLikedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'LIKE')
+                    ->pluck('journal_id');
+
+                $mySavedIds = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                    ->where('student_id', $user->id)
+                    ->where('interaction_type', 'SAVE')
+                    ->pluck('journal_id');
+            }
+
+            $result = [];
+
+            // A. Petakan data Jurnal yang sudah diterbitkan
+            foreach ($journals as $journal) {
+                $sched = $journal->schedule ?? null;
+                $subjectName = $sched?->subject?->name ?? ($journal->subject?->name ?? 'Mata Pelajaran');
+                $startTime = $sched ? $sched->start_time : '07:30:00';
+                $endTime = $sched ? $sched->end_time : '09:30:00';
+
+                $dayOfWeek = $sched ? $sched->day_of_week : null;
+                if ($dayOfWeek === null && $journal->teaching_date) {
+                    try {
+                        $dayOfWeek = Carbon::parse($journal->teaching_date)->dayOfWeekIso;
+                    } catch (\Throwable $e) {}
+                }
+
+                $hasTask = (bool)($journal->has_task ?? false);
+                $taskId = null;
+                $taskTitle = null;
+                $taskDueDate = null;
+                if ($journal->relationLoaded('tasks') && $journal->tasks && $journal->tasks->isNotEmpty()) {
+                    $hasTask = true;
+                    $firstTask = $journal->tasks->first();
+                    $taskId = $firstTask->id;
+                    $taskTitle = $firstTask->title;
+                    $taskDueDate = $firstTask->due_date ? Carbon::parse($firstTask->due_date)->locale('id')->isoFormat('D MMM Y, HH:mm') : null;
+                }
+
+                $likesCount = 0;
+                if (\Illuminate\Support\Facades\Schema::hasTable('journal_interactions')) {
+                    $likesCount = \Illuminate\Support\Facades\DB::table('journal_interactions')
+                        ->where('journal_id', $journal->id)
+                        ->where('interaction_type', 'LIKE')
+                        ->count();
+                }
+
+                $commentsCount = 0;
+                if ($journal->relationLoaded('comments') && $journal->comments) {
+                    $commentsCount = $journal->comments->count();
+                } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_comments')) {
+                    $commentsCount = \Illuminate\Support\Facades\DB::table('journal_comments')->where('journal_id', $journal->id)->count();
+                }
+
+                $avgRating = 5.0;
+                if ($journal->relationLoaded('reviews') && $journal->reviews && $journal->reviews->isNotEmpty()) {
+                    $avgRating = (float)($journal->reviews->avg('rating') ?: 5.0);
+                } elseif (\Illuminate\Support\Facades\Schema::hasTable('journal_reviews')) {
+                    $avgRating = (float)(\Illuminate\Support\Facades\DB::table('journal_reviews')->where('journal_id', $journal->id)->avg('rating') ?: 5.0);
+                }
+
+                $className = $sched?->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
+                $classId = $sched?->class_id ?? $journal->class_id;
+
+                $journalTeacher = $journal->teacher ?? $sched?->teacher;
+                $journalTeacherName = $journalTeacher ? ($journalTeacher->full_name ?: $journalTeacher->username) : 'Guru Pengajar';
+                $journalTeacherAvatar = $journalTeacher?->avatar ?? $journalTeacher?->profile_picture;
+
+                $serverNow = \App\Helpers\AppTime::now();
+                $teachingDateStr = $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : $serverNow->format('Y-m-d');
+                $isTodayOnServer = $serverNow->format('Y-m-d') === $teachingDateStr;
+
+                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} " . (strlen($startTime) == 5 ? "{$startTime}:00" : $startTime));
+                $endDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$teachingDateStr} " . (strlen($endTime) == 5 ? "{$endTime}:00" : $endTime));
+
+                $isServerPastEnd = $serverNow->gt($endDateTime);
+                $isServerStarted = $serverNow->gte($startDateTime);
+                $serverMinutesSinceStart = $isServerStarted ? (int)$startDateTime->diffInMinutes($serverNow, false) : -1;
+                $isServerLateTolerance = $serverMinutesSinceStart > 20;
+
+                $journalStatus = 'Belum';
+                if (!empty($journal->filled_at) || $journal->status === 'Selesai' || $journal->status === 'COMPLETED' || $isServerPastEnd) {
+                    $journalStatus = 'Selesai';
+                } elseif (!empty($journal->check_in_time)) {
+                    $journalStatus = 'Aktif';
+                } elseif ($isTodayOnServer && $isServerStarted && !$isServerPastEnd) {
+                    $journalStatus = 'Aktif';
+                }
+
+                $isFilled = !empty($journal->filled_at) || (!empty($journal->check_in_time) && $journalStatus === 'Selesai');
+                $isCheckedIn = !empty($journal->check_in_time);
+
+                $result[] = [
+                    'id' => $journal->id,
+                    'schedule_id' => $journal->schedule_id,
+                    'type' => 'journal',
+                    'status' => $journalStatus,
+                    'topic' => $journal->topic_material,
+                    'description' => $journal->description ?: $journal->topic_material,
+                    'created_at' => $journal->created_at ? $journal->created_at->toIso8601String() : null,
+                    'teaching_date' => $journal->teaching_date ? Carbon::parse($journal->teaching_date)->format('Y-m-d') : null,
+                    'subject' => $subjectName,
+                    'class_name' => $className,
+                    'class_id' => $classId,
+                    'subject_id' => $sched?->subject_id ?? $journal->subject_id,
+                    'teacher' => $journalTeacherName,
+                    'teacher_image' => $journalTeacherAvatar,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'day_of_week' => $dayOfWeek,
+                    'has_task' => $hasTask,
+                    'task_id' => $taskId,
+                    'task_title' => $taskTitle,
+                    'task_due_date' => $taskDueDate,
+                    'attachment_url' => $journal->attachment_url ?? null,
+                    'check_in_time' => $journal->check_in_time ? Carbon::parse($journal->check_in_time)->format('H:i') : null,
+                    'filled_at' => $journal->filled_at ? Carbon::parse($journal->filled_at)->format('H:i') : null,
+                    'class_notes' => $journal->class_notes,
+                    'is_checked_in' => $isCheckedIn,
+                    'is_filled' => $isFilled,
+                    'can_fill' => false,
+                    'has_started' => $isTodayOnServer && $isServerStarted,
+                    'is_late_tolerance' => $isTodayOnServer && $isServerLateTolerance,
+                    'minutes_since_start' => $serverMinutesSinceStart,
+                    'likes' => $likesCount,
+                    'is_liked' => $myLikedIds->contains($journal->id),
+                    'is_saved' => $mySavedIds->contains($journal->id),
+                    'comments' => $commentsCount,
+                    'rating' => (float)round($avgRating, 1),
+                    'has_rated' => false,
+                    'my_rating' => null
+                ];
+            }
+
+            // B. Petakan seluruh Jadwal KBM Reguler mingguan (Jurnal Cangkang) dari seluruh guru
+            foreach ($schedules as $sched) {
+                if (!empty($sched->activity_name) || empty($sched->subject_id) || ($sched->subject && $sched->subject->code === 'KEG')) {
+                    continue;
+                }
+
+                $subjectName = $sched->subject?->name ?? 'Mata Pelajaran';
+                $className = $sched->class ? ($sched->class->grade_level . ' ' . $sched->class->name) : 'Kelas';
+                $schedTeacher = $sched->teacher;
+                $schedTeacherName = $schedTeacher ? ($schedTeacher->full_name ?: $schedTeacher->username) : 'Guru Pengajar';
+                $schedTeacherAvatar = $schedTeacher?->avatar ?? $schedTeacher?->profile_picture;
+
+                $result[] = [
+                    'id' => 'sched_' . $sched->id,
+                    'schedule_id' => $sched->id,
+                    'subject_id' => $sched->subject_id,
+                    'subject_code' => $sched->subject?->code ?? '',
+                    'activity_name' => $sched->activity_name ?? null,
+                    'class_id' => $sched->class_id,
+                    'class_name' => $className,
+                    'type' => 'schedule',
+                    'topic' => 'Jadwal Mengajar: ' . $subjectName . ' (' . $className . ')',
+                    'description' => 'Materi pembelajaran belum dipublikasikan oleh guru pengajar untuk sesi ini.',
+                    'created_at' => $sched->created_at ? $sched->created_at->toIso8601String() : null,
+                    'teaching_date' => null,
+                    'subject' => $subjectName,
+                    'teacher' => $schedTeacherName,
+                    'teacher_image' => $schedTeacherAvatar,
+                    'start_time' => $sched->start_time,
+                    'end_time' => $sched->end_time,
+                    'day_of_week' => $sched->day_of_week,
+                    'has_task' => false,
+                    'task_title' => null,
+                    'attachment_url' => null,
+                    'likes' => 0,
+                    'is_liked' => false,
+                    'is_saved' => false,
+                    'comments' => 0,
+                    'rating' => 5.0,
+                    'has_rated' => false,
+                    'my_rating' => null
+                ];
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $result
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function getOffDays(Request $request)
     {
         try {

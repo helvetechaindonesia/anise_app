@@ -6,11 +6,11 @@ import '../screens/guru_home_screen.dart';
 import '../screens/bk_home_screen.dart';
 import '../../tata_usaha/screens/tu_home_screen.dart';
 import '../../tata_usaha/screens/tu_surat_screen.dart';
+import '../../kepala_sekolah/screens/kepsek_home_screen.dart';
 import '../../bk/screens/bk_bimbingan_screen.dart';
 import '../../poin/screens/poin_screen.dart';
 import '../../jadwal/screens/jadwal_screen.dart';
 import '../../jadwal/screens/guru_jurnal_screen.dart';
-import '../../poin/screens/poin_screen.dart';
 import '../../notifications/screens/notification_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../screens/role_dashboards.dart';
@@ -60,7 +60,13 @@ class NavigationConfig {
         const ProfileScreen(),
       ];
     } else if (user.role == UserRole.kepalaSekolah) {
-      baseScreens.insert(1, const RoleDashboardPlaceholder(title: 'Laporan Eksekutif', role: UserRole.kepalaSekolah));
+      return [
+        KepsekHomeScreen(onNavigateTab: onNavigateTab),
+        const GuruJurnalScreen(),
+        const SizedBox(), // Placeholder FAB Presensi
+        const PoinScreen(),
+        const ProfileScreen(),
+      ];
     } else {
        baseScreens.insert(1, RoleDashboardPlaceholder(title: 'Modul Khusus ${user.role.name}', role: user.role));
     }
@@ -164,11 +170,32 @@ class NavigationConfig {
         ),
       ];
     } else if (user.role == UserRole.kepalaSekolah) {
-      items.add(BottomNavigationBarItem(
-        icon: Icon(PhosphorIcons.chartLineUp()),
-        activeIcon: Icon(PhosphorIcons.chartLineUp(PhosphorIconsStyle.fill)),
-        label: 'Laporan',
-      ));
+      return [
+        BottomNavigationBarItem(
+          icon: Icon(PhosphorIcons.house()),
+          activeIcon: Icon(PhosphorIcons.house(PhosphorIconsStyle.fill)),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(PhosphorIcons.chalkboardTeacher()),
+          activeIcon: Icon(PhosphorIcons.chalkboardTeacher(PhosphorIconsStyle.fill)),
+          label: 'Jurnal',
+        ),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.clear, color: Colors.transparent),
+          label: '',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(PhosphorIcons.chartLineUp()),
+          activeIcon: Icon(PhosphorIcons.chartLineUp(PhosphorIconsStyle.fill)),
+          label: 'KPI',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(PhosphorIcons.user()),
+          activeIcon: Icon(PhosphorIcons.user(PhosphorIconsStyle.fill)),
+          label: 'Profil',
+        ),
+      ];
     } else if (user.role == UserRole.tataUsaha) {
       return [
         BottomNavigationBarItem(

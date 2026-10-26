@@ -140,7 +140,12 @@ final allJournalsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) asyn
     timer?.cancel();
   });
 
-  final endpoint = user.role == UserRole.siswa ? '/journals/siswa' : '/journals/guru';
+  String endpoint = '/journals/guru';
+  if (user.role == UserRole.siswa) {
+    endpoint = '/journals/siswa';
+  } else if (user.role == UserRole.kepalaSekolah) {
+    endpoint = '/journals/all';
+  }
 
   try {
     final response = await dio.get(endpoint);
