@@ -154,17 +154,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final updatedEmail = userData['email']?.toString() ?? currentUser.email;
         final updatedPhone = userData['phone']?.toString();
         final updatedAddress = userData['address']?.toString();
+        final updatedAvatar = userData['avatar']?.toString() ?? userData['profile_picture']?.toString() ?? currentUser.avatar;
 
         if (currentUser.fullName != updatedName ||
             currentUser.email != updatedEmail ||
             currentUser.phone != updatedPhone ||
-            currentUser.address != updatedAddress) {
+            currentUser.address != updatedAddress ||
+            currentUser.avatar != updatedAvatar) {
           state = state.copyWith(
             user: currentUser.copyWith(
               fullName: updatedName,
               email: updatedEmail,
               phone: updatedPhone,
               address: updatedAddress,
+              avatar: updatedAvatar,
             ),
           );
         }

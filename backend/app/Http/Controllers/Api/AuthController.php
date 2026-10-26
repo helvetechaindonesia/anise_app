@@ -148,6 +148,8 @@ class AuthController extends Controller
                     'address' => $user->address,
                     'gender' => $user->gender,
                     'religion' => $user->religion,
+                    'avatar' => $user->avatar,
+                    'profile_picture' => $user->avatar,
                     'is_active' => $user->is_active,
                     'is_wali_kelas' => $user->is_wali_kelas,
                 ]
