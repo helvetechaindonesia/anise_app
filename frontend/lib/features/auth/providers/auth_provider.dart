@@ -149,6 +149,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (code == 'SESSION_ACTIVE' && res['data']?['user'] != null) {
       final userData = res['data']['user'] as Map<String, dynamic>;
       final currentUser = state.user;
+      if (currentUser != null) {
         final updatedName = userData['full_name']?.toString() ?? currentUser.fullName;
         final updatedEmail = userData['email']?.toString() ?? currentUser.email;
         final updatedPhone = userData['phone']?.toString();
