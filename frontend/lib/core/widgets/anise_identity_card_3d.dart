@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:math' as math;
 import '../constants/colors.dart';
@@ -246,14 +247,12 @@ class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerPr
                             color: AppColors.onPrimary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20.w(context)),
                           ),
-                          child: Image.asset(
-                            'assets/images/logo-kemendikbud.png',
+                          child: SvgPicture.asset(
+                            'assets/images/kemendikbud.svg',
                             height: 28.h(context),
                             width: 28.w(context),
                             fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            isAntiAlias: true,
-                            errorBuilder: (context, error, stackTrace) => Icon(
+                            placeholderBuilder: (context) => Icon(
                               PhosphorIcons.image(PhosphorIconsStyle.bold),
                               color: AppColors.onPrimary.withValues(alpha: 0.5),
                               size: 28.w(context),

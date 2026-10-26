@@ -241,24 +241,41 @@ class HabitController extends Controller
     {
         $user = $request->user();
 
-        // 1. Kepala Sekolah -> Memantau seluruh Guru & Tenaga Kependidikan
+        // 1. Kepala Sekolah -> Memantau seluruh user sekolah (Siswa, Guru, Guru BK, Tata Usaha)
         if ($user->role_type === 'KEPALA_SEKOLAH') {
-            $teacherRoleIds = \App\Models\Role::whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA'])->pluck('id')->toArray();
-            $monitoredStaff = \App\Models\User::whereIn('role_id', $teacherRoleIds)
-                ->where('id', '!=', $user->id)
-                ->select('id', 'full_name as name', 'username', 'role_type')
+            $allUsers = \App\Models\User::where('id', '!=', $user->id)
+                ->where('is_active', true)
+                ->with(['role', 'siswaProfile', 'guruProfile', 'studentClass'])
                 ->get()
-                ->map(function ($staff) {
+                ->map(function ($u) {
+                    $roleType = $u->role?->name ?? $u->role_type;
+                    $roleLabel = 'User';
+                    $type = 'UMUM';
+
+                    if ($roleType === 'SISWA') {
+                        $roleLabel = 'Siswa (' . ($u->class_name ?? 'Umum') . ')';
+                        $type = 'SISWA';
+                    } elseif ($roleType === 'GURU') {
+                        $roleLabel = 'Guru Pengajar';
+                        $type = 'TENAGA_PENDIDIK';
+                    } elseif ($roleType === 'GURU_BK') {
+                        $roleLabel = 'Guru BK';
+                        $type = 'TENAGA_PENDIDIK';
+                    } elseif ($roleType === 'TATA_USAHA') {
+                        $roleLabel = 'Tata Usaha';
+                        $type = 'TENAGA_PENDIDIK';
+                    }
+
                     return [
-                        'id' => $staff->id,
-                        'name' => $staff->name,
-                        'username' => $staff->username,
-                        'type' => 'TENAGA_PENDIDIK',
-                        'role_label' => $staff->role_type === 'GURU_BK' ? 'Guru BK' : ($staff->role_type === 'GURU' ? 'Guru Pengajar' : 'Tata Usaha'),
+                        'id' => $u->id,
+                        'name' => $u->full_name ?? $u->username,
+                        'username' => $u->username,
+                        'type' => $type,
+                        'role_label' => $roleLabel,
                     ];
                 });
 
-            return $this->success($monitoredStaff);
+            return $this->success($allUsers);
         }
 
         // 2. Guru / Guru BK
@@ -371,11 +388,10 @@ class HabitController extends Controller
     {
         $user = $request->user();
 
-        // 1. KEPALA SEKOLAH -> Memantau statistik seluruh Guru & Staff
+        // 1. KEPALA SEKOLAH -> Memantau statistik seluruh User (Siswa, Guru & Staff)
         if ($user->role_type === 'KEPALA_SEKOLAH') {
-            $teacherRoleIds = \App\Models\Role::whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA'])->pluck('id')->toArray();
-            $targetUserIds = \App\Models\User::whereIn('role_id', $teacherRoleIds)
-                ->where('id', '!=', $user->id)
+            $targetUserIds = \App\Models\User::where('id', '!=', $user->id)
+                ->where('is_active', true)
                 ->pluck('id')
                 ->toArray();
         } else {

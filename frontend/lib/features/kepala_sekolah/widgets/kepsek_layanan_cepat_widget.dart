@@ -15,6 +15,7 @@ import '../../humas/screens/humas_screen.dart';
 import '../../ai/screens/sipena_ai_screen.dart';
 import '../screens/kepsek_evaluasi_tendik_screen.dart';
 import '../screens/kepsek_kpi_monitoring_screen.dart';
+import '../screens/kepsek_g7_monitoring_screen.dart';
 
 class KepsekLayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -98,6 +99,11 @@ class KepsekLayananCepatWidget extends StatelessWidget {
         icon: PhosphorIcons.identificationCard(PhosphorIconsStyle.bold),
         label: 'Manajemen User',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuMasterUserScreen())),
+      ),
+      QuickActionItem(
+        icon: PhosphorIcons.sparkle(PhosphorIconsStyle.bold),
+        label: 'G7-KAIH',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekG7MonitoringScreen())),
       ),
       QuickActionItem(
         icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
