@@ -3,11 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/main_header.dart';
-import 'bk_input_disiplin_screen.dart';
+import '../../../core/widgets/anise_card.dart';
+import '../../../core/widgets/anise_date_filter.dart';
+import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/item_list_tile.dart';
+import '../../jadwal/providers/jurnal_provider.dart';
 import '../../poin/screens/poin_screen.dart';
 import '../providers/disiplin_provider.dart';
+import 'bk_input_disiplin_screen.dart';
 
 class BkDisiplinScreen extends ConsumerStatefulWidget {
   const BkDisiplinScreen({Key? key}) : super(key: key);
@@ -17,47 +23,157 @@ class BkDisiplinScreen extends ConsumerStatefulWidget {
 }
 
 class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
-  int _selectedDateIndex = 4; // Assuming 24 is at index 4
+  late DateTime _selectedDate;
+  late DateTime _currentWeekStart;
+  bool _isCustomDateSelected = false;
 
-  final List<Map<String, String>> dates = [
-    {'day': 'SEN', 'date': '20'},
-    {'day': 'SEL', 'date': '21'},
-    {'day': 'RAB', 'date': '22'},
-    {'day': 'KAM', 'date': '23'},
-    {'day': 'JUM', 'date': '24'},
-    {'day': 'SAB', 'date': '25'},
-    {'day': 'MIN', 'date': '26'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+  }
+
+  void _resetToCurrentWeek(Map<String, dynamic>? offDaysData) {
+    setState(() {
+      _currentWeekStart = computeActiveWeekMonday(offDaysData);
+      final activeDates = filterActiveWeekDates(
+        weekMonday: _currentWeekStart,
+        offDaysData: offDaysData,
+      );
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      _selectedDate = activeDates.firstWhere(
+        (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+        orElse: () => activeDates.isNotEmpty ? activeDates.first : today,
+      );
+      _isCustomDateSelected = false;
+    });
+    ref.read(selectedDisiplinDateProvider.notifier).state = _selectedDate;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final offDaysAsync = ref.watch(offDaysProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.backgroundLight,
       body: CustomScrollView(
         slivers: [
+          // 1. Payung Identitas Utama Layar: MainHeader
           const MainHeader(),
+
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w(context)),
+              padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Spacing.custom(context, 16),
-                  _buildHeader(context),
-                  Spacing.custom(context, 24),
-                  _buildInputDisiplinCard(context),
-                  Spacing.custom(context, 24),
-                  _buildDateSelector(context),
-                  Spacing.custom(context, 24),
-                  _buildKpiButton(context),
-                  Spacing.custom(context, 32),
-                  Text(
-                    'Laporan Kedisiplinan Terbaru',
-                    style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
+                  SizedBox(height: 16.h(context)),
+
+                  // 2. Sub-Header Standar Anise + AniseDatePickerButton
+                  offDaysAsync.when(
+                    data: (offDays) => _buildSubHeader(context, offDays),
+                    loading: () => _buildSubHeader(context, null),
+                    error: (_, __) => _buildSubHeader(context, null),
                   ),
-                  Spacing.custom(context, 16),
-                  _buildTopOffendersList(context),
-                  Spacing.custom(context, 40),
+                  SizedBox(height: 20.h(context)),
+
+                  // 3. Card Input Pelanggaran / Lapor (Terstandarisasi AniseCard)
+                  _buildInputDisiplinCard(context),
+                  SizedBox(height: 20.h(context)),
+
+                  // 4. Filter Item Tanggal (AniseDateFilter Terstandarisasi)
+                  offDaysAsync.when(
+                    data: (offDaysData) {
+                      final activeDates = filterActiveWeekDates(
+                        weekMonday: _currentWeekStart,
+                        offDaysData: offDaysData,
+                      );
+
+                      if (activeDates.isNotEmpty && !_isCustomDateSelected) {
+                        final isSelectedInActive = activeDates.any((d) =>
+                            d.year == _selectedDate.year &&
+                            d.month == _selectedDate.month &&
+                            d.day == _selectedDate.day);
+                        if (!isSelectedInActive) {
+                          final now = DateTime.now();
+                          final today = DateTime(now.year, now.month, now.day);
+                          _selectedDate = activeDates.firstWhere(
+                            (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+                            orElse: () => activeDates.first,
+                          );
+                        }
+                      }
+
+                      return AniseDateFilter(
+                        dates: activeDates,
+                        selectedDate: _selectedDate,
+                        isCustomDateSelected: _isCustomDateSelected,
+                        onDateSelected: (date) {
+                          setState(() {
+                            _selectedDate = date;
+                            _isCustomDateSelected = false;
+                          });
+                          ref.read(selectedDisiplinDateProvider.notifier).state = date;
+                        },
+                        onReset: () => _resetToCurrentWeek(offDaysData),
+                      );
+                    },
+                    loading: () => SizedBox(
+                      height: 72.h(context),
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                    ),
+                    error: (_, __) {
+                      _currentWeekStart = computeActiveWeekMonday(null);
+                      final fallbackDates = filterActiveWeekDates(
+                        weekMonday: _currentWeekStart,
+                        offDaysData: null,
+                      );
+                      return AniseDateFilter(
+                        dates: fallbackDates,
+                        selectedDate: _selectedDate,
+                        isCustomDateSelected: _isCustomDateSelected,
+                        onDateSelected: (date) {
+                          setState(() {
+                            _selectedDate = date;
+                            _isCustomDateSelected = false;
+                          });
+                          ref.read(selectedDisiplinDateProvider.notifier).state = date;
+                        },
+                        onReset: () => _resetToCurrentWeek(null),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 20.h(context)),
+
+                  // 5. Tombol Pintas KPI Poin Disiplin
+                  _buildKpiButton(context),
+                  SizedBox(height: 28.h(context)),
+
+                  // 6. Judul Seksi Daftar Laporan
+                  Row(
+                    children: [
+                      Icon(
+                        PhosphorIcons.warningCircle(PhosphorIconsStyle.bold),
+                        color: AppColors.onBackground,
+                        size: 20.w(context),
+                      ),
+                      SizedBox(width: 8.w(context)),
+                      Text(
+                        'Laporan Kedisiplinan Siswa',
+                        style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16.h(context)),
+
+                  // 7. Daftar Baris Laporan Terstandarisasi ItemListTile
+                  _buildDisciplineReportsList(context),
+                  SizedBox(height: 40.h(context)),
                 ],
               ),
             ),
@@ -67,7 +183,11 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  /// Sub-Header Standar Anise dengan Title & AniseDatePickerButton
+  Widget _buildSubHeader(BuildContext context, Map<String, dynamic>? offDaysData) {
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -77,385 +197,250 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
           children: [
             Text(
               'GURU & BK',
-              style: AppTextStyles.labelSmall(context, color: AppColors.primary),
+              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             SizedBox(height: 4.h(context)),
             Text(
               'Pantau Disiplin',
-              style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground),
+              style: AppTextStyles.headlineMedium(context, color: AppColors.onBackground).copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
-        GestureDetector(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-              builder: (context, child) {
-                return Theme(
-                  data: Theme.of(context),
-                  child: child!,
-                );
-              },
-            );
-            if (picked != null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Data untuk tanggal ${picked.day}/${picked.month}/${picked.year} ditampilkan.'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.surface,
-                ),
-              );
-            }
+        // Tombol Standarisasi: AniseDatePickerButton
+        AniseDatePickerButton(
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          firstDate: releaseDate,
+          onDateSelected: (picked) {
+            setState(() {
+              _selectedDate = DateTime(picked.year, picked.month, picked.day);
+              _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+              _isCustomDateSelected = true;
+            });
+            ref.read(selectedDisiplinDateProvider.notifier).state = _selectedDate;
           },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(20.w(context)),
-            ),
-            child: Row(
-              children: [
-                Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: AppColors.onSecondary, size: 14.w(context)),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  'Pilih Tanggal',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onSecondary),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildDateSelector(BuildContext context) {
-    return SizedBox(
-      height: 70.h(context),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: dates.length,
-        itemBuilder: (context, index) {
-          final isSelected = index == _selectedDateIndex;
-          final date = dates[index];
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedDateIndex = index;
-              });
-            },
-            child: Container(
-              width: 56.w(context),
-              margin: EdgeInsets.only(right: 12.w(context)),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryContainer : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
-                border: Border.all(
-                  color: isSelected ? AppColors.onPrimaryContainer : AppColors.outline,
-                  width: 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.onBackground.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    date['day']!,
-                    style: AppTextStyles.labelSmall(context, color: isSelected ? AppColors.onPrimaryContainer.withValues(alpha: 0.8) : AppColors.onSurface),
-                  ),
-                  SizedBox(height: 4.h(context)),
-                  Text(
-                    date['date']!,
-                    style: AppTextStyles.titleMedium(context, color: isSelected ? AppColors.onPrimaryContainer : AppColors.onSurface),
-                  ),
-                  if (isSelected) ...[
-                    SizedBox(height: 4.h(context)),
-                    Container(
-                      width: 4.w(context),
-                      height: 4.w(context),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ]
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
+  /// Standarisasi Bentuk Card Input Pelanggaran / Lapor berbasis AniseCard
   Widget _buildInputDisiplinCard(BuildContext context) {
-    return GestureDetector(
+    return AniseCard(
+      color: AppColors.primary,
+      borderRadius: 16.w(context),
+      padding: EdgeInsets.all(18.w(context)),
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const BkInputDisiplinScreen()),
         );
       },
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16.w(context)),
-          border: Border.all(
-            color: AppColors.error.withValues(alpha: 0.3),
-            width: 1,
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12.w(context)),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              PhosphorIcons.plus(PhosphorIconsStyle.bold),
+              color: AppColors.surface,
+              size: 24.w(context),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(12.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                color: AppColors.onPrimary,
-                size: 20.w(context),
-              ),
-            ),
-            SizedBox(width: 16.w(context)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Input Pelanggaran / Lapor',
-                    style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
+          SizedBox(width: 16.w(context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Input Pelanggaran / Lapor',
+                  style: AppTextStyles.titleMedium(context, color: AppColors.surface).copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  SizedBox(height: 4.h(context)),
-                  Text(
-                    'Catat atau laporkan pelanggaran siswa',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(height: 4.h(context)),
+                Text(
+                  'Catat siswa telat atau pelanggaran tata tertib',
+                  style: AppTextStyles.labelSmall(context, color: AppColors.surface.withValues(alpha: 0.8)),
+                ),
+              ],
             ),
-            Icon(
-              PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-              color: AppColors.error,
-              size: 20.w(context),
-            ),
-          ],
-        ),
+          ),
+          Icon(
+            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+            color: AppColors.surface,
+            size: 20.w(context),
+          ),
+        ],
       ),
     );
   }
 
+  /// Tombol Pintas KPI Poin Disiplin
   Widget _buildKpiButton(BuildContext context) {
-    return GestureDetector(
+    return AniseCard(
+      borderRadius: 16.w(context),
+      padding: EdgeInsets.symmetric(horizontal: 18.w(context), vertical: 14.h(context)),
+      color: AppColors.surface,
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const PoinScreen()),
         );
       },
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 16.h(context)),
-        decoration: BoxDecoration(
-          color: AppColors.primaryContainer,
-          borderRadius: BorderRadius.circular(16.w(context)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(PhosphorIcons.chartLineUp(PhosphorIconsStyle.fill), color: AppColors.onPrimaryContainer),
-                SizedBox(width: 12.w(context)),
-                Text(
-                  'Lihat Grafik KPI Sekolah',
-                  style: AppTextStyles.labelLarge(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onPrimaryContainer, size: 16.w(context)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopOffendersList(BuildContext context) {
-    final reportsAsync = ref.watch(disiplinReportsProvider);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20.w(context)),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.3), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.onBackground.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: reportsAsync.when(
-        data: (reports) {
-          if (reports.isEmpty) {
-            return Padding(
-              padding: EdgeInsets.symmetric(vertical: 20.h(context)),
-              child: Center(
-                child: Text(
-                  'Belum ada laporan kedisiplinan',
-                  style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                ),
-              ),
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: reports.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final report = entry.value;
-              final student = report['siswa'];
-              final status = report['status'];
-              
-              final canApprove = report['can_approve'] == true;
-              final isGuruWali = report['is_guru_wali'] == true;
-              final Color pointColor = status == 'INPUT'
-                  ? AppColors.error
-                  : (status == 'APPROVED' ? AppColors.success : AppColors.warning);
-
-              return Column(
-                children: [
-                  _buildStudentDisciplineRow(
-                    context,
-                    student != null ? student['full_name'] : 'Unknown',
-                    report['category'] ?? '-',
-                    status ?? 'LAPORAN',
-                    pointColor,
-                    reportId: report['id'],
-                    canApprove: canApprove,
-                    isGuruWali: isGuruWali,
-                  ),
-                  if (idx < reports.length - 1)
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12.h(context)),
-                      child: Divider(color: AppColors.outline.withValues(alpha: 0.2), height: 1),
-                    ),
-                ],
-              );
-            }).toList(),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Gagal memuat data: $error')),
-      ),
-    );
-  }
-
-  Widget _buildStudentDisciplineRow(
-    BuildContext context,
-    String name,
-    String category,
-    String status,
-    Color pointColor, {
-    dynamic reportId,
-    bool canApprove = false,
-    bool isGuruWali = false,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Row(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
             children: [
               Container(
-                width: 40.w(context),
-                height: 40.w(context),
+                padding: EdgeInsets.all(8.w(context)),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10.w(context)),
                 ),
-                child: Center(
-                  child: Text(
-                    name.isNotEmpty ? name.substring(0, 1) : '?',
-                    style: AppTextStyles.titleSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
-                  ),
+                child: Icon(
+                  PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
+                  color: AppColors.primary,
+                  size: 20.w(context),
                 ),
               ),
               SizedBox(width: 12.w(context)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: AppTextStyles.labelLarge(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      category,
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+              Text(
+                'Lihat Grafik KPI & Poin Siswa',
+                style: AppTextStyles.labelLarge(context, color: AppColors.onBackground).copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-        ),
-        SizedBox(width: 8.w(context)),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-              decoration: BoxDecoration(
-                color: pointColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12.w(context)),
-              ),
-              child: Text(
-                status,
-                style: AppTextStyles.labelSmall(context, color: pointColor).copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            if (canApprove && reportId != null) ...[
-              SizedBox(width: 6.w(context)),
-              IconButton(
-                icon: const Icon(PhosphorIconsFill.checkCircle, color: AppColors.primary, size: 22),
-                tooltip: 'Setujui Laporan (Sebagai Guru Wali)',
-                onPressed: () async {
-                  final ok = await ref.read(disiplinNotifierProvider.notifier).approveReport(reportId: reportId);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(ok ? 'Laporan siswa berhasil disetujui!' : 'Gagal menyetujui laporan'),
-                        backgroundColor: ok ? AppColors.success : AppColors.error,
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ],
-        ),
-      ],
+          Icon(
+            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+            color: AppColors.onBackground.withValues(alpha: 0.6),
+            size: 16.w(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Daftar Baris Laporan Terstandarisasi ItemListTile
+  Widget _buildDisciplineReportsList(BuildContext context) {
+    final reportsAsync = ref.watch(disiplinReportsProvider);
+
+    return reportsAsync.when(
+      data: (reports) {
+        if (reports.isEmpty) {
+          return const AniseEmptyState(
+            title: 'Belum Ada Laporan Kedisiplinan',
+            subtitle: 'Tidak ada catatan pelanggaran pada tanggal yang dipilih.',
+          );
+        }
+
+        return AniseCard(
+          borderRadius: 20.w(context),
+          padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 8.h(context)),
+          child: Column(
+            children: reports.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final report = entry.value as Map<String, dynamic>;
+              final isLast = idx == reports.length - 1;
+
+              final student = report['siswa'] as Map<String, dynamic>?;
+              final reporter = report['reporter'] as Map<String, dynamic>?;
+              final String studentName = student?['full_name']?.toString() ?? 'Siswa';
+              final String category = report['category']?.toString() ?? 'Pelanggaran';
+              final String status = report['status']?.toString() ?? 'LAPORAN';
+              final String? notes = report['notes']?.toString();
+              final String? reporterName = reporter?['full_name']?.toString();
+              final bool canApprove = report['can_approve'] == true;
+              final bool isGuruWali = report['is_guru_wali'] == true;
+
+              Color statusColor;
+              IconData statusIcon;
+              String statusLabel;
+
+              if (status == 'INPUT') {
+                statusColor = AppColors.error;
+                statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
+                statusLabel = 'INPUT (Sah - Guru Wali)';
+              } else if (status == 'APPROVED') {
+                statusColor = AppColors.primary;
+                statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
+                statusLabel = 'DISETUJUI (Sah)';
+              } else {
+                statusColor = AppColors.warning;
+                statusIcon = PhosphorIcons.clock(PhosphorIconsStyle.fill);
+                statusLabel = 'LAPORAN (Menunggu Guru Wali)';
+              }
+
+              // Metadata teks: Pelapor & Catatan
+              String metaText = 'Kategori: $category';
+              if (reporterName != null) {
+                metaText += ' • Pelapor: $reporterName';
+              }
+
+              Widget? actionTrailing;
+              if (canApprove && report['id'] != null) {
+                actionTrailing = ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.onPrimary,
+                    padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.w(context)),
+                    ),
+                  ),
+                  icon: Icon(PhosphorIcons.check(PhosphorIconsStyle.bold), size: 14.w(context)),
+                  label: Text('Setujui', style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary)),
+                  onPressed: () async {
+                    final ok = await ref.read(disiplinNotifierProvider.notifier).approveReport(reportId: report['id']);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(ok ? 'Laporan siswa berhasil disetujui!' : 'Gagal menyetujui laporan'),
+                          backgroundColor: ok ? AppColors.primary : AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                );
+              }
+
+              return ItemListTile(
+                category: isGuruWali ? 'Anak Asuh Guru Wali' : 'Siswa Terlapor',
+                subcategory: notes != null && notes.isNotEmpty ? 'Catatan: $notes' : null,
+                title: studentName,
+                metadataIcon: PhosphorIcons.tag(PhosphorIconsStyle.regular),
+                metadataText: metaText,
+                statusText: statusLabel,
+                statusIcon: statusIcon,
+                statusColor: statusColor,
+                statusTrailing: actionTrailing,
+                showDivider: !isLast,
+                dividerThickness: 1.5.h(context),
+              );
+            }).toList(),
+          ),
+        );
+      },
+      loading: () => Padding(
+        padding: EdgeInsets.symmetric(vertical: 32.h(context)),
+        child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      ),
+      error: (e, _) => AniseEmptyState(
+        title: 'Gagal Memuat Laporan',
+        subtitle: e.toString(),
+      ),
     );
   }
 }

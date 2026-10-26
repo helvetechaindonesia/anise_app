@@ -2,10 +2,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 
+final selectedDisiplinDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+
 final disiplinReportsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final dio = ref.watch(dioProvider);
+  final selectedDate = ref.watch(selectedDisiplinDateProvider);
+  final dateStr =
+      "${selectedDate.year.toString().padLeft(4, '0')}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+
   try {
-    final response = await dio.get('/discipline/reports');
+    final response = await dio.get(
+      '/discipline/reports',
+      queryParameters: {'date': dateStr},
+    );
     if (response.data is Map && response.data['data'] is List) {
       return response.data['data'] as List<dynamic>;
     }
