@@ -166,7 +166,7 @@ class AuthController extends Controller
         if (in_array($user->role_type, ['GURU', 'GURU_BK'])) {
             $user->load(['guruProfile', 'structuralAssignments', 'waliKelas', 'guruWaliStudents']);
         } elseif ($user->role_type === 'SISWA') {
-            $user->load('siswaProfile');
+            $user->load(['siswaProfile', 'studentClass']);
         }
 
         return $this->success($user, 'User profile retrieved successfully');
@@ -206,7 +206,7 @@ class AuthController extends Controller
         if (in_array($user->role_type, ['GURU', 'GURU_BK'])) {
             $user->load(['guruProfile', 'structuralAssignments', 'waliKelas', 'guruWaliStudents']);
         } elseif ($user->role_type === 'SISWA') {
-            $user->load('siswaProfile');
+            $user->load(['siswaProfile', 'studentClass']);
         }
 
         return response()->json([

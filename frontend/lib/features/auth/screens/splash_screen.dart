@@ -10,6 +10,7 @@ import '../../../core/utils/shared_prefs.dart';
 import '../providers/auth_provider.dart';
 import '../../home/screens/main_navigation_screen.dart';
 import 'login_screen.dart';
+import 'onboarding_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -143,13 +144,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
         }
       }
 
+      // Periksa apakah user baru pertama kali menginstal aplikasi (onboarding belum dilihat)
+      final bool hasSeenOnboarding = await SharedPrefs.isOnboardingSeen();
+
       // Tunggu jeda halus 400ms setelah animasi selesai sebelum transisi layar
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
 
-      final targetScreen = isAuthenticated
-          ? const MainNavigationScreen()
-          : const LoginScreen();
+      Widget targetScreen;
+      if (!hasSeenOnboarding) {
+        targetScreen = OnboardingScreen(isAuthenticated: isAuthenticated);
+      } else if (isAuthenticated) {
+        targetScreen = const MainNavigationScreen();
+      } else {
+        targetScreen = const LoginScreen();
+      }
 
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(

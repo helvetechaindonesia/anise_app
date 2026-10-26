@@ -108,6 +108,20 @@ class SharedPrefs {
     }
   }
 
+  static const String _onboardingSeenKey = 'has_seen_onboarding';
+
+  /// Cek apakah user sudah pernah melihat welcome / onboarding screen
+  static Future<bool> isOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingSeenKey) ?? false;
+  }
+
+  /// Menandai onboarding screen telah diselesaikan
+  static Future<void> setOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_onboardingSeenKey, true);
+  }
+
   static Future<Map<String, dynamic>> getSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     return {

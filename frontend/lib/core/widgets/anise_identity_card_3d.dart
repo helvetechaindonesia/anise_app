@@ -101,7 +101,9 @@ class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerPr
           idText = 'NIS: $nis';
         }
       }
-      final className = widget.user?.className ?? 'XII';
+      final className = (widget.user?.className != null && widget.user!.className!.isNotEmpty)
+          ? widget.user!.className!
+          : '-';
       secondaryText = 'KELAS: $className';
     } else {
       if (widget.user != null) {

@@ -58,7 +58,7 @@ class User extends Authenticatable
     }
 
     // Append custom attribute
-    protected $appends = ['role_type', 'profile_picture', 'is_wali_kelas'];
+    protected $appends = ['role_type', 'profile_picture', 'is_wali_kelas', 'class_name'];
 
     public function getRoleTypeAttribute()
     {
@@ -73,6 +73,27 @@ class User extends Authenticatable
     public function getIsWaliKelasAttribute(): bool
     {
         return \App\Models\SchoolClass::where('wali_kelas_id', $this->id)->exists();
+    }
+
+    public function getClassNameAttribute(): ?string
+    {
+        if ($this->relationLoaded('studentClass') && $this->studentClass) {
+            return trim(($this->studentClass->grade_level ?? '') . ' ' . ($this->studentClass->name ?? ''));
+        }
+
+        // Cek via class_students
+        $class = \Illuminate\Support\Facades\DB::table('class_students')
+            ->join('classes', 'class_students.class_id', '=', 'classes.id')
+            ->where('class_students.student_id', $this->id)
+            ->where('class_students.status', 'ACTIVE')
+            ->select('classes.grade_level', 'classes.name')
+            ->first();
+
+        if ($class) {
+            return trim(($class->grade_level ?? '') . ' ' . ($class->name ?? ''));
+        }
+
+        return null;
     }
 
     // Relationships
@@ -104,5 +125,22 @@ class User extends Authenticatable
     public function guruWaliStudents()
     {
         return $this->hasMany(GuruWaliStudent::class, 'guru_id');
+    }
+
+    public function classStudent()
+    {
+        return $this->hasOne(ClassStudent::class, 'student_id')->where('status', 'ACTIVE');
+    }
+
+    public function studentClass()
+    {
+        return $this->hasOneThrough(
+            SchoolClass::class,
+            ClassStudent::class,
+            'student_id', // Foreign key on ClassStudent table
+            'id',         // Foreign key on SchoolClass table
+            'id',         // Local key on User table
+            'class_id'    // Local key on ClassStudent table
+        )->where('class_students.status', 'ACTIVE');
     }
 }

@@ -78,6 +78,31 @@ class UserModel {
       }
     }
 
+    final siswaProf = json['siswa_profile'] as Map<String, dynamic>?;
+    final guruProf = json['guru_profile'] as Map<String, dynamic>?;
+    final studentClass = json['student_class'] as Map<String, dynamic>?;
+
+    String? parsedClassName;
+    if (studentClass != null) {
+      final grade = studentClass['grade_level']?.toString() ?? '';
+      final name = studentClass['name']?.toString() ?? '';
+      parsedClassName = '$grade $name'.trim();
+    }
+    if (parsedClassName == null || parsedClassName.isEmpty) {
+      parsedClassName = json['class_name']?.toString();
+    }
+    if (parsedClassName == null || parsedClassName.isEmpty) {
+      final c = siswaProf?['class'] as Map<String, dynamic>?;
+      if (c != null) {
+        final grade = c['grade_level']?.toString() ?? '';
+        final name = c['name']?.toString() ?? '';
+        parsedClassName = '$grade $name'.trim();
+      }
+    }
+
+    final parsedNisn = siswaProf?['nisn']?.toString() ?? json['nisn']?.toString();
+    final parsedNis = siswaProf?['nis']?.toString() ?? json['nis']?.toString();
+
     return UserModel(
       id: json['id']?.toString() ?? '',
       fullName: json['full_name'] ?? '',
@@ -85,19 +110,19 @@ class UserModel {
       email: json['email'],
       phone: json['phone'],
       address: json['address'],
-      parentName: json['siswa_profile']?['parent_name'],
-      uniqueId: json['siswa_profile']?['nisn']?.toString() ?? 
-                json['guru_profile']?['nip_nuptk']?.toString() ?? 
-                json['guru_profile']?['nip']?.toString() ?? 
+      parentName: siswaProf?['parent_name']?.toString() ?? json['parent_name']?.toString(),
+      uniqueId: parsedNisn ?? 
+                guruProf?['nip_nuptk']?.toString() ?? 
+                guruProf?['nip']?.toString() ?? 
                 json['unique_id']?.toString() ?? 
                 json['username']?.toString(),
       role: parsedRole,
       isWaliKelas: hasWaliKelas,
       isWaliAsuh: hasWaliAsuh,
       tugasTambahan: assignments,
-      nis: json['siswa_profile']?['nis']?.toString(),
-      nip: json['guru_profile']?['nip_nuptk']?.toString() ?? json['guru_profile']?['nip']?.toString(),
-      className: json['siswa_profile']?['class']?['name']?.toString() ?? 'XII M2', // Provide fallback just in case
+      nis: parsedNis,
+      nip: guruProf?['nip_nuptk']?.toString() ?? guruProf?['nip']?.toString() ?? json['nip']?.toString(),
+      className: (parsedClassName != null && parsedClassName.isNotEmpty) ? parsedClassName : null,
       religion: json['religion']?.toString(),
       avatar: json['avatar']?.toString() ?? json['profile_picture']?.toString(),
     );
