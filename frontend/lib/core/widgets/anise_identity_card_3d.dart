@@ -247,15 +247,23 @@ class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerPr
                             color: AppColors.onPrimary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20.w(context)),
                           ),
-                          child: SvgPicture.asset(
-                            'assets/images/kemendikbud.svg',
+                          child: Image.asset(
+                            'assets/images/kemendikbud.webp',
                             height: 28.h(context),
                             width: 28.w(context),
                             fit: BoxFit.contain,
-                            placeholderBuilder: (context) => Icon(
-                              PhosphorIcons.image(PhosphorIconsStyle.bold),
-                              color: AppColors.onPrimary.withValues(alpha: 0.5),
-                              size: 28.w(context),
+                            filterQuality: FilterQuality.high,
+                            isAntiAlias: true,
+                            errorBuilder: (context, error, stackTrace) => SvgPicture.asset(
+                              'assets/images/kemendikbud.svg',
+                              height: 28.h(context),
+                              width: 28.w(context),
+                              fit: BoxFit.contain,
+                              placeholderBuilder: (context) => Icon(
+                                PhosphorIcons.image(PhosphorIconsStyle.bold),
+                                color: AppColors.onPrimary.withValues(alpha: 0.5),
+                                size: 28.w(context),
+                              ),
                             ),
                           ),
                         ),
