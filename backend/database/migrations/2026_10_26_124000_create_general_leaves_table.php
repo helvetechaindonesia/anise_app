@@ -24,6 +24,7 @@ return new class extends Migration
                 $table->string('face_snapshot_url')->nullable();
                 $table->decimal('latitude', 10, 8)->nullable();
                 $table->decimal('longitude', 11, 8)->nullable();
+                $table->string('location_name')->nullable(); // Keterangan lokasi asli user (Nama Desa/Kecamatan/Kabupaten atau titik GPS)
 
                 // Status & Approver
                 $table->string('status')->default('PENDING'); // PENDING, APPROVED, REJECTED

@@ -33,6 +33,7 @@ class LeaveController extends Controller
             'exit_time' => 'nullable|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
+            'location_name' => 'nullable|string',
             'attachment' => 'nullable|file|max:10240',
             'face_image' => 'nullable|file|image|max:10240',
         ]);
@@ -79,6 +80,7 @@ class LeaveController extends Controller
             'face_snapshot_url' => $faceSnapshotUrl,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
+            'location_name' => $request->location_name,
             'status' => 'PENDING',
         ]);
 

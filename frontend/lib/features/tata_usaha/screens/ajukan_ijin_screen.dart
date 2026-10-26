@@ -13,6 +13,7 @@ import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/leave_provider.dart';
+import 'ijin_camera_auto_capture_screen.dart';
 
 class AjukanIjinScreen extends ConsumerStatefulWidget {
   const AjukanIjinScreen({super.key});
@@ -88,28 +89,31 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
   }
 
   Future<void> _takeFacePhoto() async {
-    try {
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        imageQuality: 85,
-      );
-      if (photo != null && mounted) {
-        setState(() {
-          _faceImageFile = File(photo.path);
-        });
-        if (_currentPosition == null) {
-          _fetchLocation();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const IjinCameraAutoCaptureScreen()),
+    );
+
+    if (result != null && result is Map && mounted) {
+      setState(() {
+        if (result['photo_file'] != null) {
+          _faceImageFile = result['photo_file'] as File;
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        AniseFeedbackDialog.showError(
-          context,
-          title: 'Kamera Gagal',
-          message: 'Gagal membuka kamera: $e',
-        );
-      }
+        if (result['latitude'] != null && result['longitude'] != null) {
+          _currentPosition = Position(
+            latitude: (result['latitude'] as num).toDouble(),
+            longitude: (result['longitude'] as num).toDouble(),
+            timestamp: DateTime.now(),
+            accuracy: 10.0,
+            altitude: 0.0,
+            heading: 0.0,
+            speed: 0.0,
+            speedAccuracy: 0.0,
+            altitudeAccuracy: 0.0,
+            headingAccuracy: 0.0,
+          );
+        }
+      });
     }
   }
 
@@ -193,6 +197,10 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
         ? "${_exitTime!.hour.toString().padLeft(2, '0')}:${_exitTime!.minute.toString().padLeft(2, '0')}:00"
         : null;
 
+    final locationName = _currentPosition != null
+        ? "Lokasi User (${_currentPosition!.latitude.toStringAsFixed(5)}, ${_currentPosition!.longitude.toStringAsFixed(5)})"
+        : null;
+
     final res = await ref.read(leaveNotifierProvider.notifier).submitLeave(
       type: _selectedCategory,
       reason: _reasonController.text.trim(),
@@ -201,6 +209,7 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
       exitTime: exitTimeStr,
       latitude: _currentPosition?.latitude,
       longitude: _currentPosition?.longitude,
+      locationName: locationName,
       attachmentPath: _filePath,
       faceImagePath: _faceImageFile?.path,
     );

@@ -55,6 +55,7 @@ class LeaveNotifier extends StateNotifier<bool> {
     String? exitTime,
     double? latitude,
     double? longitude,
+    String? locationName,
     String? attachmentPath,
     String? faceImagePath,
   }) async {
@@ -76,6 +77,9 @@ class LeaveNotifier extends StateNotifier<bool> {
       }
       if (longitude != null) {
         dataMap['longitude'] = longitude;
+      }
+      if (locationName != null && locationName.isNotEmpty) {
+        dataMap['location_name'] = locationName;
       }
 
       FormData formData = FormData.fromMap(dataMap);

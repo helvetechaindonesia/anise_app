@@ -24,6 +24,7 @@ class Leave extends Model
         'face_snapshot_url',
         'latitude',
         'longitude',
+        'location_name',
         'status', // PENDING, APPROVED, REJECTED
         'approved_by',
         'approval_notes',

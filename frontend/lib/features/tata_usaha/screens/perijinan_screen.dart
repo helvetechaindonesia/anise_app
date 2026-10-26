@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
@@ -249,6 +250,74 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
               style: AppTextStyles.bodySmall(context, color: AppColors.onBackground),
             ),
           ),
+
+          // Keterangan Lokasi GPS Asli & Bukti Foto Wajah Auto Jepret
+          if (item['latitude'] != null || item['face_snapshot_url'] != null) ...[
+            SizedBox(height: 10.h(context)),
+            Container(
+              padding: EdgeInsets.all(10.w(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(10.w(context)),
+                border: Border.all(color: AppColors.outline.withValues(alpha: 0.12)),
+              ),
+              child: Row(
+                children: [
+                  // Thumbnail Foto Wajah
+                  if (item['face_snapshot_url'] != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8.w(context)),
+                      child: Container(
+                        width: 48.w(context),
+                        height: 48.w(context),
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        child: Image.network(
+                          "${ApiConstants.baseUrl.replaceAll('/api', '')}/storage/${item['face_snapshot_url']}",
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            PhosphorIcons.user(PhosphorIconsStyle.bold),
+                            size: 24.w(context),
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 10.w(context)),
+                  ],
+
+                  // Detail Lokasi Koordinat Asli
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              PhosphorIcons.mapPin(PhosphorIconsStyle.fill),
+                              size: 14.w(context),
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 4.w(context)),
+                            Text(
+                              'Lokasi Asli Pemohon',
+                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 2.h(context)),
+                        Text(
+                          item['location_name'] ?? (item['latitude'] != null ? "GPS: ${item['latitude']}, ${item['longitude']}" : "Lokasi Tidak Terdeteksi"),
+                          style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.75)),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Tombol Aksi Approval / Konfirmasi Kembali
           if (status == 'PENDING') ...[
