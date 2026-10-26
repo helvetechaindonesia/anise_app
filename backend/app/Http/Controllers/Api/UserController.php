@@ -250,19 +250,156 @@ class UserController extends Controller
     {
         $request->validate(['file' => 'required|file']);
         $file = $request->file('file');
-        $path = $file->store('user_files', 'public');
+        $user = $request->user();
+        
+        $path = FileStorageService::storeUserFile($file, $user, 'umum');
         $userFile = UserFile::create([
-            'user_id' => $request->user()->id,
+            'user_id' => $user->id,
             'title' => $file->getClientOriginalName(),
-            'type' => $file->getClientOriginalExtension(),
+            'type' => strtolower($file->getClientOriginalExtension() ?: 'bin'),
             'size' => number_format($file->getSize() / 1048576, 2) . ' MB',
             'path' => $path,
         ]);
         return response()->json(['status' => 'success', 'data' => $userFile]);
     }
 
+    /**
+     * E-File: Menampung seluruh file yang pernah diupload oleh user tersebut di modul apapun
+     * Mengambil langsung dari storage yang telah dipetakan, read-only (tidak bisa diedit/dihapus, hanya download).
+     */
     public function getUserFiles(Request $request)
     {
-        return response()->json(['status' => 'success', 'data' => UserFile::where('user_id', $request->user()->id)->latest()->get()]);
+        $user = $request->user();
+        $files = collect();
+
+        // 1. Berkas dari user_files (Unggahan mandiri)
+        $userFiles = UserFile::where('user_id', $user->id)->get()->map(function ($f) {
+            $ext = strtolower($f->type ?: pathinfo($f->path, PATHINFO_EXTENSION) ?: 'file');
+            return [
+                'id' => 'uf_' . $f->id,
+                'title' => $f->title,
+                'source' => 'Berkas Mandiri',
+                'type' => $ext,
+                'size' => $f->size,
+                'file_url' => '/storage/' . ltrim($f->path, '/'),
+                'created_at' => $f->created_at ? $f->created_at->toIso8601String() : now()->toIso8601String(),
+            ];
+        });
+        $files = $files->concat($userFiles);
+
+        // 2. Berkas Tugas Siswa (Submissions)
+        $submissions = DB::table('student_task_submissions')
+            ->where('student_id', $user->id)
+            ->whereNotNull('attachment_url')
+            ->where('attachment_url', '!=', '')
+            ->get()->map(function ($s) {
+                $rawPath = ltrim(str_replace('/storage/', '', $s->attachment_url), '/');
+                $size = 'Dokumen';
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($rawPath)) {
+                    $bytes = \Illuminate\Support\Facades\Storage::disk('public')->size($rawPath);
+                    $size = number_format($bytes / 1048576, 2) . ' MB';
+                }
+                $ext = strtolower(pathinfo($rawPath, PATHINFO_EXTENSION) ?: 'file');
+                $filename = basename($rawPath);
+
+                return [
+                    'id' => 'sub_' . $s->id,
+                    'title' => 'Jawaban Tugas: ' . $filename,
+                    'source' => 'Tugas & Pembelajaran',
+                    'type' => $ext,
+                    'size' => $size,
+                    'file_url' => str_starts_with($s->attachment_url, '/storage/') ? $s->attachment_url : ('/storage/' . $rawPath),
+                    'created_at' => $s->created_at ? \Carbon\Carbon::parse($s->created_at)->toIso8601String() : now()->toIso8601String(),
+                ];
+            });
+        $files = $files->concat($submissions);
+
+        // 3. Berkas Materi / Lampiran Jurnal Mengajar (Khusus Guru Pengampu)
+        $journalMaterials = DB::table('journals')
+            ->where('teacher_id', $user->id)
+            ->whereNotNull('attachment_url')
+            ->where('attachment_url', '!=', '')
+            ->get()->map(function ($j) {
+                $rawPath = ltrim(str_replace('/storage/', '', $j->attachment_url), '/');
+                $size = 'Dokumen';
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($rawPath)) {
+                    $bytes = \Illuminate\Support\Facades\Storage::disk('public')->size($rawPath);
+                    $size = number_format($bytes / 1048576, 2) . ' MB';
+                }
+                $ext = strtolower(pathinfo($rawPath, PATHINFO_EXTENSION) ?: 'file');
+                $filename = basename($rawPath);
+
+                return [
+                    'id' => 'jrn_' . $j->id,
+                    'title' => 'Materi KBM: ' . ($j->topic_material ?: $filename),
+                    'source' => 'Jurnal Mengajar',
+                    'type' => $ext,
+                    'size' => $size,
+                    'file_url' => str_starts_with($j->attachment_url, '/storage/') ? $j->attachment_url : ('/storage/' . $rawPath),
+                    'created_at' => $j->created_at ? \Carbon\Carbon::parse($j->created_at)->toIso8601String() : now()->toIso8601String(),
+                ];
+            });
+        $files = $files->concat($journalMaterials);
+
+        // 4. Berkas Surat Permohonan Izin / Keterangan Dokter (Modul Leaves)
+        $leaveAttachments = DB::table('leaves')
+            ->where('user_id', $user->id)
+            ->whereNotNull('attachment_path')
+            ->where('attachment_path', '!=', '')
+            ->get()->map(function ($l) {
+                $rawPath = ltrim(str_replace('/storage/', '', $l->attachment_path), '/');
+                $size = 'Dokumen';
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($rawPath)) {
+                    $bytes = \Illuminate\Support\Facades\Storage::disk('public')->size($rawPath);
+                    $size = number_format($bytes / 1048576, 2) . ' MB';
+                }
+                $ext = strtolower(pathinfo($rawPath, PATHINFO_EXTENSION) ?: 'pdf');
+                $filename = basename($rawPath);
+
+                return [
+                    'id' => 'lev_' . $l->id,
+                    'title' => 'Surat ' . ucfirst(strtolower($l->type)) . ': ' . $filename,
+                    'source' => 'Perizinan',
+                    'type' => $ext,
+                    'size' => $size,
+                    'file_url' => str_starts_with($l->attachment_path, '/storage/') ? $l->attachment_path : ('/storage/' . $rawPath),
+                    'created_at' => $l->created_at ? \Carbon\Carbon::parse($l->created_at)->toIso8601String() : now()->toIso8601String(),
+                ];
+            });
+        $files = $files->concat($leaveAttachments);
+
+        // 5. Berkas Lampiran Pengaduan (Complaints)
+        $complaintAttachments = DB::table('complaints')
+            ->where('user_id', $user->id)
+            ->whereNotNull('attachment_url')
+            ->where('attachment_url', '!=', '')
+            ->get()->map(function ($c) {
+                $rawPath = ltrim(str_replace('/storage/', '', $c->attachment_url), '/');
+                $size = 'Dokumen';
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($rawPath)) {
+                    $bytes = \Illuminate\Support\Facades\Storage::disk('public')->size($rawPath);
+                    $size = number_format($bytes / 1048576, 2) . ' MB';
+                }
+                $ext = strtolower(pathinfo($rawPath, PATHINFO_EXTENSION) ?: 'file');
+
+                return [
+                    'id' => 'cmp_' . $c->id,
+                    'title' => 'Bukti Aduan: ' . ($c->title ?: basename($rawPath)),
+                    'source' => 'Pengaduan',
+                    'type' => $ext,
+                    'size' => $size,
+                    'file_url' => str_starts_with($c->attachment_url, '/storage/') ? $c->attachment_url : ('/storage/' . $rawPath),
+                    'created_at' => $c->created_at ? \Carbon\Carbon::parse($c->created_at)->toIso8601String() : now()->toIso8601String(),
+                ];
+            });
+        $files = $files->concat($complaintAttachments);
+
+        // 6. Urutkan berdasarkan waktu unggah terbaru
+        $sortedFiles = $files->sortByDesc('created_at')->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $sortedFiles,
+        ]);
     }
 }
