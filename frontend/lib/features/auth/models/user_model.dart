@@ -23,6 +23,7 @@ class UserModel {
   final String? nip;
   final String? className;
   final String? religion;
+  final String? avatar;
 
   UserModel({
     required this.id,
@@ -41,6 +42,7 @@ class UserModel {
     this.nip,
     this.className,
     this.religion,
+    this.avatar,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -97,6 +99,7 @@ class UserModel {
       nip: json['guru_profile']?['nip_nuptk']?.toString() ?? json['guru_profile']?['nip']?.toString(),
       className: json['siswa_profile']?['class']?['name']?.toString() ?? 'XII M2', // Provide fallback just in case
       religion: json['religion']?.toString(),
+      avatar: json['avatar']?.toString() ?? json['profile_picture']?.toString(),
     );
   }
 
@@ -117,6 +120,7 @@ class UserModel {
     String? nip,
     String? className,
     String? religion,
+    String? avatar,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -135,6 +139,7 @@ class UserModel {
       nip: nip ?? this.nip,
       className: className ?? this.className,
       religion: religion ?? this.religion,
+      avatar: avatar ?? this.avatar,
     );
   }
 }

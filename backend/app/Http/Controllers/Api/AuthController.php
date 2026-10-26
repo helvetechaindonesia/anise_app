@@ -184,8 +184,16 @@ class AuthController extends Controller
 
     public function updateProfile(Request $request)
     {
-        $user = clone $request->user();
-        $user->update($request->only(['full_name', 'email', 'phone', 'address']));
+        $user = $request->user();
+        $fields = $request->only(['full_name', 'email', 'phone', 'address']);
+
+        // Jika ada upload avatar langsung pada form update profile
+        if ($request->hasFile('avatar')) {
+            $path = \App\Services\FileStorageService::storeProfilePicture($request->file('avatar'), $user);
+            $fields['avatar'] = '/storage/' . $path;
+        }
+
+        $user->update($fields);
         
         if ($user->role_type === 'SISWA' && $request->has('parent_name')) {
             $user->siswaProfile()->updateOrCreate(
@@ -206,6 +214,32 @@ class AuthController extends Controller
             'message' => 'Profil berhasil diupdate',
             'data' => $user
         ]);
+    }
+
+    /**
+     * Upload / Update Avatar foto profile per user
+     */
+    public function uploadAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ], [
+            'avatar.required' => 'File foto profil wajib dipilih.',
+            'avatar.image' => 'File harus berupa gambar.',
+            'avatar.max' => 'Ukuran foto profil maksimal 5MB.',
+        ]);
+
+        $user = $request->user();
+        $path = \App\Services\FileStorageService::storeProfilePicture($request->file('avatar'), $user);
+        $avatarUrl = '/storage/' . $path;
+
+        $user->avatar = $avatarUrl;
+        $user->save();
+
+        return $this->success([
+            'avatar' => $avatarUrl,
+            'user' => $user,
+        ], 'Foto profil berhasil diperbarui');
     }
 
     /**

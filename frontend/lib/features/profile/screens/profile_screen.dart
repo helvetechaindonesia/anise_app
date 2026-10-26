@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -79,7 +80,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 16.h(context)),
-                  _buildProfileCard(context, fullName, role, email),
+                  _buildProfileCard(context, fullName, role, email, user?.avatar),
                   SizedBox(height: 24.h(context)),
                   
                   // Biometric Registration Card (Hanya untuk Guru / Tenaga Pendidik, disembunyikan untuk Siswa)
@@ -185,7 +186,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, String fullName, String role, String email) {
+  String _formatAvatarUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final cleanBase = ApiConstants.baseUrl.replaceAll('/api', '');
+    return '$cleanBase$path';
+  }
+
+  Widget _buildProfileCard(BuildContext context, String fullName, String role, String email, String? avatar) {
+    final avatarUrl = _formatAvatarUrl(avatar);
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(24.w(context)),
@@ -208,11 +220,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       shape: BoxShape.circle,
                       color: AppColors.surfaceVariant,
                     ),
-                    child: Center(
-                      child: Text(
-                        fullName.substring(0, 1).toUpperCase(),
-                        style: AppTextStyles.headlineMedium(context, color: AppColors.onSurface),
-                      ),
+                    child: ClipOval(
+                      child: avatarUrl.isNotEmpty
+                          ? Image.network(
+                              avatarUrl,
+                              width: 72.w(context),
+                              height: 72.w(context),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Center(
+                                child: Text(
+                                  fullName.isNotEmpty ? fullName.substring(0, 1).toUpperCase() : 'U',
+                                  style: AppTextStyles.headlineMedium(context, color: AppColors.onSurface),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                fullName.isNotEmpty ? fullName.substring(0, 1).toUpperCase() : 'U',
+                                style: AppTextStyles.headlineMedium(context, color: AppColors.onSurface),
+                              ),
+                            ),
                     ),
                   ),
                   Positioned(

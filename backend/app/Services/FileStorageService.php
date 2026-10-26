@@ -185,4 +185,21 @@ class FileStorageService
 
         return $file->storeAs($targetDirectory, $filename, 'public');
     }
+
+    /**
+     * Simpan foto profil pengguna (Avatar) dengan pemetaan folder terstruktur:
+     * Format: avatars/{ROLE}/{IDENTIFIER}_{NAMA}/avatar_{timestamp}.{ext}
+     */
+    public static function storeProfilePicture(UploadedFile $file, User $user): string
+    {
+        $role = strtolower($user->role_type ?? 'user');
+        $identifier = $user->siswaProfile?->nis ?? $user->guruProfile?->nip ?? $user->username ?? substr($user->id, 0, 8);
+        $slug = Str::slug($user->full_name ?? $user->username ?? 'user');
+
+        $targetDirectory = "avatars/{$role}/{$identifier}_{$slug}";
+        $ext = $file->getClientOriginalExtension() ?: 'jpg';
+        $filename = "avatar_" . time() . "_" . Str::random(4) . ".{$ext}";
+
+        return $file->storeAs($targetDirectory, $filename, 'public');
+    }
 }

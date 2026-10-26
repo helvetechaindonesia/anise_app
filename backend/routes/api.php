@@ -44,6 +44,7 @@ Route::prefix('auth')->group(function () {
     Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/avatar', [AuthController::class, 'uploadAvatar']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::post('/logout', [AuthController::class, 'logout']);
     });
