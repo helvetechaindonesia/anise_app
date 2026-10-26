@@ -50,7 +50,7 @@ class GuruLayananCepatWidget extends ConsumerWidget {
       ),
       QuickActionItem(
         icon: PhosphorIcons.heart(PhosphorIconsStyle.bold),
-        label: 'Pembiasaan',
+        label: 'G7-KAIH',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruPembiasaanScreen())),
       ),
       QuickActionItem(

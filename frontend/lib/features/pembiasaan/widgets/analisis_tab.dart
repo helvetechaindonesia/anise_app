@@ -48,14 +48,14 @@ class _AnalisisTabWidgetState extends ConsumerState<AnalisisTabWidget> {
                   _buildSummaryCards(context, summary),
                   SizedBox(height: 32.h(context)),
                   Text(
-                    'Analisis Radar Pembiasaan',
+                    'Analisis Radar G7-KAIH',
                     style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
                   ),
                   SizedBox(height: 24.h(context)),
                   _buildRadarChart(context, habits),
                   SizedBox(height: 32.h(context)),
                   Text(
-                    'Detail Kategori',
+                    'Detail Kategori G7-KAIH',
                     style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
                   ),
                   SizedBox(height: 16.h(context)),
@@ -77,7 +77,7 @@ class _AnalisisTabWidgetState extends ConsumerState<AnalisisTabWidget> {
         Expanded(
           child: _buildMiniStatCard(
             context,
-            'Total Input Pembiasaan',
+            'Total Input G7-KAIH',
             summary['total_submissions'].toString(),
             PhosphorIcons.listChecks(PhosphorIconsStyle.bold),
             AppColors.primary,

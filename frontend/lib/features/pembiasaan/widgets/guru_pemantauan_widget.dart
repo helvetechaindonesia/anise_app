@@ -63,7 +63,7 @@ class GuruPemantauanWidget extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Statistik Pembiasaan Kelas (${stats['total_students']} Siswa)',
+                      'Statistik Pantauan G7-KAIH (${stats['total_students']} Orang)',
                       style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
                     ),
                     SizedBox(height: 16.h(context)),
@@ -116,7 +116,7 @@ class GuruPemantauanWidget extends ConsumerWidget {
                     SizedBox(height: 8.h(context)),
 
                     Text(
-                      'Daftar Siswa',
+                      'Daftar Anggota Pantauan',
                       style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
                     ),
                   ],
@@ -140,7 +140,7 @@ class GuruPemantauanWidget extends ConsumerWidget {
                         Icon(PhosphorIcons.users(PhosphorIconsStyle.fill), color: AppColors.onBackground.withValues(alpha: 0.2), size: 64.w(context)),
                         SizedBox(height: 16.h(context)),
                         Text(
-                          'Belum ada siswa yang dipantau.',
+                          'Belum ada anggota yang dipantau.',
                           style: AppTextStyles.bodyLarge(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
                         ),
                       ],
@@ -204,7 +204,9 @@ class GuruPemantauanWidget extends ConsumerWidget {
                                   ),
                                   SizedBox(height: 4.h(context)),
                                   Text(
-                                    'Username: ${student['username'] ?? '-'}',
+                                    student['role_label'] != null 
+                                        ? '${student['role_label']} • ${student['username'] ?? '-'}'
+                                        : 'Username: ${student['username'] ?? '-'}',
                                     style: AppTextStyles.labelMedium(context, color: AppColors.onSurfaceVariant),
                                   ),
                                 ],
@@ -227,22 +229,6 @@ class GuruPemantauanWidget extends ConsumerWidget {
       ],
     );
   }
-
-  Widget _buildLegend(BuildContext context, String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12.w(context),
-          height: 12.w(context),
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        SizedBox(width: 8.w(context)),
-        Text(label, style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)),
-      ],
-    );
-  }
 }
+
 

@@ -37,7 +37,7 @@ class BkLayananCepatWidget extends StatelessWidget {
       ),
       QuickActionItem(
         icon: PhosphorIcons.star(PhosphorIconsStyle.bold),
-        label: 'Pembiasaan',
+        label: 'G7-KAIH',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruPembiasaanScreen())),
       ),
       QuickActionItem(

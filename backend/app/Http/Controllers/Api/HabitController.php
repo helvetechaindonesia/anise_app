@@ -14,18 +14,55 @@ class HabitController extends Controller
 {
     use ApiResponser;
 
-    public function masterHabits()
+    /**
+     * Daftar Master Habit G7-KAIH
+     */
+    public function masterHabits(Request $request)
     {
+        $user = $request->user();
         $habits = Habit::all();
-        return $this->success($habits);
+        
+        // Cek log habit user hari ini
+        $today = Carbon::today()->format('Y-m-d');
+        $loggedHabitIds = DB::table('user_habit_logs')
+            ->where('user_id', $user->id)
+            ->whereDate('logged_date', $today)
+            ->pluck('habit_id')
+            ->toArray();
+
+        // Cek prayer log hari ini jika ada
+        $prayerLog = DB::table('user_prayer_logs')
+            ->where('user_id', $user->id)
+            ->whereDate('logged_date', $today)
+            ->first();
+
+        return $this->success([
+            'habits' => $habits,
+            'today_logged_habit_ids' => $loggedHabitIds,
+            'today_prayer_log' => $prayerLog ? [
+                'is_subuh' => (bool) $prayerLog->is_subuh,
+                'is_dhuhur' => (bool) $prayerLog->is_dhuhur,
+                'is_asar' => (bool) $prayerLog->is_asar,
+                'is_maghrib' => (bool) $prayerLog->is_maghrib,
+                'is_isya' => (bool) $prayerLog->is_isya,
+                'is_quran' => (bool) $prayerLog->is_quran,
+            ] : [
+                'is_subuh' => false,
+                'is_dhuhur' => false,
+                'is_asar' => false,
+                'is_maghrib' => false,
+                'is_isya' => false,
+                'is_quran' => false,
+            ]
+        ]);
     }
 
+    /**
+     * Submit Log Pembiasaan Generic (Siswa, Guru, Tendik, Kepala Sekolah)
+     */
     public function submitLog(Request $request)
     {
         $user = $request->user();
-        if ($user->role_type !== 'SISWA') {
-            return $this->error('Unauthorized', 403);
-        }
 
         $request->validate([
             'habit_id' => 'required|exists:habits,id',
@@ -38,94 +75,253 @@ class HabitController extends Controller
             $photoPath = $request->file('photo')->store('habits', 'public');
         }
 
-        // Simpan ke user_habit_logs karena tabel lama sudah dihapus
-        DB::table('user_habit_logs')->insert([
-            'id' => (string) Str::uuid(),
-            'user_id' => $user->id,
-            'habit_id' => $request->habit_id,
-            'logged_date' => now(),
-            'notes' => $request->notes,
-            'attachment_url' => $photoPath,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $today = Carbon::today()->format('Y-m-d');
 
-        return $this->success(null, 'Habit log submitted successfully', 201);
-    }
+        // Simpan / update log harian user
+        $existing = DB::table('user_habit_logs')
+            ->where('user_id', $user->id)
+            ->where('habit_id', $request->habit_id)
+            ->whereDate('logged_date', $today)
+            ->first();
 
-    // For Guru
-    public function pendingLogs(Request $request)
-    {
-        $user = $request->user();
-        if ($user->role_type !== 'GURU') {
-            return $this->error('Unauthorized', 403);
+        if ($existing) {
+            DB::table('user_habit_logs')
+                ->where('id', $existing->id)
+                ->update([
+                    'notes' => $request->notes ?? $existing->notes,
+                    'attachment_url' => $photoPath ?? $existing->attachment_url,
+                    'updated_at' => now(),
+                ]);
+        } else {
+            DB::table('user_habit_logs')->insert([
+                'id' => (string) Str::uuid(),
+                'user_id' => $user->id,
+                'habit_id' => $request->habit_id,
+                'logged_date' => $today,
+                'notes' => $request->notes,
+                'attachment_url' => $photoPath,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
-        // Di arsitektur baru, semua habit otomatis masuk tanpa butuh approval "PENDING".
-        // Karena UI masih mengharapkan array, kita return empty array aja supaya gak bentrok.
+        return $this->success(null, 'G7-KAIH berhasil dicatat', 201);
+    }
+
+    /**
+     * Ambil data Prayer Log (Ibadah Khusus Muslim) hari ini
+     */
+    public function getPrayerLog(Request $request)
+    {
+        $user = $request->user();
+        $targetUserId = $request->query('user_id', $user->id);
+        $date = $request->query('date', Carbon::today()->format('Y-m-d'));
+
+        $prayerLog = DB::table('user_prayer_logs')
+            ->where('user_id', $targetUserId)
+            ->whereDate('logged_date', $date)
+            ->first();
+
+        return $this->success([
+            'date' => $date,
+            'is_subuh' => $prayerLog ? (bool) $prayerLog->is_subuh : false,
+            'is_dhuhur' => $prayerLog ? (bool) $prayerLog->is_dhuhur : false,
+            'is_asar' => $prayerLog ? (bool) $prayerLog->is_asar : false,
+            'is_maghrib' => $prayerLog ? (bool) $prayerLog->is_maghrib : false,
+            'is_isya' => $prayerLog ? (bool) $prayerLog->is_isya : false,
+            'is_quran' => $prayerLog ? (bool) $prayerLog->is_quran : false,
+        ]);
+    }
+
+    /**
+     * Submit / Toggle Prayer Log (Ibadah Khusus Muslim)
+     */
+    public function submitPrayerLog(Request $request)
+    {
+        $user = $request->user();
+        $today = Carbon::today()->format('Y-m-d');
+
+        $request->validate([
+            'is_subuh' => 'nullable|boolean',
+            'is_dhuhur' => 'nullable|boolean',
+            'is_asar' => 'nullable|boolean',
+            'is_maghrib' => 'nullable|boolean',
+            'is_isya' => 'nullable|boolean',
+            'is_quran' => 'nullable|boolean',
+        ]);
+
+        $existing = DB::table('user_prayer_logs')
+            ->where('user_id', $user->id)
+            ->whereDate('logged_date', $today)
+            ->first();
+
+        $updateData = [];
+        foreach (['is_subuh', 'is_dhuhur', 'is_asar', 'is_maghrib', 'is_isya', 'is_quran'] as $field) {
+            if ($request->has($field)) {
+                $updateData[$field] = $request->boolean($field);
+            }
+        }
+        $updateData['updated_at'] = now();
+
+        if ($existing) {
+            DB::table('user_prayer_logs')
+                ->where('id', $existing->id)
+                ->update($updateData);
+        } else {
+            $insertData = array_merge([
+                'id' => (string) Str::uuid(),
+                'user_id' => $user->id,
+                'logged_date' => $today,
+                'is_subuh' => false,
+                'is_dhuhur' => false,
+                'is_asar' => false,
+                'is_maghrib' => false,
+                'is_isya' => false,
+                'is_quran' => false,
+                'created_at' => now(),
+            ], $updateData);
+
+            DB::table('user_prayer_logs')->insert($insertData);
+        }
+
+        // Cari master habit Beribadah jika ada, pastikan juga log ter-record jika minimal 1 shalat terisi
+        $beribadahHabit = Habit::where('category', 'IBADAH')->first();
+        if ($beribadahHabit) {
+            $anyChecked = false;
+            $checkRecord = DB::table('user_prayer_logs')
+                ->where('user_id', $user->id)
+                ->whereDate('logged_date', $today)
+                ->first();
+            if ($checkRecord) {
+                $anyChecked = ($checkRecord->is_subuh || $checkRecord->is_dhuhur || $checkRecord->is_asar || 
+                               $checkRecord->is_maghrib || $checkRecord->is_isya || $checkRecord->is_quran);
+            }
+
+            if ($anyChecked) {
+                $hasHabitLog = DB::table('user_habit_logs')
+                    ->where('user_id', $user->id)
+                    ->where('habit_id', $beribadahHabit->id)
+                    ->whereDate('logged_date', $today)
+                    ->exists();
+
+                if (!$hasHabitLog) {
+                    DB::table('user_habit_logs')->insert([
+                        'id' => (string) Str::uuid(),
+                        'user_id' => $user->id,
+                        'habit_id' => $beribadahHabit->id,
+                        'logged_date' => $today,
+                        'notes' => 'Ibadah harian tercatat',
+                        'attachment_url' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        return $this->success(null, 'Catatan Ibadah berhasil diperbarui');
+    }
+
+    /**
+     * Pending Logs (Compatibility stub)
+     */
+    public function pendingLogs(Request $request)
+    {
         return $this->success([]);
     }
 
+    /**
+     * Daftar Anggota yang Dipantau:
+     * - Guru Wali -> Memantau SISWA asuhan perwaliannya murni (tabel guru_wali_students).
+     * - Guru BK -> Memantau siswa binaan BK (guru_bk_students).
+     * - Kepala Sekolah -> Memantau seluruh Tenaga Pendidik / Guru & Staff.
+     * - Guru biasa tanpa perwalian -> Memantau diri sendiri.
+     */
     public function monitoredStudents(Request $request)
     {
         $user = $request->user();
-        if (!in_array($user->role_type, ['GURU', 'GURU_BK'])) {
-            return $this->error('Unauthorized', 403);
+
+        // 1. Kepala Sekolah -> Memantau seluruh Guru & Tenaga Kependidikan
+        if ($user->role_type === 'KEPALA_SEKOLAH') {
+            $teacherRoleIds = \App\Models\Role::whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA'])->pluck('id')->toArray();
+            $monitoredStaff = \App\Models\User::whereIn('role_id', $teacherRoleIds)
+                ->where('id', '!=', $user->id)
+                ->select('id', 'full_name as name', 'username', 'role_type')
+                ->get()
+                ->map(function ($staff) {
+                    return [
+                        'id' => $staff->id,
+                        'name' => $staff->name,
+                        'username' => $staff->username,
+                        'type' => 'TENAGA_PENDIDIK',
+                        'role_label' => $staff->role_type === 'GURU_BK' ? 'Guru BK' : ($staff->role_type === 'GURU' ? 'Guru Pengajar' : 'Tata Usaha'),
+                    ];
+                });
+
+            return $this->success($monitoredStaff);
         }
 
-        // 1. Get student IDs from GuruWaliStudent
-        $guruWaliStudentIds = \App\Models\GuruWaliStudent::where('guru_id', $user->id)->pluck('student_id')->toArray();
+        // 2. Guru / Guru BK
+        if (in_array($user->role_type, ['GURU', 'GURU_BK'])) {
+            // MURNI DARI GURU WALI (bukan wali kelas)
+            $guruWaliStudentIds = \App\Models\GuruWaliStudent::where('guru_id', $user->id)->pluck('student_id')->toArray();
 
-        // 2. Get class IDs where Guru is Wali Kelas
-        $waliKelasClassIds = \App\Models\SchoolClass::where('wali_kelas_id', $user->id)->pluck('id')->toArray();
+            // Jika Guru BK, tambahkan siswa binaan BK
+            $guruBkStudentIds = [];
+            if ($user->role_type === 'GURU_BK') {
+                $guruBkStudentIds = DB::table('guru_bk_students')->where('guru_bk_id', $user->id)->pluck('student_id')->toArray();
+            }
 
-        // 3. Get student IDs from guru_bk_students
-        $guruBkStudentIds = DB::table('guru_bk_students')->where('guru_bk_id', $user->id)->pluck('student_id')->toArray();
+            $allStudentIds = array_unique(array_merge($guruWaliStudentIds, $guruBkStudentIds));
 
-        $allClassIds = $waliKelasClassIds;
+            $siswaRoleId = \App\Models\Role::where('name', 'SISWA')->value('id');
+            $students = \App\Models\User::whereIn('id', $allStudentIds)
+                ->where('role_id', $siswaRoleId)
+                ->select('id', 'full_name as name', 'username')
+                ->get()
+                ->map(function ($s) {
+                    return [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'username' => $s->username,
+                        'type' => 'SISWA',
+                        'role_label' => 'Siswa Perwalian',
+                    ];
+                });
 
-        // 4. Get student IDs from ClassStudent
-        $classStudentIds = \App\Models\ClassStudent::whereIn('class_id', $allClassIds)->pluck('student_id')->toArray();
+            return $this->success($students);
+        }
 
-        // 5. Merge all student IDs
-        $allStudentIds = array_unique(array_merge($guruWaliStudentIds, $classStudentIds, $guruBkStudentIds));
-
-        // 6. Fetch the students
-        $siswaRoleId = \App\Models\Role::where('name', 'SISWA')->value('id');
-        $students = \App\Models\User::whereIn('id', $allStudentIds)
-            ->where('role_id', $siswaRoleId)
-            ->select('id', 'full_name as name', 'username')
-            ->get();
-
-        return $this->success($students);
+        return $this->success([]);
     }
 
+    /**
+     * Statistik Capaian Personal G7-KAIH (Siswa, Guru, Tendik, Kepsek)
+     */
     public function getHabitStats(Request $request)
     {
         $user = $request->user();
         
-        $studentId = $request->query('student_id');
-        
-        if ($user->role_type === 'SISWA') {
-            $studentId = $user->id;
-        } else if (!in_array($user->role_type, ['GURU', 'GURU_BK'])) {
-            return $this->error('Unauthorized', 403);
-        } else if (!$studentId) {
-            return $this->error('student_id query parameter is required for Guru/BK', 400);
+        // Target ID yang ingin dilihat statistiknya
+        $targetUserId = $request->query('student_id') ?: $request->query('user_id');
+
+        // Jika tidak ditentukan, default ke user sendiri (pemantauan diri sendiri)
+        if (!$targetUserId) {
+            $targetUserId = $user->id;
         }
 
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 
-        // Ambil data dari tabel baru
+        // Ambil data log
         $logs = DB::table('user_habit_logs')
-            ->where('user_id', $studentId)
+            ->where('user_id', $targetUserId)
             ->whereMonth('logged_date', $currentMonth)
             ->whereYear('logged_date', $currentYear)
             ->get();
 
         $prayerLogsSum = DB::table('user_prayer_logs')
-            ->where('user_id', $studentId)
+            ->where('user_id', $targetUserId)
             ->whereMonth('logged_date', $currentMonth)
             ->whereYear('logged_date', $currentYear)
             ->select(DB::raw('SUM(is_subuh + is_dhuhur + is_asar + is_maghrib + is_isya + is_quran) as total'))
@@ -134,8 +330,6 @@ class HabitController extends Controller
         $prayerCount = $prayerLogsSum && $prayerLogsSum->total ? (int) $prayerLogsSum->total : 0;
 
         $totalSubmissions = $logs->count() + $prayerCount;
-        
-        // Karena sistem baru tidak butuh approval, semuanya dihitung approved
         $totalApproved = $totalSubmissions;
         $totalPending = 0;
         $totalRejected = 0;
@@ -144,23 +338,18 @@ class HabitController extends Controller
         $habits = Habit::all();
         foreach ($habits as $habit) {
             $habitLogsCount = $logs->where('habit_id', $habit->id)->count();
+            
+            // Jika kategori ibadah, tambahkan prayer logs
+            if (strtoupper($habit->category) === 'IBADAH') {
+                $habitLogsCount += $prayerCount;
+            }
+
             $habitStats[] = [
                 'habit_id' => $habit->id,
                 'name' => $habit->title,
                 'category' => $habit->category,
                 'total_submissions' => $habitLogsCount,
-                'approved' => $habitLogsCount, // Auto-approved di sistem baru
-            ];
-        }
-
-        // Tambahkan statistik prayer log agar frontend tidak error
-        if ($prayerCount > 0) {
-            $habitStats[] = [
-                'habit_id' => 'prayer-logs',
-                'name' => 'Shalat Wajib & Al-Quran',
-                'category' => 'IBADAH',
-                'total_submissions' => $prayerCount,
-                'approved' => $prayerCount,
+                'approved' => $habitLogsCount,
             ];
         }
 
@@ -175,32 +364,41 @@ class HabitController extends Controller
         ]);
     }
 
+    /**
+     * Statistik Pemantauan Kolektif Guru / Kepala Sekolah
+     */
     public function guruHabitStats(Request $request)
     {
         $user = $request->user();
-        if (!in_array($user->role_type, ['GURU', 'GURU_BK'])) {
-            return $this->error('Unauthorized', 403);
-        }
 
-        $guruWaliStudentIds = \App\Models\GuruWaliStudent::where('guru_id', $user->id)->pluck('student_id')->toArray();
-        $waliKelasClassIds = \App\Models\SchoolClass::where('wali_kelas_id', $user->id)->pluck('id')->toArray();
-        $guruBkStudentIds = DB::table('guru_bk_students')->where('guru_bk_id', $user->id)->pluck('student_id')->toArray();
-        
-        $allClassIds = $waliKelasClassIds;
-        $classStudentIds = \App\Models\ClassStudent::whereIn('class_id', $allClassIds)->pluck('student_id')->toArray();
-        $allStudentIds = array_unique(array_merge($guruWaliStudentIds, $classStudentIds, $guruBkStudentIds));
+        // 1. KEPALA SEKOLAH -> Memantau statistik seluruh Guru & Staff
+        if ($user->role_type === 'KEPALA_SEKOLAH') {
+            $teacherRoleIds = \App\Models\Role::whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA'])->pluck('id')->toArray();
+            $targetUserIds = \App\Models\User::whereIn('role_id', $teacherRoleIds)
+                ->where('id', '!=', $user->id)
+                ->pluck('id')
+                ->toArray();
+        } else {
+            // 2. GURU WALI -> Murni siswa perwaliannya
+            $guruWaliStudentIds = \App\Models\GuruWaliStudent::where('guru_id', $user->id)->pluck('student_id')->toArray();
+            $guruBkStudentIds = [];
+            if ($user->role_type === 'GURU_BK') {
+                $guruBkStudentIds = DB::table('guru_bk_students')->where('guru_bk_id', $user->id)->pluck('student_id')->toArray();
+            }
+            $targetUserIds = array_unique(array_merge($guruWaliStudentIds, $guruBkStudentIds));
+        }
 
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 
         $logs = DB::table('user_habit_logs')
-            ->whereIn('user_id', $allStudentIds)
+            ->whereIn('user_id', $targetUserIds)
             ->whereMonth('logged_date', $currentMonth)
             ->whereYear('logged_date', $currentYear)
             ->get();
 
         $prayerLogsSum = DB::table('user_prayer_logs')
-            ->whereIn('user_id', $allStudentIds)
+            ->whereIn('user_id', $targetUserIds)
             ->whereMonth('logged_date', $currentMonth)
             ->whereYear('logged_date', $currentYear)
             ->select(DB::raw('SUM(is_subuh + is_dhuhur + is_asar + is_maghrib + is_isya + is_quran) as total'))
@@ -230,7 +428,7 @@ class HabitController extends Controller
         }
 
         return $this->success([
-            'total_students' => count($allStudentIds),
+            'total_students' => count($targetUserIds),
             'total_approved' => $totalApproved,
             'total_pending' => $totalPending,
             'categories' => $categoryStats,

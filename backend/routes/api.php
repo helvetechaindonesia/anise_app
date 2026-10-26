@@ -156,14 +156,14 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 7. G7 KAIH (HABITS)
     // ==========================================
     Route::prefix('g7kaih')->group(function () {
+        Route::get('/', [HabitController::class, 'masterHabits']);
+        Route::post('/log', [HabitController::class, 'submitLog']);
+        Route::get('/prayer-log', [HabitController::class, 'getPrayerLog']);
+        Route::post('/prayer-log', [HabitController::class, 'submitPrayerLog']);
         Route::get('/summary', [HabitController::class, 'getHabitStats']);
         Route::get('/guru-summary', [HabitController::class, 'guruHabitStats']);
-        Route::middleware('role:GURU')->get('/pending', [HabitController::class, 'pendingLogs']);
-        Route::middleware('role:GURU,GURU_BK')->get('/monitored-students', [HabitController::class, 'monitoredStudents']);
-        Route::middleware('role:SISWA')->group(function () {
-            Route::get('/', [HabitController::class, 'masterHabits']);
-            Route::post('/log', [HabitController::class, 'submitLog']);
-        });
+        Route::get('/pending', [HabitController::class, 'pendingLogs']);
+        Route::get('/monitored-students', [HabitController::class, 'monitoredStudents']);
     });
 
     // ==========================================

@@ -4,15 +4,32 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
 import '../models/habit_model.dart';
 
-// Helper Provider untuk nge-track habit mana aja yang udah dicentang (dikirim hari ini)
-// Di real world, harus nge-fetch status per hari dari API, tapi ini simple state
+// State provider lokal untuk centang habit harian
 final checkedHabitsProvider = StateProvider<Set<String>>((ref) => {});
 
-class HarianTabWidget extends ConsumerWidget {
+// State provider lokal untuk centang shalat / al-quran bagi user Muslim
+final prayerLogStateProvider = StateProvider<Map<String, bool>>((ref) => {
+  'is_subuh': false,
+  'is_dhuhur': false,
+  'is_asar': false,
+  'is_maghrib': false,
+  'is_isya': false,
+  'is_quran': false,
+});
+
+class HarianTabWidget extends ConsumerStatefulWidget {
   const HarianTabWidget({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<HarianTabWidget> createState() => _HarianTabWidgetState();
+}
+
+class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
+  bool _isInitializedFromRemote = false;
 
   IconData _getIconForCategory(String category) {
     switch (category.toLowerCase()) {
@@ -20,24 +37,58 @@ class HarianTabWidget extends ConsumerWidget {
       case 'kesehatan': return PhosphorIcons.sneaker(PhosphorIconsStyle.fill);
       case 'sosial': return PhosphorIcons.users(PhosphorIconsStyle.fill);
       case 'akademik': return PhosphorIcons.bookOpen(PhosphorIconsStyle.fill);
-      case 'disiplin': return PhosphorIcons.clock(PhosphorIconsStyle.fill);
+      case 'disiplin':
+      case 'kedisiplinan': return PhosphorIcons.clock(PhosphorIconsStyle.fill);
       default: return PhosphorIcons.star(PhosphorIconsStyle.fill);
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final habitsAsync = ref.watch(masterHabitsProvider);
-    final checkedHabits = ref.watch(checkedHabitsProvider);
+    final user = ref.watch(authProvider).user;
+    final religion = (user?.religion ?? '').trim().toLowerCase();
+    final isMuslim = religion == 'islam';
 
     return habitsAsync.when(
-      data: (habits) {
+      data: (response) {
+        final habits = response.habits;
+
+        // Inisialisasi state centang dari server sekali saat data tiba
+        if (!_isInitializedFromRemote) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(checkedHabitsProvider.notifier).state = {...response.todayLoggedHabitIds};
+            ref.read(prayerLogStateProvider.notifier).state = {...response.todayPrayerLog};
+            _isInitializedFromRemote = true;
+          });
+        }
+
+        final checkedHabits = ref.watch(checkedHabitsProvider);
+        final prayerState = ref.watch(prayerLogStateProvider);
+
         if (habits.isEmpty) {
           return const CustomScrollView(
             slivers: [
-              SliverFillRemaining(child: Center(child: Text("Belum ada data master pembiasaan.")))
+              SliverFillRemaining(child: Center(child: Text("Belum ada data master G7-KAIH.")))
             ],
           );
+        }
+
+        // Hitung total item & checked item untuk progress bar
+        int totalTargetItems = 0;
+        int currentCheckedItems = 0;
+
+        for (var h in habits) {
+          if (isMuslim && (h.name.toLowerCase().contains('ibadah') || h.category.toUpperCase() == 'IBADAH')) {
+            // Beribadah dijabarkan jadi 6 sub-item
+            totalTargetItems += 6;
+            currentCheckedItems += prayerState.values.where((v) => v).length;
+          } else {
+            totalTargetItems += 1;
+            if (checkedHabits.contains(h.id)) {
+              currentCheckedItems += 1;
+            }
+          }
         }
 
         return CustomScrollView(
@@ -49,22 +100,37 @@ class HarianTabWidget extends ConsumerWidget {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     if (index == 0) {
-                      return _buildProgressCard(context, ref, habits, checkedHabits.length);
+                      return _buildProgressCard(context, totalTargetItems, currentCheckedItems);
                     }
                     
                     final habit = habits[index - 1];
+                    final isIbadah = habit.name.toLowerCase().contains('ibadah') || habit.category.toUpperCase() == 'IBADAH';
+
+                    // 1. JIKA MUSLIM & ITEM BERIBADAH -> EXTEND JADI 6 JENIS
+                    if (isMuslim && isIbadah) {
+                      return _buildExtendIbadahCard(context, habit, prayerState);
+                    }
+
+                    // 2. ITEM UMUM ATAU NON-MUSLIM
                     final isChecked = checkedHabits.contains(habit.id);
 
                     return GestureDetector(
                       onTap: () async {
                         if (!isChecked) {
-                          // Submit API
                           final success = await ref.read(habitSubmitProvider.notifier).submitLog(habitId: habit.id);
                           if (success) {
                             ref.read(checkedHabitsProvider.notifier).update((state) => {...state, habit.id});
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Pembiasaan berhasil dicatat!')),
-                            );
+                            ref.invalidate(personalHabitStatsProvider);
+                            ref.invalidate(guruHabitStatsProvider);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ G7-KAIH berhasil dicatat!'),
+                                  backgroundColor: AppColors.success,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
                           }
                         }
                       },
@@ -110,7 +176,9 @@ class HarianTabWidget extends ConsumerWidget {
                                 children: [
                                   Text(
                                     habit.name,
-                                    style: AppTextStyles.bodyMedium(context, color: isChecked ? AppColors.onSecondary : AppColors.onSurface),
+                                    style: AppTextStyles.bodyMedium(context, color: isChecked ? AppColors.onSecondary : AppColors.onSurface).copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                   SizedBox(height: 4.h(context)),
                                   Text(
@@ -150,12 +218,165 @@ class HarianTabWidget extends ConsumerWidget {
         );
       },
       loading: () => const CustomScrollView(slivers: [SliverFillRemaining(child: Center(child: CircularProgressIndicator()))]),
-      error: (e, st) => CustomScrollView(slivers: [SliverFillRemaining(child: Center(child: Text("Error: $e")))]),
+      error: (e, st) => CustomScrollView(slivers: [SliverFillRemaining(child: Center(child: Text("Gagal memuat data: $e")))]),
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, WidgetRef ref, List<HabitModel> habits, int checkedCount) {
-    double progress = habits.isEmpty ? 0 : checkedCount / habits.length;
+  /// Card Khusus Extend Beribadah Muslim (Subuh, Dzuhur, Asar, Maghrib, Isya, Membaca Al-Quran)
+  Widget _buildExtendIbadahCard(BuildContext context, HabitModel habit, Map<String, bool> prayerState) {
+    final subPrayers = [
+      {'key': 'is_subuh', 'title': 'Shalat Subuh', 'time': 'Pagi'},
+      {'key': 'is_dhuhur', 'title': 'Shalat Dzuhur', 'time': 'Siang'},
+      {'key': 'is_asar', 'title': 'Shalat Asar', 'time': 'Sore'},
+      {'key': 'is_maghrib', 'title': 'Shalat Maghrib', 'time': 'Petang'},
+      {'key': 'is_isya', 'title': 'Shalat Isya', 'time': 'Malam'},
+      {'key': 'is_quran', 'title': 'Membaca Al-Qur\'an', 'time': 'Tadarus'},
+    ];
+
+    final completedCount = prayerState.values.where((v) => v).length;
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 14.h(context)),
+      padding: EdgeInsets.all(16.w(context)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22.w(context)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIcons.handsPraying(PhosphorIconsStyle.fill),
+                  color: AppColors.primary,
+                  size: 22.w(context),
+                ),
+              ),
+              SizedBox(width: 12.w(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Beribadah (Muslim)',
+                          style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        SizedBox(width: 6.w(context)),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6.w(context)),
+                          ),
+                          child: Text(
+                            '$completedCount/6',
+                            style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h(context)),
+                    Text(
+                      'Shalat 5 Waktu & Membaca Al-Qur\'an',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12.h(context)),
+          const Divider(height: 1),
+          SizedBox(height: 10.h(context)),
+
+          // 6 Sub-item Checklist
+          ...subPrayers.map((p) {
+            final key = p['key']!;
+            final title = p['title']!;
+            final time = p['time']!;
+            final isChecked = prayerState[key] ?? false;
+
+            return InkWell(
+              borderRadius: BorderRadius.circular(12.w(context)),
+              onTap: () async {
+                final newValue = !isChecked;
+                // Optimistic UI update
+                final updatedState = {...prayerState, key: newValue};
+                ref.read(prayerLogStateProvider.notifier).state = updatedState;
+
+                final success = await ref.read(habitSubmitProvider.notifier).submitPrayerLog({key: newValue});
+                if (success) {
+                  ref.invalidate(personalHabitStatsProvider);
+                  ref.invalidate(guruHabitStatsProvider);
+                } else {
+                  // Revert if failed
+                  ref.read(prayerLogStateProvider.notifier).state = prayerState;
+                }
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.h(context), horizontal: 4.w(context)),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 24.w(context),
+                      height: 24.w(context),
+                      decoration: BoxDecoration(
+                        color: isChecked ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6.w(context)),
+                        border: Border.all(
+                          color: isChecked ? AppColors.primary : AppColors.outlineVariant,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: isChecked
+                          ? Icon(PhosphorIcons.check(PhosphorIconsStyle.bold), color: Colors.white, size: 16.w(context))
+                          : null,
+                    ),
+                    SizedBox(width: 12.w(context)),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(
+                          fontWeight: isChecked ? FontWeight.w700 : FontWeight.w500,
+                          decoration: isChecked ? TextDecoration.none : null,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.7)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressCard(BuildContext context, int totalCount, int checkedCount) {
+    double progress = totalCount == 0 ? 0 : (checkedCount / totalCount).clamp(0.0, 1.0);
 
     return Container(
       margin: EdgeInsets.only(bottom: 24.h(context), top: 8.h(context)),
@@ -178,15 +399,15 @@ class HarianTabWidget extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Progress Hari Ini',
+                'Progress G7-KAIH Hari Ini',
                 style: AppTextStyles.bodyMedium(context, color: AppColors.onPrimaryContainer.withValues(alpha: 0.8)),
               ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
                 decoration: BoxDecoration(color: AppColors.onPrimaryContainer.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(100)),
                 child: Text(
-                  '${checkedCount}/${habits.length}',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.onPrimaryContainer),
+                  '$checkedCount/$totalCount',
+                  style: AppTextStyles.labelMedium(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -203,7 +424,7 @@ class HarianTabWidget extends ConsumerWidget {
           ),
           SizedBox(height: 12.h(context)),
           Text(
-            progress == 1.0 ? 'Luar biasa! Semua tercapai! ??' : 'Ayo, selesaikan kebiasaan baikmu!',
+            progress >= 1.0 ? 'Luar biasa! Seluruh G7-KAIH tercapai hari ini! 🎉' : 'Konsistensi adalah kunci karakter mulia, ayo lanjutkan!',
             style: AppTextStyles.bodySmall(context, color: AppColors.onPrimaryContainer),
           ),
         ],

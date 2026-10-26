@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/habit_model.dart';
 import '../services/habit_service.dart';
 
-final masterHabitsProvider = FutureProvider<List<HabitModel>>((ref) async {
+final masterHabitsProvider = FutureProvider<MasterHabitsResponse>((ref) async {
   final service = ref.read(habitServiceProvider);
   return await service.getMasterHabits();
 });
@@ -37,6 +37,18 @@ class HabitSubmitNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  Future<bool> submitPrayerLog(Map<String, bool> prayerFields) async {
+    state = const AsyncLoading();
+    try {
+      await _service.submitPrayerLog(prayerFields);
+      state = const AsyncData(null);
+      return true;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
 }
 
 final habitSubmitProvider = StateNotifierProvider<HabitSubmitNotifier, AsyncValue<void>>((ref) {
@@ -60,6 +72,19 @@ final guruHabitStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
   final dio = ref.watch(dioProvider);
   try {
     final response = await dio.get('/g7kaih/guru-summary');
+    if (response.data['status'] == 'success') {
+      return response.data['data'] as Map<String, dynamic>;
+    }
+    throw Exception(response.data['message']);
+  } catch (e) {
+    throw Exception(e.toString());
+  }
+});
+
+final personalHabitStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/g7kaih/summary');
     if (response.data['status'] == 'success') {
       return response.data['data'] as Map<String, dynamic>;
     }

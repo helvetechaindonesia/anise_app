@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../notifications/screens/notification_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
@@ -19,81 +18,87 @@ class PembiasaanScreen extends ConsumerStatefulWidget {
 }
 
 class _PembiasaanScreenState extends ConsumerState<PembiasaanScreen> with SingleTickerProviderStateMixin {
-  late TabController _mainTabController;
+  late TabController _tabController;
+  int _tabCount = 2;
+  bool _canMonitor = false;
 
   @override
   void initState() {
     super.initState();
-    _mainTabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _mainTabController.dispose();
+    _tabController.dispose();
     super.dispose();
+  }
+
+  void _checkTabs(UserModel? user) {
+    // Guru, BK, Tendik, Kepala Sekolah bisa memantau
+    final canMonitor = user?.role == UserRole.pengajar ||
+        user?.role == UserRole.bk ||
+        user?.role == UserRole.kepalaSekolah ||
+        user?.role == UserRole.tataUsaha;
+
+    final targetCount = canMonitor ? 3 : 2;
+
+    if (targetCount != _tabCount || canMonitor != _canMonitor) {
+      _tabCount = targetCount;
+      _canMonitor = canMonitor;
+      _tabController.dispose();
+      _tabController = TabController(length: _tabCount, vsync: this);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider).user;
-    final isGuruOrBk = user?.role == UserRole.pengajar || user?.role == UserRole.bk;
-    print('DEBUG PEMBIASAAN: user is , role is , isGuruOrBk: ');
+    _checkTabs(user);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: SafeArea(
-        child: isGuruOrBk 
-            ? _buildGuruView(context)
-            : _buildSiswaView(context),
-      ),
-    );
-  }
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              _buildAppBar(context),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 16.h(context)),
+                      _buildCustomTabBar(context),
+                      SizedBox(height: 16.h(context)),
+                    ],
+                  ),
+                ),
+              ),
+            ];
+          },
+          body: TabBarView(
+            controller: _tabController,
+            physics: const BouncingScrollPhysics(),
+            children: [
+              // Tab 1: Checklist Harian Mandiri (Siswa, Guru, Tendik, Kepsek)
+              const HarianTabWidget(),
 
-  Widget _buildGuruView(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        _buildAppBar(context),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 24.h(context)),
-            child: Text(
-              'Daftar Siswa Pantauan',
-              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-            ),
+              // Tab 2: Analisis Grafik Diri Sendiri (Siswa, Guru, Tendik, Kepsek)
+              const AnalisisTabWidget(),
+
+              // Tab 3: Pantauan Anggota (Hanya untuk Guru Wali, Guru BK, Kepsek)
+              if (_canMonitor)
+                const CustomScrollView(
+                  slivers: [
+                    SliverPadding(padding: EdgeInsets.only(top: 8)),
+                    GuruPemantauanWidget(),
+                  ],
+                ),
+            ],
           ),
         ),
-        const GuruPemantauanWidget(),
-      ],
-    );
-  }
-
-  Widget _buildSiswaView(BuildContext context) {
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) {
-        return [
-          _buildAppBar(context),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 24.h(context)),
-                  _buildCustomTabBar(context),
-                  SizedBox(height: 16.h(context)),
-                ],
-              ),
-            ),
-          ),
-        ];
-      },
-      body: TabBarView(
-        controller: _mainTabController,
-        physics: const BouncingScrollPhysics(),
-        children: const [
-          HarianTabWidget(),
-          AnalisisTabWidget(),
-        ],
       ),
     );
   }
@@ -109,8 +114,10 @@ class _PembiasaanScreenState extends ConsumerState<PembiasaanScreen> with Single
         onPressed: () => Navigator.pop(context),
       ),
       title: Text(
-        'Pembiasaan Diri',
-        style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
+        'G7-KAIH',
+        style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -123,27 +130,25 @@ class _PembiasaanScreenState extends ConsumerState<PembiasaanScreen> with Single
         borderRadius: BorderRadius.circular(100),
       ),
       child: TabBar(
-        controller: _mainTabController,
+        controller: _tabController,
         indicator: BoxDecoration(
           color: AppColors.onSurface,
           borderRadius: BorderRadius.circular(100),
         ),
         labelColor: AppColors.surface,
         unselectedLabelColor: AppColors.onSurface.withValues(alpha: 0.5),
-        labelStyle: AppTextStyles.bodyMedium(context),
-        unselectedLabelStyle: AppTextStyles.bodyMedium(context),
+        labelStyle: AppTextStyles.bodySmall(context).copyWith(fontWeight: FontWeight.w700),
+        unselectedLabelStyle: AppTextStyles.bodySmall(context),
         dividerColor: AppColors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         splashBorderRadius: BorderRadius.circular(100),
-        tabs: const [
-          Tab(text: 'Checklist Harian'),
-          Tab(text: 'Analisis Grafik'),
+        tabs: [
+          const Tab(text: 'Checklist'),
+          const Tab(text: 'Grafik Saya'),
+          if (_canMonitor)
+            const Tab(text: 'Pantauan'),
         ],
       ),
     );
   }
 }
-
-
-
-

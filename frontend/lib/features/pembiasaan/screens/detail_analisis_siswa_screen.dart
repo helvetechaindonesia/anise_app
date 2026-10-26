@@ -30,8 +30,8 @@ class DetailAnalisisSiswaScreen extends StatelessWidget {
         title: Column(
           children: [
             Text(
-              'Analisis Pembiasaan',
-              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface),
+              'Analisis G7-KAIH',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w700),
             ),
             Text(
               studentName,
