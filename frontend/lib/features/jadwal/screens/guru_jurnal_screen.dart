@@ -8,6 +8,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/anise_date_filter.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/main_header.dart';
 import '../widgets/guru_jurnal_card.dart';
 import '../providers/jurnal_provider.dart';
@@ -85,7 +86,13 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
       backgroundColor: AppColors.backgroundLight,
       body: CustomScrollView(
         slivers: [
-          const MainHeader(),
+          if (widget.className != null)
+            SliverSubHeader(
+              title: widget.className!,
+              subtitle: 'Jurnal Mengajar Kelas',
+            )
+          else
+            const MainHeader(),
 
           // 2. Main Title dan Filter Hari Nonaktif Terstandarisasi
           SliverToBoxAdapter(
@@ -182,20 +189,30 @@ class _GuruJurnalScreenState extends ConsumerState<GuruJurnalScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'JURNAL AKADEMIK',
-              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-            ),
-            SizedBox(height: 4.h(context)),
-            Text(
-              widget.className != null ? 'Jadwal ${widget.className}' : 'Jurnal Mengajar',
-              style: AppTextStyles.headlineMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'JURNAL AKADEMIK',
+                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              SizedBox(height: 2.h(context)),
+              Text(
+                widget.className != null ? widget.className! : 'Jurnal Mengajar',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: widget.className != null
+                    ? AppTextStyles.titleLarge(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w800)
+                    : AppTextStyles.headlineMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
         ),
+        SizedBox(width: 8.w(context)),
         // Tombol Standarisasi: AniseDatePickerButton (Pilih Tanggal / Ubah Tanggal)
         AniseDatePickerButton(
           selectedDate: _selectedDate,

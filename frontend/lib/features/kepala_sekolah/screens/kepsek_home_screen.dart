@@ -55,7 +55,7 @@ class _KepsekHomeScreenState extends ConsumerState<KepsekHomeScreen> {
                     Spacing.custom(context, 24),
                     KepsekPantauJurnalWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 24),
-                    const KepsekPantauKpiWidget(),
+                    KepsekPantauKpiWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 32),
                   ],
                 ),

@@ -22,7 +22,9 @@ final kepsekKpiLeaderboardProvider = FutureProvider.autoDispose<Map<String, dyna
 });
 
 class KepsekPantauKpiWidget extends ConsumerWidget {
-  const KepsekPantauKpiWidget({super.key});
+  final Function(int)? onNavigateTab;
+
+  const KepsekPantauKpiWidget({super.key, this.onNavigateTab});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -56,10 +58,14 @@ class KepsekPantauKpiWidget extends ConsumerWidget {
             SectionActionLink(
               text: 'Semua',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const KepsekKpiMonitoringScreen()),
-                );
+                if (onNavigateTab != null) {
+                  onNavigateTab!(3);
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const KepsekKpiMonitoringScreen()),
+                  );
+                }
               },
             ),
           ],
