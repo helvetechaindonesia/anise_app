@@ -70,13 +70,15 @@ class _SiswaAjukanIzinScreenState extends ConsumerState<SiswaAjukanIzinScreen> {
       return;
     }
     
-    final success = await ref.read(leaveNotifierProvider.notifier).submitLeave(
+    final result = await ref.read(leaveNotifierProvider.notifier).submitLeave(
       type: 'IZIN',
       reason: _reasonController.text.trim(),
       startDate: "${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}",
       endDate: "${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}",
-      filePath: _filePath,
+      attachmentPath: _filePath,
     );
+
+    final bool success = result['success'] == true;
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +87,7 @@ class _SiswaAjukanIzinScreenState extends ConsumerState<SiswaAjukanIzinScreen> {
       Navigator.pop(context);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mengajukan izin. Coba lagi.')),
+        SnackBar(content: Text(result['message'] ?? 'Gagal mengajukan izin. Coba lagi.')),
       );
     }
   }

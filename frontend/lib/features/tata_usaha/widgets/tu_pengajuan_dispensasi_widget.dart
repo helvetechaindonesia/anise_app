@@ -3,7 +3,6 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/section_action_link.dart';
 
 class TuPengajuanDispensasiWidget extends StatelessWidget {
   const TuPengajuanDispensasiWidget({Key? key}) : super(key: key);
@@ -15,104 +14,75 @@ class TuPengajuanDispensasiWidget extends StatelessWidget {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Pengajuan Dispensasi',
-                  style: AppTextStyles.bodyLarge(context, color: AppColors.onBackground),
-                ),
-                SizedBox(width: 8.w(context)),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning,
-                    borderRadius: BorderRadius.circular(10.w(context)),
-                  ),
-                  child: Text(
-                    '2',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary),
-                  ),
-                ),
-              ],
+            Text(
+              'Pengajuan Dispensasi',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SectionActionLink(
-              onTap: () {},
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
+              decoration: BoxDecoration(
+                color: AppColors.secondary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12.w(context)),
+              ),
+              child: Text(
+                'Segera Hadir',
+                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         ),
-        Spacing.custom(context, 16),
-        _buildDispensasiCard(
-          context,
-          name: 'Muhammad Fadlan',
-          grade: 'XII RPL 1',
-          reason: 'Lomba FLS2N Tingkat Provinsi',
-          date: '28 Sep - 30 Sep 2026',
-        ),
-        Spacing.custom(context, 12),
-        _buildDispensasiCard(
-          context,
-          name: 'Rina Wijayanti',
-          grade: 'X DKV 2',
-          reason: 'Dispensasi Sakit (Rawat Inap)',
-          date: '27 Sep - 29 Sep 2026',
+        SizedBox(height: 12.h(context)),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(18.w(context)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16.w(context)),
+            border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIcons.fileText(PhosphorIconsStyle.bold),
+                  color: AppColors.warning,
+                  size: 20.w(context),
+                ),
+              ),
+              SizedBox(width: 14.w(context)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Segera Hadir',
+                      style: AppTextStyles.titleSmall(context, color: AppColors.onBackground).copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 2.h(context)),
+                    Text(
+                      'Fitur verifikasi dan tracking dispensasi siswa sedang disiapkan.',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDispensasiCard(BuildContext context, {required String name, required String grade, required String reason, required String date}) {
-    return Container(
-      padding: EdgeInsets.all(16.w(context)),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20.w(context)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryContainer.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(12.w(context)),
-            decoration: BoxDecoration(
-              color: AppColors.menuPastelGreen.withValues(alpha: 0.25),
-              borderRadius: BorderRadius.circular(16.w(context)),
-            ),
-            child: Icon(PhosphorIcons.ticket(PhosphorIconsStyle.bold), color: AppColors.primary, size: 24.w(context)),
-          ),
-          SizedBox(width: 16.w(context)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(name, style: AppTextStyles.titleSmall(context, color: AppColors.onSurface)),
-                    Text(grade, style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)),
-                  ],
-                ),
-                SizedBox(height: 4.h(context)),
-                Text(reason, style: AppTextStyles.bodySmall(context, color: AppColors.onSurface)),
-                SizedBox(height: 4.h(context)),
-                Row(
-                  children: [
-                    Icon(PhosphorIcons.calendarBlank(), size: 14.w(context), color: AppColors.onSurfaceVariant),
-                    SizedBox(width: 4.w(context)),
-                    Text(date, style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
