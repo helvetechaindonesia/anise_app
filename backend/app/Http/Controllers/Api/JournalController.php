@@ -597,11 +597,15 @@ class JournalController extends Controller
     public function fillJournal(Request $request, $journalId)
     {
         $request->validate([
-            'class_notes' => 'required|string',
+            'class_notes' => 'nullable|string',
+            'teaching_condition' => 'nullable|string',
+            'overall_notes' => 'nullable|string',
+            'absent_student_ids' => 'nullable|array',
+            'absent_student_ids.*' => 'string',
             'student_records' => 'nullable|array',
             'student_records.*.student_id' => 'required|string',
-            'student_records.*.record_type' => 'required|in:ABSENCE,VIOLATION,ACHIEVEMENT',
-            'student_records.*.keterangan' => 'required|string',
+            'student_records.*.category' => 'nullable|string',
+            'student_records.*.keterangan' => 'nullable|string',
         ]);
 
         try {
@@ -621,43 +625,73 @@ class JournalController extends Controller
                 ], 422);
             }
 
+            $combinedNotes = $request->class_notes;
+            if (!$combinedNotes) {
+                $parts = [];
+                if ($request->filled('teaching_condition')) {
+                    $parts[] = "Kondisi Mengajar: " . $request->teaching_condition;
+                }
+                if ($request->filled('overall_notes')) {
+                    $parts[] = "Catatan Menyeluruh: " . $request->overall_notes;
+                }
+                $combinedNotes = implode("\n\n", $parts) ?: 'KBM terlaksana dengan baik.';
+            }
+
             $now = Carbon::now();
             $journal->filled_at = $now;
-            $journal->class_notes = $request->class_notes;
+            $journal->class_notes = $combinedNotes;
             $journal->status = 'Selesai';
             $journal->save();
 
-            // Simpan anomali siswa jika ada
+            // 1. Simpan daftar siswa yang TIDAK HADIR dalam kelas
+            if ($request->has('absent_student_ids') && is_array($request->absent_student_ids)) {
+                foreach ($request->absent_student_ids as $absentId) {
+                    if (!$absentId) continue;
+                    \App\Models\JournalStudentRecord::create([
+                        'journal_id' => $journal->id,
+                        'student_id' => $absentId,
+                        'record_type' => 'ABSENCE',
+                        'keterangan' => 'Tidak hadir dalam KBM ' . ($journal->subject?->name ?? 'Mata Pelajaran'),
+                    ]);
+                }
+            }
+
+            // 2. Simpan Catatan Khusus Siswa (Kedisiplinan / Perilaku di Kelas)
             if ($request->has('student_records') && is_array($request->student_records)) {
                 foreach ($request->student_records as $rec) {
                     $studentId = $rec['student_id'] ?? null;
                     if (!$studentId) continue;
 
-                    $recordType = strtoupper($rec['record_type']);
+                    $recordType = strtoupper($rec['record_type'] ?? 'VIOLATION');
                     $keterangan = $rec['keterangan'] ?? '';
+                    $kategoriDisiplin = $rec['category'] ?? 'Lainnya'; // 'Terlambat', 'Atribut Tidak Lengkap', 'Lainnya'
 
                     $sr = new \App\Models\JournalStudentRecord();
                     $sr->journal_id = $journal->id;
                     $sr->student_id = $studentId;
                     $sr->record_type = $recordType;
-                    $sr->keterangan = $keterangan;
+                    $sr->keterangan = "[{$kategoriDisiplin}] {$keterangan}";
                     $sr->save();
 
-                    // Jika VIOLATION, otomatis buat salinan ke discipline_reports (Modul 9)
-                    if ($recordType === 'VIOLATION' && \Illuminate\Support\Facades\Schema::hasTable('discipline_reports')) {
-                        try {
-                            \Illuminate\Support\Facades\DB::table('discipline_reports')->insert([
-                                'id' => \Illuminate\Support\Str::uuid()->toString(),
-                                'student_id' => $studentId,
-                                'reporter_id' => $user->id,
-                                'description' => "Pelanggaran di kelas saat KBM {$journal->subject?->name}: {$keterangan}",
-                                'status' => 'PENDING',
-                                'created_at' => $now,
-                                'updated_at' => $now,
-                            ]);
-                        } catch (\Throwable $err) {
-                            \Illuminate\Support\Facades\Log::error("Gagal sinkron pelanggaran disiplin: " . $err->getMessage());
-                        }
+                    // Sinkronkan ke tabel disiplin_reports:
+                    // Jika guru pengajar adalah GURU WALI dari siswa ini -> status = 'INPUT'
+                    // Jika bukan Guru Wali -> status = 'LAPORAN' (masuk inbox Guru Wali untuk disetujui, auto accept 3x24 jam)
+                    try {
+                        $isGuruWali = \App\Models\GuruWaliStudent::where('guru_id', $user->id)
+                            ->where('student_id', $studentId)
+                            ->exists();
+
+                        $statusDisiplin = $isGuruWali ? 'INPUT' : 'LAPORAN';
+
+                        \App\Models\DisiplinReport::create([
+                            'siswa_id' => $studentId,
+                            'reporter_id' => $user->id,
+                            'category' => $kategoriDisiplin,
+                            'notes' => "KBM {$journal->subject?->name}: " . $keterangan,
+                            'status' => $statusDisiplin,
+                        ]);
+                    } catch (\Throwable $err) {
+                        \Illuminate\Support\Facades\Log::error("Gagal sinkron catatan disiplin dari jurnal: " . $err->getMessage());
                     }
                 }
             }

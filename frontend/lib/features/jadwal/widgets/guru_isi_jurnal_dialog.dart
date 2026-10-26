@@ -15,12 +15,12 @@ class GuruIsiJurnalDialog extends ConsumerStatefulWidget {
   final String timeRange;
 
   const GuruIsiJurnalDialog({
-    Key? key,
+    super.key,
     required this.journalId,
     required this.subjectName,
     required this.className,
     required this.timeRange,
-  }) : super(key: key);
+  });
 
   static Future<bool?> show(
     BuildContext context, {
@@ -47,11 +47,25 @@ class GuruIsiJurnalDialog extends ConsumerStatefulWidget {
 }
 
 class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
-  final TextEditingController _notesController = TextEditingController();
+  // Controller form
+  final TextEditingController _teachingConditionController = TextEditingController();
+  final TextEditingController _overallNotesController = TextEditingController();
+
   bool _isLoadingStudents = true;
   bool _isSubmitting = false;
   List<Map<String, dynamic>> _students = [];
-  final List<Map<String, dynamic>> _studentRecords = [];
+
+  // 1. Siswa yang tidak hadir
+  final List<String> _absentStudentIds = [];
+
+  // 2. Catatan khusus siswa (terlambat, atribut tidak lengkap, lainnya)
+  final List<Map<String, dynamic>> _studentDisciplineRecords = [];
+
+  final List<String> _kategoriDisiplinList = [
+    'Terlambat',
+    'Atribut Tidak Lengkap',
+    'Lainnya',
+  ];
 
   @override
   void initState() {
@@ -61,7 +75,8 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
 
   @override
   void dispose() {
-    _notesController.dispose();
+    _teachingConditionController.dispose();
+    _overallNotesController.dispose();
     super.dispose();
   }
 
@@ -80,12 +95,12 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
       } else {
         if (mounted) setState(() => _isLoadingStudents = false);
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() => _isLoadingStudents = false);
     }
   }
 
-  void _addStudentRecord() {
+  void _addDisciplineRecord() {
     if (_students.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Daftar siswa kelas belum tersedia.')),
@@ -94,26 +109,28 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
     }
 
     setState(() {
-      _studentRecords.add({
-        'student_id': _students.first['id'],
-        'record_type': 'ABSENCE',
+      _studentDisciplineRecords.add({
+        'student_id': _students.first['id']?.toString(),
+        'category': _kategoriDisiplinList.first,
         'keterangan': '',
       });
     });
   }
 
-  void _removeStudentRecord(int index) {
+  void _removeDisciplineRecord(int index) {
     setState(() {
-      _studentRecords.removeAt(index);
+      _studentDisciplineRecords.removeAt(index);
     });
   }
 
   Future<void> _submitIsiJurnal() async {
-    final notes = _notesController.text.trim();
-    if (notes.isEmpty) {
+    final condition = _teachingConditionController.text.trim();
+    final overall = _overallNotesController.text.trim();
+
+    if (condition.isEmpty && overall.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Catatan KBM / Dinamika Kelas wajib diisi.'),
+          content: Text('Mohon isi deskripsi kondisi mengajar atau catatan menyeluruh.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -125,13 +142,13 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
     try {
       final dio = ref.read(dioProvider);
       final payload = {
-        'class_notes': notes,
-        'student_records': _studentRecords.map((r) => {
+        'teaching_condition': condition,
+        'overall_notes': overall,
+        'absent_student_ids': _absentStudentIds,
+        'student_records': _studentDisciplineRecords.map((r) => {
           'student_id': r['student_id'],
-          'record_type': r['record_type'],
-          'keterangan': (r['keterangan'] as String).trim().isNotEmpty 
-              ? (r['keterangan'] as String).trim() 
-              : 'Dicatat oleh guru saat KBM',
+          'category': r['category'] ?? 'Lainnya',
+          'keterangan': (r['keterangan'] as String? ?? '').trim(),
         }).toList(),
       };
 
@@ -146,7 +163,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ $msg'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -173,7 +190,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -208,7 +225,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Isi Laporan Jurnal KBM',
+                      'Isi Jurnal Mengajar',
                       style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -251,7 +268,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                         SizedBox(width: 10.w(context)),
                         Expanded(
                           child: Text(
-                            'Presensi Cam Anda telah terverifikasi. Silakan isi catatan dinamika kelas & anomali siswa (bolos, pelanggaran, atau prestasi).',
+                            'Presensi Cam Jurnal terverifikasi. Silakan lengkapi absensi kelas, dinamika mengajar, serta catatan khusus kedisiplinan siswa.',
                             style: AppTextStyles.labelSmall(context, color: AppColors.onSurface).copyWith(height: 1.3),
                           ),
                         ),
@@ -259,25 +276,52 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                     ),
                   ),
 
-                  SizedBox(height: 16.h(context)),
+                  SizedBox(height: 18.h(context)),
 
-                  // Field 1: Catatan KBM
+                  // BAGIAN A: SIAPA SAJA YANG TIDAK HADIR
+                  Row(
+                    children: [
+                      Icon(PhosphorIcons.userMinus(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.error),
+                      SizedBox(width: 6.w(context)),
+                      Text(
+                        'Siswa Tidak Hadir (Absen / Sakit / Izin)',
+                        style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4.h(context)),
                   Text(
-                    'Catatan Dinamika KBM & Materi *',
+                    'Pilih siswa yang tidak hadir dalam sesi KBM ini:',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
+                  ),
+                  SizedBox(height: 8.h(context)),
+
+                  if (_isLoadingStudents)
+                    const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()))
+                  else
+                    _buildAbsentStudentsSelector(),
+
+                  SizedBox(height: 20.h(context)),
+
+                  // BAGIAN B: DESKRIPSI KONDISI MENGAJAR
+                  Text(
+                    'Deskripsi Kondisi Mengajar *',
                     style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   SizedBox(height: 6.h(context)),
                   TextField(
-                    controller: _notesController,
-                    maxLines: 4,
+                    controller: _teachingConditionController,
+                    maxLines: 3,
                     style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                     decoration: InputDecoration(
-                      hintText: 'Contoh: Materi Bab 3 tersampaikan tuntas. Siswa aktif berdiskusi kelompok, evaluasi berjalan lancar...',
-                      hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
+                      hintText: 'Contoh: Suasana kelas kondusif, siswa antusias mempraktikkan materi bab 3...',
+                      hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
                       filled: true,
-                      fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                      fillColor: AppColors.surfaceVariant.withValues(alpha: 0.35),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.w(context)),
                         borderSide: BorderSide(color: AppColors.outlineVariant),
@@ -288,7 +332,42 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.w(context)),
-                        borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
+                      contentPadding: EdgeInsets.all(14.w(context)),
+                    ),
+                  ),
+
+                  SizedBox(height: 20.h(context)),
+
+                  // BAGIAN C: CATATAN KHUSUS MENYELURUH
+                  Text(
+                    'Catatan Khusus Menyeluruh',
+                    style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 6.h(context)),
+                  TextField(
+                    controller: _overallNotesController,
+                    maxLines: 2,
+                    style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Sebagian kelompok membutuhkan pendampingan tambahan pada pertemuan berikutnya.',
+                      hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                      filled: true,
+                      fillColor: AppColors.surfaceVariant.withValues(alpha: 0.35),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        borderSide: BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        borderSide: BorderSide(color: AppColors.outlineVariant),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.w(context)),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                       ),
                       contentPadding: EdgeInsets.all(14.w(context)),
                     ),
@@ -296,29 +375,35 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
 
                   SizedBox(height: 24.h(context)),
 
-                  // Field 2: Catatan Anomali Siswa Header
+                  // BAGIAN D: CATATAN KHUSUS SISWA (SINKRON DISIPLIN)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Catatan Khusus Siswa',
-                            style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Row(
+                            children: [
+                              Icon(PhosphorIcons.warning(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.warning),
+                              SizedBox(width: 6.w(context)),
+                              Text(
+                                'Catatan Khusus Kedisiplinan Siswa',
+                                style: AppTextStyles.labelMedium(context, color: AppColors.onSurface).copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
                           Text(
-                            'Bolos mapel, pelanggaran kelas, atau prestasi',
+                            'Terlambat, atribut tidak lengkap, atau lainnya',
                             style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
                           ),
                         ],
                       ),
                       ElevatedButton.icon(
-                        onPressed: _isLoadingStudents ? null : _addStudentRecord,
+                        onPressed: _isLoadingStudents ? null : _addDisciplineRecord,
                         icon: Icon(PhosphorIcons.plus(PhosphorIconsStyle.bold), size: 14.w(context)),
-                        label: Text('Tambah Siswa', style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary)),
+                        label: Text('Tambah Siswa', style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary).copyWith(fontWeight: FontWeight.w700)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           elevation: 0,
@@ -331,26 +416,24 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
 
                   SizedBox(height: 12.h(context)),
 
-                  if (_isLoadingStudents)
-                    Center(child: Padding(padding: EdgeInsets.all(16.h(context)), child: const CircularProgressIndicator()))
-                  else if (_studentRecords.isEmpty)
+                  if (_studentDisciplineRecords.isEmpty)
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(16.w(context)),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant.withValues(alpha: 0.3),
+                        color: AppColors.surfaceVariant.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(12.w(context)),
-                        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.4)),
                       ),
                       child: Center(
                         child: Text(
-                          'Tidak ada anomali siswa (Semua siswa hadir tertib)',
+                          'Tidak ada catatan disiplin khusus (Semua siswa tertib).',
                           style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
                         ),
                       ),
                     )
                   else
-                    ..._studentRecords.asMap().entries.map((entry) {
+                    ..._studentDisciplineRecords.asMap().entries.map((entry) {
                       final idx = entry.key;
                       final record = entry.value;
 
@@ -358,7 +441,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                         margin: EdgeInsets.only(bottom: 12.h(context)),
                         padding: EdgeInsets.all(14.w(context)),
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant.withValues(alpha: 0.4),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(14.w(context)),
                           border: Border.all(color: AppColors.outlineVariant),
                         ),
@@ -369,71 +452,61 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Catatan #${idx + 1}',
+                                  'Catatan Disiplin #${idx + 1}',
                                   style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () => _removeStudentRecord(idx),
+                                  onTap: () => _removeDisciplineRecord(idx),
                                   child: Icon(PhosphorIcons.trash(PhosphorIconsStyle.bold), color: AppColors.error, size: 18.w(context)),
                                 ),
                               ],
                             ),
-                            SizedBox(height: 8.h(context)),
+                            SizedBox(height: 10.h(context)),
 
-                            // Pilih Siswa
+                            // 1. Search Pick Dropdown Siswa
+                            _buildSingleStudentSearchPicker(
+                              currentStudentId: record['student_id'],
+                              onSelected: (studentId) {
+                                setState(() => record['student_id'] = studentId);
+                              },
+                            ),
+
+                            SizedBox(height: 10.h(context)),
+
+                            // 2. Dropdown Kategori (Terlambat, Atribut Tidak Lengkap, Lainnya)
                             DropdownButtonFormField<String>(
-                              value: record['student_id'],
+                              initialValue: record['category'],
                               decoration: InputDecoration(
-                                labelText: 'Pilih Siswa',
+                                labelText: 'Kategori Kedisiplinan',
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.w(context))),
                               ),
-                              items: _students.map((s) {
+                              items: _kategoriDisiplinList.map((cat) {
                                 return DropdownMenuItem<String>(
-                                  value: s['id']?.toString(),
+                                  value: cat,
                                   child: Text(
-                                    s['name'] ?? 'Siswa',
+                                    cat,
                                     style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                                   ),
                                 );
                               }).toList(),
                               onChanged: (val) {
-                                if (val != null) setState(() => record['student_id'] = val);
+                                if (val != null) setState(() => record['category'] = val);
                               },
                             ),
 
-                            SizedBox(height: 8.h(context)),
+                            SizedBox(height: 10.h(context)),
 
-                            // Tipe Anomali
-                            DropdownButtonFormField<String>(
-                              value: record['record_type'],
-                              decoration: InputDecoration(
-                                labelText: 'Tipe Catatan',
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.w(context))),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'ABSENCE', child: Text('🔴 Siswa Bolos Mapel')),
-                                DropdownMenuItem(value: 'VIOLATION', child: Text('⚠️ Pelanggaran Kelas (Sinkron Disiplin)')),
-                                DropdownMenuItem(value: 'ACHIEVEMENT', child: Text('🌟 Prestasi / Keaktifan Ekstra')),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) setState(() => record['record_type'] = val);
-                              },
-                            ),
-
-                            SizedBox(height: 8.h(context)),
-
-                            // Keterangan
+                            // 3. Form Menjabarkan Catatan Khusus
                             TextFormField(
                               initialValue: record['keterangan'],
                               style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
                               decoration: InputDecoration(
-                                hintText: 'Keterangan rinci...',
+                                hintText: 'Uraikan catatan khusus/kronologi pelanggaran siswa...',
+                                hintStyle: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant.withValues(alpha: 0.6)),
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.w(context))),
@@ -443,7 +516,7 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
 
                   SizedBox(height: 24.h(context)),
                 ],
@@ -493,6 +566,185 @@ class _GuruIsiJurnalDialogState extends ConsumerState<GuruIsiJurnalDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Search Pick Selector untuk Siswa Tidak Hadir
+  Widget _buildAbsentStudentsSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Autocomplete<Map<String, dynamic>>(
+          displayStringForOption: (option) => option['name'] ?? '',
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty) {
+              return _students.where((s) => !_absentStudentIds.contains(s['id']?.toString()));
+            }
+            return _students.where((s) {
+              final name = (s['name'] ?? '').toString().toLowerCase();
+              final nis = (s['nis'] ?? '').toString().toLowerCase();
+              final q = textEditingValue.text.toLowerCase();
+              final isMatch = name.contains(q) || nis.contains(q);
+              final notAlreadySelected = !_absentStudentIds.contains(s['id']?.toString());
+              return isMatch && notAlreadySelected;
+            });
+          },
+          onSelected: (Map<String, dynamic> selection) {
+            final id = selection['id']?.toString();
+            if (id != null && !_absentStudentIds.contains(id)) {
+              setState(() => _absentStudentIds.add(id));
+            }
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                hintText: 'Cari nama siswa tidak hadir...',
+                hintStyle: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.5)),
+                filled: true,
+                fillColor: AppColors.surface,
+                isDense: true,
+                prefixIcon: Icon(PhosphorIcons.magnifyingGlass(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onSurfaceVariant),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.w(context))),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12.w(context)),
+                color: AppColors.surface,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: 200.h(context), maxWidth: 300.w(context)),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final option = options.elementAt(index);
+                      return ListTile(
+                        dense: true,
+                        title: Text(option['name'] ?? '', style: AppTextStyles.bodyMedium(context)),
+                        subtitle: Text(option['nis'] ?? '', style: AppTextStyles.labelSmall(context)),
+                        onTap: () => onSelected(option),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        // Daftar chip siswa yang ditandai tidak hadir
+        if (_absentStudentIds.isNotEmpty) ...[
+          SizedBox(height: 8.h(context)),
+          Wrap(
+            spacing: 6.w(context),
+            runSpacing: 6.h(context),
+            children: _absentStudentIds.map((id) {
+              final student = _students.firstWhere(
+                (s) => s['id']?.toString() == id,
+                orElse: () => {'name': 'Siswa'},
+              );
+
+              return Chip(
+                backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.3)),
+                labelPadding: EdgeInsets.symmetric(horizontal: 4.w(context)),
+                visualDensity: VisualDensity.compact,
+                avatar: Icon(PhosphorIcons.userMinus(PhosphorIconsStyle.bold), color: AppColors.error, size: 14.w(context)),
+                label: Text(
+                  student['name'] ?? 'Siswa',
+                  style: AppTextStyles.labelSmall(context, color: AppColors.error).copyWith(fontWeight: FontWeight.w700),
+                ),
+                deleteIcon: Icon(PhosphorIcons.x(PhosphorIconsStyle.bold), size: 12.w(context), color: AppColors.error),
+                onDeleted: () {
+                  setState(() => _absentStudentIds.remove(id));
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Search Pick Selector untuk 1 Siswa pada Catatan Khusus Disiplin
+  Widget _buildSingleStudentSearchPicker({
+    required String? currentStudentId,
+    required ValueChanged<String?> onSelected,
+  }) {
+    final currentStudent = _students.firstWhere(
+      (s) => s['id']?.toString() == currentStudentId,
+      orElse: () => {'name': 'Pilih Siswa'},
+    );
+
+    return Autocomplete<Map<String, dynamic>>(
+      displayStringForOption: (option) => option['name'] ?? '',
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text.isEmpty) {
+          return _students;
+        }
+        return _students.where((s) {
+          final name = (s['name'] ?? '').toString().toLowerCase();
+          final nis = (s['nis'] ?? '').toString().toLowerCase();
+          final q = textEditingValue.text.toLowerCase();
+          return name.contains(q) || nis.contains(q);
+        });
+      },
+      onSelected: (Map<String, dynamic> selection) {
+        onSelected(selection['id']?.toString());
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        if (controller.text.isEmpty && currentStudentId != null) {
+          controller.text = currentStudent['name'] ?? '';
+        }
+
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Pilih Siswa Terkait',
+            hintText: 'Ketik untuk mencari nama siswa...',
+            isDense: true,
+            suffixIcon: Icon(PhosphorIcons.magnifyingGlass(PhosphorIconsStyle.bold), size: 16.w(context)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 10.h(context)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.w(context))),
+          ),
+        );
+      },
+      optionsViewBuilder: (context, onSelectOption, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(12.w(context)),
+            color: AppColors.surface,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: 200.h(context), maxWidth: 300.w(context)),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    title: Text(option['name'] ?? '', style: AppTextStyles.bodyMedium(context)),
+                    subtitle: Text(option['nis'] ?? '', style: AppTextStyles.labelSmall(context)),
+                    onTap: () => onSelectOption(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

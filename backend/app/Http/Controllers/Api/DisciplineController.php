@@ -113,6 +113,16 @@ class DisciplineController extends Controller
         $user = $request->user();
         $query = DisiplinReport::with(['siswa', 'reporter'])->orderBy('created_at', 'desc');
 
+        // Auto Accept: Laporan kedisiplinan yang berstatus 'LAPORAN' lebih dari 3x24 jam (72 jam) otomatis disetujui (APPROVED)
+        $cutoff72Hours = Carbon::now()->subHours(72);
+        DisiplinReport::where('status', 'LAPORAN')
+            ->where('created_at', '<=', $cutoff72Hours)
+            ->update([
+                'status' => 'APPROVED',
+                'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' (Auto-Disetujui: Melewati batas 3x24 jam verifikasi Guru Wali)')"),
+                'updated_at' => Carbon::now(),
+            ]);
+
         // Filter opsional berdasarkan status (INPUT, LAPORAN, APPROVED) atau kategori
         if ($request->filled('status')) {
             $query->where('status', strtoupper($request->status));
