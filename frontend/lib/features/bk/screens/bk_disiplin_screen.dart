@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_date_filter.dart';
