@@ -70,6 +70,7 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
   // Prediksi Target Status Presensi yang akan dicatat
   String? _targetStatusLabel;
   String? _targetStatusCode;
+  String _geofenceLocationName = "Lokasi Sekolah";
   bool _canScanByTime = true;
 
   Future<void> _fetchNextPresensiStatus() async {
@@ -80,6 +81,9 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
         setState(() {
           _targetStatusLabel = response.data['target_label']?.toString();
           _targetStatusCode = response.data['target_status']?.toString();
+          if (response.data['location_name'] != null && response.data['location_name'].toString().isNotEmpty) {
+            _geofenceLocationName = response.data['location_name'].toString();
+          }
           _canScanByTime = response.data['can_scan'] == true;
           if (!_canScanByTime) {
             _hintMessage = response.data['message']?.toString() ?? "Presensi tidak tersedia saat ini";
@@ -658,8 +662,8 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
                         const SizedBox(width: 8),
                         Text(
                           _status == CameraScanStatus.outsideRadius
-                              ? "Di Luar Radius Sekolah"
-                              : "Dalam Radius Lokasi",
+                              ? "Di Luar Radius $_geofenceLocationName"
+                              : _geofenceLocationName,
                           style: AppTextStyles.labelMedium(context, color: Colors.white),
                         ),
                       ],

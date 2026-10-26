@@ -69,16 +69,19 @@ class AttendanceController extends Controller
                 $desc = 'Presensi Pulang Sekolah';
             }
 
+            $primaryLocName = $this->geofenceService->getPrimaryLocationName();
             return response()->json([
                 'can_scan' => true,
                 'target_status' => $status,
                 'target_label' => $desc,
                 'current_time' => $timeString . ' WIB',
+                'location_name' => $primaryLocName,
             ]);
         }
 
         // Prediksi Tenaga Pendidik
         $prediction = $this->attendanceService->determineNextTeacherStatus($user, $currentTime);
+        $primaryLocName = $this->geofenceService->getPrimaryLocationName();
 
         if (!$prediction['can_scan']) {
             return response()->json([
@@ -87,6 +90,7 @@ class AttendanceController extends Controller
                 'target_status' => $prediction['status'],
                 'target_label' => $prediction['label'],
                 'current_time' => $timeString . ' WIB',
+                'location_name' => $primaryLocName,
             ]);
         }
 
@@ -95,6 +99,7 @@ class AttendanceController extends Controller
             'target_status' => $prediction['status'],
             'target_label' => $prediction['label'],
             'current_time' => $timeString . ' WIB',
+            'location_name' => $primaryLocName,
         ]);
     }
 

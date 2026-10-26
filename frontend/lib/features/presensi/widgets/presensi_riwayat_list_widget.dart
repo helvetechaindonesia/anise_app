@@ -104,9 +104,15 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
               metaText = catatan;
             }
 
+            final String? lokasi = log['lokasi']?.toString();
+            String? subcategoryText;
+            if (lokasi != null && lokasi.isNotEmpty) {
+              subcategoryText = lokasi.startsWith('Lokasi:') ? lokasi : 'Lokasi: $lokasi';
+            }
+
             return ItemListTile(
               category: log['hari']?.toString(),
-              subcategory: log['lokasi'] != null ? 'Lokasi: ${log['lokasi']}' : null,
+              subcategory: subcategoryText,
               title: log['tanggal']?.toString() ?? '',
               metadataIcon: metaIcon,
               metadataText: metaText,

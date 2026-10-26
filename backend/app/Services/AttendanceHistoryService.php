@@ -11,10 +11,14 @@ use Illuminate\Support\Facades\Schema;
 class AttendanceHistoryService
 {
     protected AttendanceService $attendanceService;
+    protected GeofenceService $geofenceService;
 
-    public function __construct(AttendanceService $attendanceService)
-    {
+    public function __construct(
+        AttendanceService $attendanceService,
+        GeofenceService $geofenceService
+    ) {
         $this->attendanceService = $attendanceService;
+        $this->geofenceService = $geofenceService;
     }
 
     /**
@@ -105,6 +109,7 @@ class AttendanceHistoryService
         ];
 
         // 6. Buat Event Items
+        $primaryLocation = $this->geofenceService->getPrimaryLocationName();
         $eventItems = collect();
         if ($allEvents->isNotEmpty()) {
             foreach ($allEvents as $ev) {
@@ -112,6 +117,10 @@ class AttendanceHistoryService
                 $evStatus = $ev->status;
                 $statusName = $statusTextMap[$evStatus] ?? $evStatus;
                 $isLate = ($evStatus === 'T' || $evStatus === 'TAM');
+                
+                $lat = isset($ev->latitude) && $ev->latitude !== null ? (float) $ev->latitude : null;
+                $lng = isset($ev->longitude) && $ev->longitude !== null ? (float) $ev->longitude : null;
+                $lokasiName = $this->geofenceService->findClosestLocationName($lat, $lng);
 
                 $eventItems->push([
                     'id' => $ev->id,
@@ -120,7 +129,7 @@ class AttendanceHistoryService
                     'waktu' => $evDate->format('H:i') . ' WIB',
                     'jam_masuk' => $evDate->format('H:i'),
                     'jam_pulang' => null,
-                    'lokasi' => 'Presensi Cam Pegawai',
+                    'lokasi' => $lokasiName,
                     'catatan' => 'Pencatatan Status: ' . $statusName,
                     'status' => $evStatus,
                     'status_label' => $statusName,
@@ -142,7 +151,7 @@ class AttendanceHistoryService
                     'waktu' => $waktuStr,
                     'jam_masuk' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') : null,
                     'jam_pulang' => $log->jam_pulang ? Carbon::parse($log->jam_pulang)->format('H:i') : null,
-                    'lokasi' => 'Presensi Cam Pegawai',
+                    'lokasi' => $primaryLocation,
                     'catatan' => 'Pencatatan Status: ' . $statusName,
                     'status' => $log->status,
                     'status_label' => $statusName,
@@ -283,12 +292,13 @@ class AttendanceHistoryService
                 'ALPHA' => 'Alpha',
             ];
             $statusName = $statusMap[$log->status] ?? $log->status;
+            $primaryLocation = $this->geofenceService->getPrimaryLocationName();
 
             return [
                 'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
                 'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
                 'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-',
-                'lokasi' => 'Gerbang Utama',
+                'lokasi' => $primaryLocation,
                 'catatan' => 'Status: ' . $statusName,
                 'status' => $statusName,
                 'isLate' => $isLate,

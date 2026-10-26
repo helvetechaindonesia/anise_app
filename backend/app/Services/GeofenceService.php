@@ -109,4 +109,37 @@ class GeofenceService
             'message' => null
         ];
     }
+
+    /**
+     * Mengambil nama lokasi geofence utama atau fallback dari setting sekolah.
+     */
+    public function getPrimaryLocationName(): string
+    {
+        if (Schema::hasTable('geofence_locations')) {
+            $first = GeofenceLocation::where('is_active', true)->orderBy('created_at', 'asc')->first();
+            if ($first && !empty($first->name)) {
+                return $first->name;
+            }
+        }
+
+        $settingName = DB::table('school_settings')->where('setting_key', 'school_name')->value('setting_value');
+        if (!empty($settingName)) {
+            return $settingName;
+        }
+
+        return 'Kampus Utama / Gerbang Depan';
+    }
+
+    /**
+     * Mencari nama lokasi geofence terdekat dari koordinat lat & lng.
+     */
+    public function findClosestLocationName(?float $lat, ?float $lng): string
+    {
+        if ($lat === null || $lng === null) {
+            return $this->getPrimaryLocationName();
+        }
+
+        $res = $this->verifyCoordinates((float)$lat, (float)$lng);
+        return !empty($res['closest_name']) ? $res['closest_name'] : $this->getPrimaryLocationName();
+    }
 }
