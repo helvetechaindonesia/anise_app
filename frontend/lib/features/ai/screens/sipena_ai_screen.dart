@@ -208,7 +208,7 @@ class _SipenaAiScreenState extends ConsumerState<SipenaAiScreen> {
                       style: GoogleFonts.outfit(
                         fontSize: 12.sp(context),
                         fontStyle: FontStyle.italic,
-                        color: AppColors.textSecondary,
+                        color: AppColors.onBackground.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -301,8 +301,8 @@ class _SipenaAiScreenState extends ConsumerState<SipenaAiScreen> {
                 msg.text,
                 style: GoogleFonts.outfit(
                   fontSize: 14.sp(context),
-                  height: 1.4,
-                  color: isUser ? Colors.white : AppColors.textPrimary,
+                  height: 1.45,
+                  color: isUser ? AppColors.onPrimary : AppColors.onBackground,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -349,10 +349,10 @@ class _SipenaAiScreenState extends ConsumerState<SipenaAiScreen> {
               ),
               child: TextField(
                 controller: _messageController,
-                style: GoogleFonts.outfit(fontSize: 14.sp(context), color: AppColors.textPrimary),
+                style: GoogleFonts.outfit(fontSize: 14.sp(context), color: AppColors.onBackground),
                 decoration: InputDecoration(
                   hintText: 'Tanyakan sesuatu pada Sipena AI...',
-                  hintStyle: GoogleFonts.outfit(fontSize: 13.sp(context), color: AppColors.textSecondary),
+                  hintStyle: GoogleFonts.outfit(fontSize: 13.sp(context), color: AppColors.onBackground.withValues(alpha: 0.45)),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 10.h(context)),
                 ),
