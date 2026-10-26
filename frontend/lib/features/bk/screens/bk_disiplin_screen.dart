@@ -11,7 +11,6 @@ import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
-import '../../poin/screens/poin_screen.dart';
 import '../providers/disiplin_provider.dart';
 import 'bk_input_disiplin_screen.dart';
 
@@ -148,13 +147,9 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
                       );
                     },
                   ),
-                  SizedBox(height: 20.h(context)),
+                  SizedBox(height: 24.h(context)),
 
-                  // 5. Tombol Pintas KPI Poin Disiplin
-                  _buildKpiButton(context),
-                  SizedBox(height: 28.h(context)),
-
-                  // 6. Judul Seksi Daftar Laporan
+                  // 5. Judul Seksi Daftar Laporan
                   Row(
                     children: [
                       Icon(
@@ -280,54 +275,6 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
             PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
             color: AppColors.surface,
             size: 20.w(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Tombol Pintas KPI Poin Disiplin
-  Widget _buildKpiButton(BuildContext context) {
-    return AniseCard(
-      borderRadius: 16.w(context),
-      padding: EdgeInsets.symmetric(horizontal: 18.w(context), vertical: 14.h(context)),
-      color: AppColors.surface,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PoinScreen()),
-        );
-      },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(8.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10.w(context)),
-                ),
-                child: Icon(
-                  PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
-                  color: AppColors.primary,
-                  size: 20.w(context),
-                ),
-              ),
-              SizedBox(width: 12.w(context)),
-              Text(
-                'Lihat Grafik KPI & Poin Siswa',
-                style: AppTextStyles.labelLarge(context, color: AppColors.onBackground).copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          Icon(
-            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-            color: AppColors.onBackground.withValues(alpha: 0.6),
-            size: 16.w(context),
           ),
         ],
       ),

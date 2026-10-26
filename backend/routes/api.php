@@ -183,7 +183,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 9. KEDISIPLINAN
     // ==========================================
     Route::prefix('discipline')->group(function () {
-        Route::middleware('role:GURU')->group(function () {
+        Route::middleware('role:GURU,GURU_BK,KEPALA_SEKOLAH,SUPER_ADMIN')->group(function () {
             Route::post('/reports', [DisciplineController::class, 'submitDisiplinReport']);
             Route::get('/reports', [DisciplineController::class, 'getDisiplinReports']);
             Route::get('/students', [DisciplineController::class, 'getStudentsList']);
