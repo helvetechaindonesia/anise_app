@@ -25,6 +25,107 @@ class KpiController extends Controller
     }
 
     /**
+     * Mengambil daftar KPI seluruh Tendik (Guru, BK, TU) beserta 5 terendah untuk Kepala Sekolah.
+     * Skor dihitung secara objektif:
+     * - Kehadiran (Bobot 60%): Berdasarkan rasio hadir tepat (H) vs total hari kerja efektif (atau kehadiran).
+     * - Jurnal / Administrasi (Bobot 40%): Berdasarkan penerbitan jurnal mengajar.
+     * Skor akhir 0 - 100 poin.
+     */
+    public function getKpiLeaderboard(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $now = \App\Helpers\AppTime::now();
+            $currentMonth = $request->query('month', $now->month);
+            $currentYear = $request->query('year', $now->year);
+
+            $tendikUsers = User::whereHas('role', function ($q) {
+                $q->whereIn('name', ['GURU', 'GURU_BK', 'TATA_USAHA']);
+            })
+            ->where('is_active', true)
+            ->with(['role', 'guruProfile'])
+            ->orderBy('full_name', 'asc')
+            ->get();
+
+            $results = $tendikUsers->map(function ($tendik) use ($currentYear, $currentMonth) {
+                // 1. Presensi Tendik di bulan tersebut
+                $attendances = \App\Models\TeacherAttendance::where('teacher_id', $tendik->id)
+                    ->whereYear('date', $currentYear)
+                    ->whereMonth('date', $currentMonth)
+                    ->get();
+
+                $totalAtt = $attendances->count();
+                $hadirTepat = $attendances->where('status', 'H')->count();
+                $terlambat = $attendances->where('status', 'T')->count();
+                $alpha = $attendances->whereIn('status', ['A', 'ALPHA', 'Alpha'])->count();
+
+                // Hitung skor presensi (0 - 100)
+                $presenceScore = 100.0;
+                if ($totalAtt > 0) {
+                    $presenceScore = max(0, min(100, round((($hadirTepat * 1.0 + $terlambat * 0.7) / $totalAtt) * 100, 1)));
+                } else {
+                    // Cek di presensi_logs jika teacher_attendances belum terisi
+                    $logsCount = \Illuminate\Support\Facades\DB::table('presensi_logs')
+                        ->where('user_id', $tendik->id)
+                        ->whereYear('scan_time', $currentYear)
+                        ->whereMonth('scan_time', $currentMonth)
+                        ->count();
+                    $presenceScore = $logsCount > 0 ? 88.0 : 75.0; // Nilai baseline aktif
+                }
+
+                // 2. Kinerja Jurnal Mengajar / KBM
+                $journalCount = \App\Models\Journal::where('teacher_id', $tendik->id)
+                    ->whereYear('teaching_date', $currentYear)
+                    ->whereMonth('teaching_date', $currentMonth)
+                    ->count();
+
+                // Target bulanan rata-rata 12 jurnal
+                $journalScore = min(100.0, round(($journalCount / 12.0) * 100, 1));
+                if ($tendik->role_type === 'TATA_USAHA') {
+                    // TU tidak mengajar, skor administrasi disesuaikan dari kehadiran & keaktifan
+                    $journalScore = $presenceScore;
+                }
+
+                // Kalkulasi Skor Akhir KPI: 60% Presensi + 40% Kinerja Administrasi/Jurnal
+                $kpiScore = round(($presenceScore * 0.6) + ($journalScore * 0.4), 1);
+
+                return [
+                    'user_id' => $tendik->id,
+                    'full_name' => $tendik->full_name,
+                    'username' => $tendik->username,
+                    'nip' => $tendik->guruProfile?->nip_nuptk ?? ($tendik->unique_id ?? '-'),
+                    'role_type' => $tendik->role_type,
+                    'avatar' => $tendik->avatar ?? $tendik->profile_picture,
+                    'kpi_score' => $kpiScore,
+                    'presence_score' => $presenceScore,
+                    'journal_score' => $journalScore,
+                    'journal_count' => $journalCount,
+                    'hadir_count' => $hadirTepat,
+                    'terlambat_count' => $terlambat,
+                    'alpha_count' => $alpha,
+                ];
+            });
+
+            // Urutkan dari yang paling rendah (ascending)
+            $sortedLowest = $results->sortBy('kpi_score')->values();
+
+            // Ambil 5 terendah
+            $lowest5 = $sortedLowest->take(5);
+
+            return $this->success([
+                'month' => (int)$currentMonth,
+                'year' => (int)$currentYear,
+                'lowest_five' => $lowest5,
+                'all_tendik' => $sortedLowest,
+                'total_tendik' => $results->count(),
+                'average_kpi' => $results->count() > 0 ? round($results->avg('kpi_score'), 1) : 0,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->error($e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Mengambil daftar evaluasi kinerja tendik.
      * Jika Kepsek: melihat seluruh tendik (Guru, BK, TU) beserta status evaluasinya pada semester/tahun ajaran terpilih.
      * Jika Guru/TU: melihat hasil evaluasi dirinya sendiri.

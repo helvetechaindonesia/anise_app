@@ -8,7 +8,7 @@ import '../../../core/widgets/main_header.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/models/user_model.dart';
 import '../../kepala_sekolah/widgets/predikat_kinerja_card.dart';
-import '../../kepala_sekolah/screens/kepsek_evaluasi_tendik_screen.dart';
+import '../../kepala_sekolah/screens/kepsek_kpi_monitoring_screen.dart';
 
 import '../widgets/poin_header_widget.dart';
 import '../widgets/poin_main_card_widget.dart';
@@ -62,9 +62,9 @@ class _PoinScreenState extends ConsumerState<PoinScreen> {
     final bool isSiswa = user?.role == UserRole.siswa;
     final bool isKepsek = user?.role == UserRole.kepalaSekolah;
 
-    // Jika user adalah Kepala Sekolah, tampilkan langsung evaluasi tendik overview / tombol aksi
+    // Jika user adalah Kepala Sekolah, tampilkan Layar Monitoring KPI seluruh tendik
     if (isKepsek) {
-      return const KepsekEvaluasiTendikScreen();
+      return const KepsekKpiMonitoringScreen();
     }
 
     return Scaffold(

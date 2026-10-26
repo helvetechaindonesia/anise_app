@@ -433,6 +433,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 17A. KPI TENDIK
     // ==========================================
     Route::prefix('kpi')->group(function () {
+        Route::get('/leaderboard', [KpiController::class, 'getKpiLeaderboard']);
         Route::get('/analysis', [KpiController::class, 'getAnalysis']);
         Route::get('/reports', [KpiController::class, 'getReports']);
         Route::get('/evaluations', [KpiController::class, 'getEvaluations']);

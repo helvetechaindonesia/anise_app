@@ -8,8 +8,8 @@ import '../../../core/widgets/decorative_background.dart';
 import '../../../core/widgets/main_header.dart';
 import '../../../core/widgets/anise_identity_card_3d.dart';
 import '../widgets/kepsek_layanan_cepat_widget.dart';
-import '../../tata_usaha/widgets/tu_ringkasan_surat_widget.dart';
-import '../../tata_usaha/widgets/tu_pengajuan_dispensasi_widget.dart';
+import '../widgets/kepsek_pantau_jurnal_widget.dart';
+import '../widgets/kepsek_pantau_kpi_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class KepsekHomeScreen extends ConsumerStatefulWidget {
@@ -53,9 +53,9 @@ class _KepsekHomeScreenState extends ConsumerState<KepsekHomeScreen> {
                     Spacing.custom(context, 20),
                     KepsekLayananCepatWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 24),
-                    const TuRingkasanSuratWidget(),
+                    KepsekPantauJurnalWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 24),
-                    const TuPengajuanDispensasiWidget(),
+                    const KepsekPantauKpiWidget(),
                     Spacing.custom(context, 32),
                   ],
                 ),
