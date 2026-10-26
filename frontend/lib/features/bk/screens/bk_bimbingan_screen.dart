@@ -4,9 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/main_header.dart';
+import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/anise_card.dart';
+import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/item_list_tile.dart';
+import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 import 'bk_input_bimbingan_screen.dart';
 
@@ -20,25 +25,36 @@ class BkBimbinganScreen extends ConsumerStatefulWidget {
 
 class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   late DateTime _selectedDate;
-  late DateTime _weekStart;
+  late DateTime _currentWeekStart;
+  bool _isCustomDateSelected = false;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-    // Senin minggu ini
-    _weekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
     });
   }
 
-  void _onDateSelected(DateTime date) {
+  void _resetToCurrentWeek(Map<String, dynamic>? offDaysData) {
     setState(() {
-      _selectedDate = date;
+      _currentWeekStart = computeActiveWeekMonday(offDaysData);
+      final activeDates = filterActiveWeekDates(
+        weekMonday: _currentWeekStart,
+        offDaysData: offDaysData,
+      );
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      _selectedDate = activeDates.firstWhere(
+        (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+        orElse: () => activeDates.isNotEmpty ? activeDates.first : today,
+      );
+      _isCustomDateSelected = false;
     });
-    ref.read(bkSelectedDateProvider.notifier).state = date;
+    ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
   }
 
   String _formatDateHeader(DateTime d) {
@@ -51,6 +67,8 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final offDaysAsync = ref.watch(offDaysProvider);
+
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: RefreshIndicator(
@@ -60,25 +78,121 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
-            _buildAppBar(context),
+            // 1. Header Standar Sub-Page (SliverSubHeader) dengan judul "Bimbingan"
+            const SliverSubHeader(
+              title: 'Bimbingan',
+            ),
+
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SizedBox(height: 12.h(context)),
+
+                    // 2. Baris Judul & Tombol Pilih Tanggal (Shared Component AniseDatePickerButton)
+                    offDaysAsync.when(
+                      data: (offDays) => _buildDatePickerBar(context, offDays),
+                      loading: () => _buildDatePickerBar(context, null),
+                      error: (_, __) => _buildDatePickerBar(context, null),
+                    ),
                     SizedBox(height: 16.h(context)),
-                    _buildHeader(context),
-                    SizedBox(height: 20.h(context)),
+
+                    // 3. Card Buat Jadwal Bimbingan Baru (Shared Component AniseCard)
                     _buildBuatJadwalCard(context),
                     SizedBox(height: 20.h(context)),
-                    _buildWeeklyDateSelector(context),
-                    SizedBox(height: 16.h(context)),
+
+                    // 4. Filter Item Tanggal Mingguan (Shared Component AniseDateFilter)
+                    offDaysAsync.when(
+                      data: (offDaysData) {
+                        final activeDates = filterActiveWeekDates(
+                          weekMonday: _currentWeekStart,
+                          offDaysData: offDaysData,
+                        );
+
+                        if (activeDates.isNotEmpty && !_isCustomDateSelected) {
+                          final isSelectedInActive = activeDates.any((d) =>
+                              d.year == _selectedDate.year &&
+                              d.month == _selectedDate.month &&
+                              d.day == _selectedDate.day);
+                          if (!isSelectedInActive) {
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+                            _selectedDate = activeDates.firstWhere(
+                              (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+                              orElse: () => activeDates.first,
+                            );
+                          }
+                        }
+
+                        return AniseDateFilter(
+                          dates: activeDates,
+                          selectedDate: _selectedDate,
+                          isCustomDateSelected: _isCustomDateSelected,
+                          onDateSelected: (date) {
+                            setState(() {
+                              _selectedDate = date;
+                              _isCustomDateSelected = false;
+                            });
+                            ref.read(bkSelectedDateProvider.notifier).state = date;
+                          },
+                          onReset: () => _resetToCurrentWeek(offDaysData),
+                        );
+                      },
+                      loading: () => SizedBox(
+                        height: 72.h(context),
+                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                      ),
+                      error: (_, __) {
+                        _currentWeekStart = computeActiveWeekMonday(null);
+                        final fallbackDates = filterActiveWeekDates(
+                          weekMonday: _currentWeekStart,
+                          offDaysData: null,
+                        );
+                        return AniseDateFilter(
+                          dates: fallbackDates,
+                          selectedDate: _selectedDate,
+                          isCustomDateSelected: _isCustomDateSelected,
+                          onDateSelected: (date) {
+                            setState(() {
+                              _selectedDate = date;
+                              _isCustomDateSelected = false;
+                            });
+                            ref.read(bkSelectedDateProvider.notifier).state = date;
+                          },
+                          onReset: () => _resetToCurrentWeek(null),
+                        );
+                      },
+                    ),
+                    SizedBox(height: 24.h(context)),
+
+                    // 5. Header Seksi Daftar Bimbingan
+                    Row(
+                      children: [
+                        Icon(
+                          PhosphorIcons.usersThree(PhosphorIconsStyle.bold),
+                          color: AppColors.onBackground,
+                          size: 20.w(context),
+                        ),
+                        SizedBox(width: 8.w(context)),
+                        Text(
+                          'Daftar Sesi Bimbingan',
+                          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 14.h(context)),
                   ],
                 ),
               ),
             ),
+
+            // 6. Daftar Item Bimbingan Menggunakan Shared Component ItemListTile
             _buildCounselingRequestList(context),
+
             SliverToBoxAdapter(
               child: SizedBox(height: 40.h(context)),
             ),
@@ -88,205 +202,104 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
-    final canPop = Navigator.canPop(context);
+  /// Baris Tanggal & Tombol Picker Standarisasi AniseDatePickerButton
+  Widget _buildDatePickerBar(BuildContext context, Map<String, dynamic>? offDaysData) {
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
 
-    if (canPop) {
-      return SliverAppBar(
-        pinned: true,
-        backgroundColor: AppColors.backgroundLight,
-        elevation: 0,
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.bold), color: AppColors.onBackground),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Bimbingan Konseling',
-          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground),
-        ),
-      );
-    }
-
-    return const MainHeader();
-  }
-
-  Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'BIMBINGAN & KONSELING',
+              'AGENDA BIMBINGAN',
               style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                letterSpacing: 1.1,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
-            SizedBox(height: 4.h(context)),
+            SizedBox(height: 2.h(context)),
             Text(
-              widget.className != null ? 'Jadwal ${widget.className}' : 'Permohonan Bimbingan',
-              style: AppTextStyles.headlineLarge(context, color: AppColors.onBackground),
+              'Jadwal & Permohonan',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
-        GestureDetector(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-            );
-            if (picked != null) {
-              _onDateSelected(picked);
-            }
+        // Shared Component: AniseDatePickerButton
+        AniseDatePickerButton(
+          selectedDate: _selectedDate,
+          isCustomDateSelected: _isCustomDateSelected,
+          firstDate: releaseDate,
+          onDateSelected: (picked) {
+            setState(() {
+              _selectedDate = DateTime(picked.year, picked.month, picked.day);
+              _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+              _isCustomDateSelected = true;
+            });
+            ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
           },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(20.w(context)),
-            ),
-            child: Row(
-              children: [
-                Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: Colors.white, size: 14.w(context)),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  'Pilih Tanggal',
-                  style: AppTextStyles.labelMedium(context, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         ),
       ],
     );
   }
 
+  /// Card Tambah / Jadwalkan Bimbingan berbasis AniseCard
   Widget _buildBuatJadwalCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
+    return AniseCard(
+      color: AppColors.primary,
+      borderRadius: 16.w(context),
+      padding: EdgeInsets.all(18.w(context)),
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const BkInputBimbinganScreen()),
         );
+        ref.invalidate(bkCounselingRequestsProvider);
       },
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(18.w(context)),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20.w(context)),
-          border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.onBackground.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(12.w(context)),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(12.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.secondary.withValues(alpha: 0.25),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                color: AppColors.primary,
-                size: 22.w(context),
-              ),
+            child: Icon(
+              PhosphorIcons.plus(PhosphorIconsStyle.bold),
+              color: Colors.white,
+              size: 22.w(context),
             ),
-            SizedBox(width: 14.w(context)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Jadwalkan Bimbingan Baru',
-                    style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+          ),
+          SizedBox(width: 14.w(context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jadwalkan Bimbingan Baru',
+                  style: AppTextStyles.titleMedium(context, color: Colors.white).copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  SizedBox(height: 2.h(context)),
-                  Text(
-                    'Atur sesi bimbingan individu atau klasikal',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-              color: AppColors.primary,
-              size: 20.w(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWeeklyDateSelector(BuildContext context) {
-    const daysLabel = ['SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB', 'MIN'];
-
-    return SizedBox(
-      height: 72.h(context),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 7,
-        itemBuilder: (context, index) {
-          final date = _weekStart.add(Duration(days: index));
-          final isSelected = date.year == _selectedDate.year &&
-              date.month == _selectedDate.month &&
-              date.day == _selectedDate.day;
-
-          return GestureDetector(
-            onTap: () => _onDateSelected(date),
-            child: Container(
-              width: 54.w(context),
-              margin: EdgeInsets.only(right: 10.w(context)),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary : AppColors.surface,
-                borderRadius: BorderRadius.circular(16.w(context)),
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : AppColors.outline.withValues(alpha: 0.2),
-                  width: 1,
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    daysLabel[index],
-                    style: GoogleFonts.outfit(
-                      fontSize: 11.sp(context),
-                      fontWeight: FontWeight.w500,
-                      color: isSelected ? Colors.white.withValues(alpha: 0.8) : AppColors.onBackground.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  SizedBox(height: 4.h(context)),
-                  Text(
-                    date.day.toString(),
-                    style: GoogleFonts.outfit(
-                      fontSize: 16.sp(context),
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : AppColors.onBackground,
-                    ),
-                  ),
-                ],
-              ),
+                SizedBox(height: 2.h(context)),
+                Text(
+                  'Bimbingan Klasikal (Kelas), Kelompok, atau Individu',
+                  style: AppTextStyles.labelSmall(context, color: Colors.white.withValues(alpha: 0.8)),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+          Icon(
+            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+            color: Colors.white,
+            size: 20.w(context),
+          ),
+        ],
       ),
     );
   }
@@ -305,7 +318,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                 child: AniseEmptyState(
                   icon: PhosphorIconsRegular.calendarBlank,
                   title: 'Tidak Ada Bimbingan',
-                  subtitle: 'Belum ada pengajuan bimbingan siswa pada ${_formatDateHeader(_selectedDate)}.',
+                  subtitle: 'Belum ada agenda bimbingan pada ${_formatDateHeader(_selectedDate)}.',
                 ),
               ),
             ),
@@ -318,10 +331,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final req = requests[index];
-                return Padding(
-                  padding: EdgeInsets.only(bottom: 16.h(context)),
-                  child: _buildRequestCard(context, req),
-                );
+                return _buildCounselingItemTile(context, req);
               },
               childCount: requests.length,
             ),
@@ -333,13 +343,14 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
       ),
       error: (err, _) => SliverFillRemaining(
         child: Center(
-          child: Text('Gagal memuat permohonan bimbingan: $err'),
+          child: Text('Gagal memuat agenda bimbingan: $err'),
         ),
       ),
     );
   }
 
-  Widget _buildRequestCard(BuildContext context, Map<String, dynamic> req) {
+  /// Render item bimbingan menggunakan shared component ItemListTile
+  Widget _buildCounselingItemTile(BuildContext context, Map<String, dynamic> req) {
     final String id = req['id']?.toString() ?? '';
     final String studentName = req['student_name']?.toString() ?? 'Siswa';
     final String className = req['class_name']?.toString() ?? '';
@@ -348,177 +359,86 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
     final String time = req['schedule_time']?.toString() ?? '-';
     final String desc = (req['description'] != null && req['description'].toString().isNotEmpty)
         ? req['description'].toString()
-        : 'Tidak ada deskripsi keluhan tambahan.';
+        : '';
     final String status = req['status']?.toString() ?? 'PENDING';
+    final String type = req['type']?.toString() ?? 'INDIVIDU';
     final bool isApproved = status == 'APPROVED' || status == 'COMPLETED';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20.w(context)),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(18.w(context)),
-      child: Column(
+    // Label Kategori
+    String categoryLabel = 'BIMBINGAN INDIVIDU';
+    if (type == 'KLASIKAL' || topic.contains('Klasikal')) {
+      categoryLabel = 'BIMBINGAN KLASIKAL';
+    } else if (type == 'KELOMPOK' || topic.contains('Kelompok')) {
+      categoryLabel = 'BIMBINGAN KELOMPOK';
+    }
+
+    // Status label & color
+    String statusLabel = 'Menunggu Persetujuan';
+    Color statusColor = AppColors.warning;
+    IconData statusIcon = PhosphorIcons.clock(PhosphorIconsStyle.bold);
+
+    if (isApproved) {
+      statusLabel = 'Terkonfirmasi';
+      statusColor = Colors.green;
+      statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
+    } else if (status == 'REJECTED') {
+      statusLabel = 'Ditolak';
+      statusColor = AppColors.error;
+      statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
+    }
+
+    return ItemListTile(
+      category: categoryLabel,
+      title: studentName,
+      subcategory: className.isNotEmpty ? 'Kelas $className' : null,
+      metadataText: '$date • $time WIB',
+      metadataIcon: PhosphorIcons.clock(PhosphorIconsStyle.regular),
+      secondaryMetadataText: topic,
+      secondaryMetadataIcon: PhosphorIcons.tag(PhosphorIconsStyle.regular),
+      statusText: statusLabel,
+      statusIcon: statusIcon,
+      statusColor: statusColor,
+      bottomWidget: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Baris 1: Nama Siswa, Kelas & Badge Status
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42.w(context),
-                height: 42.w(context),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  PhosphorIcons.user(PhosphorIconsStyle.bold),
-                  color: AppColors.onPrimaryContainer,
-                  size: 20.w(context),
+          if (desc.isNotEmpty) ...[
+            SizedBox(height: 6.h(context)),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(10.w(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10.w(context)),
+              ),
+              child: Text(
+                desc,
+                style: GoogleFonts.outfit(
+                  fontSize: 12.sp(context),
+                  color: AppColors.onBackground.withValues(alpha: 0.8),
+                  height: 1.35,
                 ),
               ),
-              SizedBox(width: 12.w(context)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      studentName,
-                      style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (className.isNotEmpty) ...[
-                      SizedBox(height: 2.h(context)),
-                      Text(
-                        'Kelas: $className',
-                        style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 4.h(context)),
-                decoration: BoxDecoration(
-                  color: isApproved
-                      ? AppColors.primary.withValues(alpha: 0.12)
-                      : AppColors.warning.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                ),
-                child: Text(
-                  isApproved ? 'Disetujui' : 'Menunggu',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12.sp(context),
-                    fontWeight: FontWeight.w600,
-                    color: isApproved ? AppColors.primary : AppColors.warning,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 14.h(context)),
-
-          // Baris 2: Topik Bimbingan
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 6.h(context)),
-            decoration: BoxDecoration(
-              color: AppColors.secondary.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8.w(context)),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(PhosphorIcons.tag(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  'Topik: $topic',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12.sp(context),
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 12.h(context)),
-
-          // Baris 3: Tanggal & Waktu Pelaksanaan
-          Row(
-            children: [
-              Icon(PhosphorIcons.clock(PhosphorIconsStyle.regular), size: 16.w(context), color: AppColors.onBackground.withValues(alpha: 0.7)),
-              SizedBox(width: 6.w(context)),
-              Text(
-                '$date • Pukul $time WIB',
-                style: AppTextStyles.bodySmall(context, color: AppColors.onBackground.withValues(alpha: 0.8)).copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10.h(context)),
-
-          // Baris 4: Deskripsi Keluhan
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(12.w(context)),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundLight,
-              borderRadius: BorderRadius.circular(12.w(context)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Deskripsi / Catatan Siswa:',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11.sp(context),
-                    color: AppColors.onBackground.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 4.h(context)),
-                Text(
-                  desc,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13.sp(context),
-                    color: AppColors.onBackground,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16.h(context)),
-
-          // Baris 5: Tombol Setujui Bimbingan di Paling Bawah
-          if (!isApproved) ...[
+          ],
+          if (!isApproved && !id.startsWith('journal-')) ...[
+            SizedBox(height: 10.h(context)),
             SizedBox(
               width: double.infinity,
-              height: 46.h(context),
+              height: 40.h(context),
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.w(context)),
+                    borderRadius: BorderRadius.circular(10.w(context)),
                   ),
                   elevation: 0,
                 ),
-                icon: Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.bold), size: 18.w(context)),
+                icon: Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.bold), size: 16.w(context)),
                 label: Text(
-                  'Setujui Bimbingan',
-                  style: AppTextStyles.titleSmall(context, color: Colors.white).copyWith(
+                  'Setujui Bimbingan Ini',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13.sp(context),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -536,30 +456,6 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                     );
                   }
                 },
-              ),
-            ),
-          ] else ...[
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(vertical: 10.h(context)),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10.w(context)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(PhosphorIcons.check(PhosphorIconsStyle.bold), color: AppColors.primary, size: 16.w(context)),
-                  SizedBox(width: 8.w(context)),
-                  Text(
-                    'Sesi bimbingan telah dikonfirmasi',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13.sp(context),
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],

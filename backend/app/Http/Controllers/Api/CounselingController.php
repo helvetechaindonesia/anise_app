@@ -324,31 +324,53 @@ class CounselingController extends Controller
     }
 
     /**
-     * GET /counseling/guru-bk/requests — Guru BK melihat permohonan bimbingan yang masuk ke dirinya sesuai filter tanggal.
+     * GET /counseling/guru-bk/requests — Guru BK melihat agenda bimbingan (Klasikal, Kelompok, Individu) sesuai filter tanggal.
      */
     public function guruBkIndex(Request $request)
     {
         try {
             $user = Auth::user();
+            $dateFilter = $request->date;
 
+            // 1. Ambil dari counseling_requests
             $query = CounselingRequest::where(function ($q) use ($user) {
                     $q->where('guru_bk_id', $user->id)
                       ->orWhereNull('guru_bk_id');
                 })
-                ->with(['student.siswaProfile.schoolClass', 'student']);
+                ->with(['student.siswaProfile', 'student']);
 
-            if ($request->filled('date')) {
-                $query->whereDate('schedule_date', $request->date);
+            if (!empty($dateFilter)) {
+                $query->whereDate('schedule_date', $dateFilter);
             }
 
-            $data = $query->orderBy('schedule_date', 'asc')
+            $counselings = $query->orderBy('schedule_date', 'asc')
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($c) {
                     $student = $c->student;
-                    $className = $student?->siswaProfile?->schoolClass?->name ?? 'Siswa';
+                    
+                    // Ambil kelas aktif siswa
+                    $className = 'Siswa';
+                    if ($student) {
+                        $cs = ClassStudent::where('student_id', $student->id)
+                            ->where('status', 'ACTIVE')
+                            ->with('class')
+                            ->first();
+                        if ($cs && $cs->class) {
+                            $className = ($cs->class->grade_level ? "{$cs->class->grade_level} " : "") . $cs->class->name;
+                        }
+                    }
+
+                    $type = 'INDIVIDU';
+                    if (str_contains($c->topic, '[Bimbingan Klasikal]')) {
+                        $type = 'KLASIKAL';
+                    } elseif (str_contains($c->topic, '[Bimbingan Kelompok]')) {
+                        $type = 'KELOMPOK';
+                    }
+
                     return [
                         'id'            => $c->id,
+                        'type'          => $type,
                         'student_name'  => $student ? ($student->full_name ?: $student->username) : 'Siswa',
                         'class_name'    => $className,
                         'topic'         => $c->topic,
@@ -361,7 +383,44 @@ class CounselingController extends Controller
                     ];
                 });
 
-            return response()->json(['status' => 'success', 'data' => $data]);
+            // 2. Ambil dari journals hasil Classroom Hijacking Guru BK (is_bk_sosialisasi = true)
+            $journalQuery = Journal::where('teacher_id', $user->id)
+                ->where('is_bk_sosialisasi', true)
+                ->with(['class', 'schedule.teacher', 'schedule.subject']);
+
+            if (!empty($dateFilter)) {
+                $journalQuery->whereDate('teaching_date', $dateFilter);
+            }
+
+            $journals = $journalQuery->orderBy('teaching_date', 'asc')
+                ->get()
+                ->map(function ($j) {
+                    $className = $j->class ? (($j->class->grade_level ? "{$j->class->grade_level} " : "") . $j->class->name) : 'Kelas';
+                    $startTime = $j->schedule ? substr($j->schedule->start_time, 0, 5) : '07:30';
+                    $endTime = $j->schedule ? substr($j->schedule->end_time, 0, 5) : '';
+                    $timeStr = $endTime ? "{$startTime} - {$endTime}" : $startTime;
+
+                    return [
+                        'id'            => 'journal-' . $j->id,
+                        'type'          => 'KLASIKAL',
+                        'student_name'  => "Seluruh Siswa ({$className})",
+                        'class_name'    => $className,
+                        'topic'         => $j->topic_material ?: '[Bimbingan Klasikal BK]',
+                        'schedule_date' => $j->teaching_date,
+                        'schedule_time' => $timeStr,
+                        'description'   => $j->description ?? 'Bimbingan klasikal menggantikan jadwal KBM di kelas',
+                        'status'        => 'APPROVED',
+                        'initiator'     => 'GURU_BK',
+                        'created_at'    => $j->created_at ? $j->created_at->format('Y-m-d H:i:s') : null,
+                    ];
+                });
+
+            // Gabungkan dan filter duplikat jika topik klasikal yang sama sudah ada di counseling_requests
+            $combined = $counselings->concat($journals)->unique(function ($item) {
+                return $item['schedule_date'] . '_' . $item['topic'];
+            })->values();
+
+            return response()->json(['status' => 'success', 'data' => $combined]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
