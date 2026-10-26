@@ -36,8 +36,6 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
   Position? _currentPosition;
   bool _isGettingLocation = false;
 
-  final ImagePicker _picker = ImagePicker();
-
   @override
   void initState() {
     super.initState();
