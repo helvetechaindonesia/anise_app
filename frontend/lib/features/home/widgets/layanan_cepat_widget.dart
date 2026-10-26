@@ -12,6 +12,7 @@ import '../../lapor/screens/lapor_kesiswaan_screen.dart';
 import '../../berkas/screens/berkas_saya_screen.dart';
 import '../../tata_usaha/screens/ajukan_ijin_screen.dart';
 import '../../bk/screens/siswa_ajukan_bimbingan_screen.dart';
+import '../../ai/screens/sipena_ai_screen.dart';
 
 class LayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -82,6 +83,11 @@ class LayananCepatWidget extends StatelessWidget {
         icon: PhosphorIcons.chats(PhosphorIconsStyle.bold),
         label: 'Bimbingan',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SiswaAjukanBimbinganScreen())),
+      ),
+      QuickActionItem(
+        icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
+        label: 'Sipena AI',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SipenaAiScreen())),
       ),
     ];
 

@@ -15,6 +15,9 @@ import '../../bk/screens/bk_disiplin_screen.dart';
 import '../../tata_usaha/screens/ajukan_ijin_screen.dart';
 import '../../tata_usaha/screens/perijinan_screen.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_model.dart';
+import '../../ai/screens/sipena_ai_screen.dart';
+import '../../humas/screens/humas_screen.dart';
 
 class GuruLayananCepatWidget extends ConsumerWidget {
   final Function(int)? onNavigateTab;
@@ -25,6 +28,9 @@ class GuruLayananCepatWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     final isWaliKelas = user?.isWaliKelas ?? false;
+    final isHumas = user?.role == UserRole.tataUsaha ||
+        user?.role == UserRole.kepalaSekolah ||
+        (user?.tugasTambahan.any((t) => t.toUpperCase().contains('HUMAS')) ?? false);
 
     final items = [
       QuickActionItem(
@@ -97,6 +103,19 @@ class GuruLayananCepatWidget extends ConsumerWidget {
           label: 'Perijinan',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PerijinanScreen())),
         ),
+      // Menu Humas (Eksklusif Penugasan Humas, Staf TU, dan Kepala Sekolah)
+      if (isHumas)
+        QuickActionItem(
+          icon: PhosphorIcons.megaphone(PhosphorIconsStyle.bold),
+          label: 'Humas',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HumasScreen())),
+        ),
+      // Menu Sipena AI (Semua user tanpa terkecuali)
+      QuickActionItem(
+        icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
+        label: 'Sipena AI',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SipenaAiScreen())),
+      ),
     ];
 
     return AniseLayananCepat(items: items);

@@ -11,6 +11,8 @@ import '../screens/tu_inventaris_screen.dart';
 import '../screens/tu_kesiswaan_screen.dart';
 import '../screens/tu_master_user_screen.dart';
 import '../screens/tu_manajemen_sekolah_screen.dart';
+import '../../humas/screens/humas_screen.dart';
+import '../../ai/screens/sipena_ai_screen.dart';
 
 class TuLayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -55,6 +57,11 @@ class TuLayananCepatWidget extends StatelessWidget {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuKesiswaanScreen())),
       ),
       QuickActionItem(
+        icon: PhosphorIcons.megaphone(PhosphorIconsStyle.bold),
+        label: 'Humas',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HumasScreen())),
+      ),
+      QuickActionItem(
         icon: PhosphorIcons.warningCircle(PhosphorIconsStyle.bold),
         label: 'Lapor',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LaporKesiswaanScreen())),
@@ -73,6 +80,11 @@ class TuLayananCepatWidget extends StatelessWidget {
         icon: PhosphorIcons.identificationCard(PhosphorIconsStyle.bold),
         label: 'Manajemen User',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TuMasterUserScreen())),
+      ),
+      QuickActionItem(
+        icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
+        label: 'Sipena AI',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SipenaAiScreen())),
       ),
     ];
 

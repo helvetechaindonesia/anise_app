@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/widgets/anise_layanan_cepat.dart';
 
@@ -10,14 +11,23 @@ import '../../berkas/screens/berkas_saya_screen.dart';
 import '../../bk/screens/bk_disiplin_screen.dart';
 import '../../bk/screens/bk_surat_screen.dart';
 import '../../bk/screens/bk_bimbingan_screen.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/models/user_model.dart';
+import '../../humas/screens/humas_screen.dart';
+import '../../ai/screens/sipena_ai_screen.dart';
 
-class BkLayananCepatWidget extends StatelessWidget {
+class BkLayananCepatWidget extends ConsumerWidget {
   final Function(int)? onNavigateTab;
 
   const BkLayananCepatWidget({super.key, this.onNavigateTab});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider).user;
+    final isHumas = user?.role == UserRole.tataUsaha ||
+        user?.role == UserRole.kepalaSekolah ||
+        (user?.tugasTambahan.any((t) => t.toUpperCase().contains('HUMAS')) ?? false);
+
     final items = [
       QuickActionItem(
         icon: PhosphorIcons.fingerprint(PhosphorIconsStyle.bold),
@@ -70,6 +80,17 @@ class BkLayananCepatWidget extends StatelessWidget {
         icon: PhosphorIcons.folderUser(PhosphorIconsStyle.bold),
         label: 'E-File',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BerkasSayaScreen())),
+      ),
+      if (isHumas)
+        QuickActionItem(
+          icon: PhosphorIcons.megaphone(PhosphorIconsStyle.bold),
+          label: 'Humas',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HumasScreen())),
+        ),
+      QuickActionItem(
+        icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
+        label: 'Sipena AI',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SipenaAiScreen())),
       ),
     ];
 
