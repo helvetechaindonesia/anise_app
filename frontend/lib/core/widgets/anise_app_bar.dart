@@ -155,3 +155,8 @@ class AniseSliverAppBar extends StatelessWidget {
   }
 }
 
+/// SubHeader adalah bar navigasi standar yang muncul saat berpindah ke sub-page/halaman turunan
+/// Berdasarkan spesifikasi: docs/frontend/UI/components/specs/sub_header.md
+typedef SubHeader = AniseAppBar;
+typedef SliverSubHeader = AniseSliverAppBar;
+

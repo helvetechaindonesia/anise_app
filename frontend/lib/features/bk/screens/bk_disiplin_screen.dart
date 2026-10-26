@@ -4,8 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
-import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/main_header.dart';
+import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
@@ -61,8 +60,10 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
       backgroundColor: AppColors.backgroundLight,
       body: CustomScrollView(
         slivers: [
-          // 1. Payung Identitas Utama Layar: MainHeader
-          const MainHeader(),
+          // 1. Header Standar Sub-Page: SliverSubHeader (AniseSliverAppBar) dengan Back Button & Center Title
+          const SliverSubHeader(
+            title: 'Pantau Disiplin',
+          ),
 
           SliverToBoxAdapter(
             child: Padding(
@@ -70,15 +71,15 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 16.h(context)),
+                  SizedBox(height: 12.h(context)),
 
-                  // 2. Sub-Header Standar Anise + AniseDatePickerButton
+                  // 2. Baris Aksi Konten: Label Status & AniseDatePickerButton
                   offDaysAsync.when(
-                    data: (offDays) => _buildSubHeader(context, offDays),
-                    loading: () => _buildSubHeader(context, null),
-                    error: (_, __) => _buildSubHeader(context, null),
+                    data: (offDays) => _buildDatePickerBar(context, offDays),
+                    loading: () => _buildDatePickerBar(context, null),
+                    error: (_, __) => _buildDatePickerBar(context, null),
                   ),
-                  SizedBox(height: 20.h(context)),
+                  SizedBox(height: 16.h(context)),
 
                   // 3. Card Input Pelanggaran / Lapor (Terstandarisasi AniseCard)
                   _buildInputDisiplinCard(context),
@@ -183,34 +184,35 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
     );
   }
 
-  /// Sub-Header Standar Anise dengan Title & AniseDatePickerButton
-  Widget _buildSubHeader(BuildContext context, Map<String, dynamic>? offDaysData) {
+  /// Baris Tanggal & Tombol Picker Standarisasi Anise
+  Widget _buildDatePickerBar(BuildContext context, Map<String, dynamic>? offDaysData) {
     final releaseDateStr = offDaysData?['app_release_date']?.toString();
     final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'GURU & BK',
+              'AGENDA KEDISIPLINAN',
               style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
                 fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
-            SizedBox(height: 4.h(context)),
+            SizedBox(height: 2.h(context)),
             Text(
-              'Pantau Disiplin',
-              style: AppTextStyles.headlineMedium(context, color: AppColors.onBackground).copyWith(
+              'Laporan & Catatan',
+              style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
-        // Tombol Standarisasi: AniseDatePickerButton
+        // Tombol Standarisasi: AniseDatePickerButton (Pilih / Ubah Tanggal)
         AniseDatePickerButton(
           selectedDate: _selectedDate,
           isCustomDateSelected: _isCustomDateSelected,
