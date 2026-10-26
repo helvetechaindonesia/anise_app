@@ -227,12 +227,12 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
             decoration: BoxDecoration(
               color: _isMyStudent
                   ? AppColors.menuPastelGreen.withValues(alpha: 0.15)
-                  : AppColors.menuPastelOrange.withValues(alpha: 0.15),
+                  : AppColors.warning.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8.w(context)),
               border: Border.all(
                 color: _isMyStudent
                     ? AppColors.menuPastelGreen
-                    : AppColors.menuPastelOrange,
+                    : AppColors.warning,
               ),
             ),
             child: Row(

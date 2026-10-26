@@ -337,6 +337,9 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
               
               final canApprove = report['can_approve'] == true;
               final isGuruWali = report['is_guru_wali'] == true;
+              final Color pointColor = status == 'INPUT'
+                  ? AppColors.error
+                  : (status == 'APPROVED' ? AppColors.success : AppColors.warning);
 
               return Column(
                 children: [
