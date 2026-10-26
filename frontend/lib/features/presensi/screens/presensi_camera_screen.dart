@@ -682,8 +682,8 @@ class _PresensiCameraScreenState extends ConsumerState<PresensiCameraScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Target Status Preview Card
-                  if (_targetStatusLabel != null)
+                  // Target Status Preview Card (hanya untuk presensi harian biasa, di jurnal dihilangkan)
+                  if (widget.journalId == null && _targetStatusLabel != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
