@@ -14,6 +14,7 @@ import '../../tata_usaha/screens/tu_manajemen_sekolah_screen.dart';
 import '../../humas/screens/humas_screen.dart';
 import '../../ai/screens/sipena_ai_screen.dart';
 import '../screens/kepsek_evaluasi_tendik_screen.dart';
+import '../screens/kepsek_kpi_monitoring_screen.dart';
 
 class KepsekLayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -69,6 +70,17 @@ class KepsekLayananCepatWidget extends StatelessWidget {
       ),
       QuickActionItem(
         icon: PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
+        label: 'KPI',
+        onTap: () {
+          if (onNavigateTab != null) {
+            onNavigateTab!(3);
+          } else {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekKpiMonitoringScreen()));
+          }
+        },
+      ),
+      QuickActionItem(
+        icon: PhosphorIcons.clipboardText(PhosphorIconsStyle.bold),
         label: 'Evaluasi Tendik',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekEvaluasiTendikScreen())),
       ),
