@@ -51,6 +51,17 @@ class DevController extends Controller
         }
     }
 
+    public function clearPresensi(Request $request)
+    {
+        try {
+            \Illuminate\Support\Facades\DB::table('presensi_logs')->delete();
+            \Illuminate\Support\Facades\DB::table('attendances')->delete();
+            return $this->success(null, 'Seluruh riwayat presensi (attendances & presensi_logs) berhasil dikosongkan!');
+        } catch (\Throwable $e) {
+            return $this->error('Gagal mengosongkan presensi: ' . $e->getMessage(), 500);
+        }
+    }
+
     public function statusPresensi(Request $request)
     {
         $appTime = \App\Helpers\AppTime::now();

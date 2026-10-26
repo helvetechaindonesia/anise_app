@@ -56,6 +56,7 @@ Route::get('/dev/status-presensi', [DevController::class, 'statusPresensi']);
 Route::match(['get', 'post'], '/dev/seed-home-data', [DevController::class, 'seedHomeData']);
 Route::match(['get', 'post'], '/dev/trigger-kbm-reminders', [JournalController::class, 'triggerKbmReminders']);
 Route::match(['get', 'post'], '/dev/reset-clean', [DevController::class, 'resetClean']);
+Route::match(['get', 'post'], '/dev/clear-presensi', [DevController::class, 'clearPresensi']);
 
 // Export Presensi XLSX (Dapat diakses via Browser/Download Manager dengan parameter ?token=... atau Bearer Header)
 Route::get('/attendance/export', [AttendanceController::class, 'exportPresensiXlsx']);
