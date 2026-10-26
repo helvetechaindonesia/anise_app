@@ -37,12 +37,6 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
   DateTime? _selectedDate;
   String? _selectedTime;
 
-  final List<String> _timeSlots = [
-    '07:30', '08:00', '08:30', '09:00', '09:30',
-    '10:15', '10:45', '11:15', '11:45', '13:00',
-    '13:30', '14:00', '14:30',
-  ];
-
   @override
   void dispose() {
     _topicController.dispose();
@@ -230,18 +224,47 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
             ),
             SizedBox(height: 18.h(context)),
 
-            // 5. Jam Pelaksanaan (Input terpisah)
+            // 5. Jam Pelaksanaan (Input Jam)
             _buildSectionLabel('Jam Pelaksanaan'),
             SizedBox(height: 8.h(context)),
-            _buildDropdown(
-              value: _selectedTime,
-              hint: 'Pilih jam pelaksanaan',
-              items: _timeSlots
-                  .map((t) => DropdownMenuItem(value: t, child: Text('$t WIB')))
-                  .toList(),
-              onChanged: (val) {
-                setState(() => _selectedTime = val);
+            GestureDetector(
+              onTap: () async {
+                final initial = _selectedTime != null && _selectedTime!.contains(':')
+                    ? TimeOfDay(
+                        hour: int.tryParse(_selectedTime!.split(':')[0]) ?? 7,
+                        minute: int.tryParse(_selectedTime!.split(':')[1]) ?? 30,
+                      )
+                    : const TimeOfDay(hour: 7, minute: 30);
+
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: initial,
+                );
+                if (picked != null) {
+                  final h = picked.hour.toString().padLeft(2, '0');
+                  final m = picked.minute.toString().padLeft(2, '0');
+                  setState(() => _selectedTime = '$h:$m');
+                }
               },
+              child: Container(
+                padding: EdgeInsets.all(16.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12.w(context)),
+                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.clock(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                    SizedBox(width: 12.w(context)),
+                    Text(
+                      _selectedTime != null ? '$_selectedTime WIB' : 'Pilih jam pelaksanaan',
+                      style: AppTextStyles.bodyMedium(context,
+                          color: _selectedTime != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.5)),
+                    ),
+                  ],
+                ),
+              ),
             ),
             SizedBox(height: 18.h(context)),
 
