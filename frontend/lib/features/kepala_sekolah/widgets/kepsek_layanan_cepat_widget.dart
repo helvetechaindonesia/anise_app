@@ -24,11 +24,6 @@ class KepsekLayananCepatWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       QuickActionItem(
-        icon: PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
-        label: 'Evaluasi Tendik',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekEvaluasiTendikScreen())),
-      ),
-      QuickActionItem(
         icon: PhosphorIcons.fingerprint(PhosphorIconsStyle.bold),
         label: 'Presensi',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PresensiScreen())),
@@ -71,6 +66,11 @@ class KepsekLayananCepatWidget extends StatelessWidget {
         icon: PhosphorIcons.warningCircle(PhosphorIconsStyle.bold),
         label: 'Lapor',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LaporKesiswaanScreen())),
+      ),
+      QuickActionItem(
+        icon: PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
+        label: 'Evaluasi Tendik',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekEvaluasiTendikScreen())),
       ),
       QuickActionItem(
         icon: PhosphorIcons.folderUser(PhosphorIconsStyle.bold),
