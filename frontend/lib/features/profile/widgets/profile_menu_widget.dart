@@ -6,6 +6,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../screens/keamanan_akun_screen.dart';
 import '../screens/bantuan_screen.dart';
+import '../screens/ganti_password_screen.dart';
 
 class InfoItemWidget extends StatelessWidget {
   final IconData icon;
@@ -185,9 +186,22 @@ class SettingsSectionWidget extends StatelessWidget {
             onTap: onLanguageTap,
           ),
           InfoItemWidget(
+            icon: PhosphorIcons.key(PhosphorIconsStyle.fill),
+            title: 'Ganti Kata Sandi',
+            subtitle: 'Ubah password lama ke baru',
+            trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
+            showDivider: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GantiPasswordScreen()),
+              );
+            },
+          ),
+          InfoItemWidget(
             icon: PhosphorIcons.shieldCheck(PhosphorIconsStyle.fill),
-            title: 'Keamanan Akun & Kata Sandi',
-            subtitle: 'Terakhir diubah 3 bulan lalu',
+            title: 'Keamanan Akun',
+            subtitle: 'Perangkat terhubung & autentikasi',
             trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
             showDivider: true,
             onTap: () {

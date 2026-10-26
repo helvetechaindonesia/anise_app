@@ -82,70 +82,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _buildProfileCard(context, fullName, role, email),
                   SizedBox(height: 24.h(context)),
                   
-                  // Biometric Registration Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24.w(context)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.black.withValues(alpha: 0.02),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.menuPastelBlue.withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
+                  // Biometric Registration Card (Hanya untuk Guru / Tenaga Pendidik, disembunyikan untuk Siswa)
+                  if (role != 'SISWA') ...[
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24.w(context)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.black.withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.menuPastelBlue.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(PhosphorIcons.userFocus(PhosphorIconsStyle.fill), color: AppColors.menuPastelBlue, size: 28),
                               ),
-                              child: Icon(PhosphorIcons.userFocus(PhosphorIconsStyle.fill), color: AppColors.menuPastelBlue, size: 28),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Biometrik Wajah', style: AppTextStyles.titleMedium(context)),
-                                  const SizedBox(height: 4),
-                                  Text('Untuk presensi & keamanan akun', style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
-                                ],
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Biometrik Wajah', style: AppTextStyles.titleMedium(context)),
+                                    const SizedBox(height: 4),
+                                    Text('Untuk presensi & keamanan akun', style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.6))),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const BiometricRegistrationScreen()),
-                              );
-                            },
-                            icon: Icon(PhosphorIcons.scan(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
-                            label: Text('Daftarkan Wajah', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const BiometricRegistrationScreen()),
+                                );
+                              },
+                              icon: Icon(PhosphorIcons.scan(PhosphorIconsStyle.bold), color: AppColors.onPrimary),
+                              label: Text('Daftarkan Wajah', style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-
-                  SizedBox(height: 24.h(context)),
+                    SizedBox(height: 24.h(context)),
+                  ],
                   _buildMenuSection(context),
                   SizedBox(height: 120.h(context)),
                 ],

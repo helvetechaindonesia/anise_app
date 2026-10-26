@@ -209,6 +209,33 @@ class AuthController extends Controller
     }
 
     /**
+     * Change password with old password verification.
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:4|different:old_password',
+        ], [
+            'old_password.required' => 'Password lama wajib diisi.',
+            'new_password.required' => 'Password baru wajib diisi.',
+            'new_password.min' => 'Password baru minimal 4 karakter.',
+            'new_password.different' => 'Password baru harus berbeda dengan password lama.',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password_hash)) {
+            return $this->error('Password lama yang Anda masukkan salah.', 422);
+        }
+
+        $user->password_hash = Hash::make($request->new_password);
+        $user->save();
+
+        return $this->success(null, 'Kata sandi berhasil diperbarui.');
+    }
+
+    /**
      * Request reset password via registered WhatsApp number.
      */
     public function forgotPassword(Request $request)

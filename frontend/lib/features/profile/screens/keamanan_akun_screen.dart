@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import 'ganti_password_screen.dart';
 
 class KeamananAkunScreen extends StatelessWidget {
   const KeamananAkunScreen({super.key});
@@ -26,8 +27,13 @@ class KeamananAkunScreen extends StatelessWidget {
                     context: context,
                     icon: PhosphorIcons.key(PhosphorIconsStyle.fill),
                     title: 'Ubah Kata Sandi',
-                    subtitle: 'Terakhir diubah 3 bulan lalu',
-                    onTap: () {},
+                    subtitle: 'Ganti password lama dengan password baru',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const GantiPasswordScreen()),
+                      );
+                    },
                   ),
                   SizedBox(height: 12.h(context)),
                   _buildMenuCard(
