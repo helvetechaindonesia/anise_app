@@ -17,7 +17,7 @@ class PembiasaanScreen extends ConsumerStatefulWidget {
   ConsumerState<PembiasaanScreen> createState() => _PembiasaanScreenState();
 }
 
-class _PembiasaanScreenState extends ConsumerState<PembiasaanScreen> with SingleTickerProviderStateMixin {
+class _PembiasaanScreenState extends ConsumerState<PembiasaanScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   int _tabCount = 2;
   bool _canMonitor = false;
