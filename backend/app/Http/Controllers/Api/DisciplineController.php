@@ -31,6 +31,20 @@ class DisciplineController extends Controller
         ]);
 
         $reporter = $request->user();
+        $today = AppTime::now()->format('Y-m-d');
+
+        // Cek batas maksimal 3 kali pelanggaran per hari
+        $todayViolationsCount = DisiplinReport::where('siswa_id', $request->siswa_id)
+            ->whereDate('created_at', $today)
+            ->whereIn('status', ['INPUT', 'APPROVED', 'LAPORAN'])
+            ->count();
+
+        if ($todayViolationsCount >= 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Batas pelanggaran harian tercapai. Siswa ini sudah tercatat melakukan 3 kali pelanggaran pada hari ini.',
+            ], 422);
+        }
         
         // Pengecekan apakah pelapor adalah GURU WALI siswa terlapor (tabel guru_wali_students)
         $isGuruWali = GuruWaliStudent::where('guru_id', $reporter->id)

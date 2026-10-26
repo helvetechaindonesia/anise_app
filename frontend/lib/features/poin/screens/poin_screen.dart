@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../core/widgets/main_header.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 
