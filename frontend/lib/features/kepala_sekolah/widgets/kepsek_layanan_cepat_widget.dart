@@ -13,6 +13,7 @@ import '../../tata_usaha/screens/tu_master_user_screen.dart';
 import '../../tata_usaha/screens/tu_manajemen_sekolah_screen.dart';
 import '../../humas/screens/humas_screen.dart';
 import '../../ai/screens/sipena_ai_screen.dart';
+import '../screens/kepsek_evaluasi_tendik_screen.dart';
 
 class KepsekLayananCepatWidget extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -22,6 +23,11 @@ class KepsekLayananCepatWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
+      QuickActionItem(
+        icon: PhosphorIcons.chartLineUp(PhosphorIconsStyle.bold),
+        label: 'Evaluasi Tendik',
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KepsekEvaluasiTendikScreen())),
+      ),
       QuickActionItem(
         icon: PhosphorIcons.fingerprint(PhosphorIconsStyle.bold),
         label: 'Presensi',
