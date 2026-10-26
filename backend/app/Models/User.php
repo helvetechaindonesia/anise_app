@@ -77,23 +77,48 @@ class User extends Authenticatable
 
     public function getClassNameAttribute(): ?string
     {
+        $grade = '';
+        $name = '';
+
         if ($this->relationLoaded('studentClass') && $this->studentClass) {
-            return trim(($this->studentClass->grade_level ?? '') . ' ' . ($this->studentClass->name ?? ''));
+            $grade = trim((string) ($this->studentClass->grade_level ?? ''));
+            $name = trim((string) ($this->studentClass->name ?? ''));
+        } else {
+            // Cek via class_students
+            $class = \Illuminate\Support\Facades\DB::table('class_students')
+                ->join('classes', 'class_students.class_id', '=', 'classes.id')
+                ->where('class_students.student_id', $this->id)
+                ->where('class_students.status', 'ACTIVE')
+                ->select('classes.grade_level', 'classes.name')
+                ->first();
+
+            if ($class) {
+                $grade = trim((string) ($class->grade_level ?? ''));
+                $name = trim((string) ($class->name ?? ''));
+            }
         }
 
-        // Cek via class_students
-        $class = \Illuminate\Support\Facades\DB::table('class_students')
-            ->join('classes', 'class_students.class_id', '=', 'classes.id')
-            ->where('class_students.student_id', $this->id)
-            ->where('class_students.status', 'ACTIVE')
-            ->select('classes.grade_level', 'classes.name')
-            ->first();
-
-        if ($class) {
-            return trim(($class->grade_level ?? '') . ' ' . ($class->name ?? ''));
+        if (empty($name) && empty($grade)) {
+            return null;
         }
 
-        return null;
+        if (empty($grade)) {
+            return $name;
+        }
+
+        if (empty($name)) {
+            return $grade;
+        }
+
+        // Jika nama kelas sudah diawali atau mengandung grade level (misal "X RPL 1" atau "10 RPL 1")
+        $romanGrades = [10 => 'X', 11 => 'XI', 12 => 'XII'];
+        $roman = $romanGrades[(int)$grade] ?? '';
+
+        if (stripos($name, $grade) === 0 || ($roman && stripos($name, $roman) === 0)) {
+            return $name;
+        }
+
+        return trim("{$grade} {$name}");
     }
 
     // Relationships

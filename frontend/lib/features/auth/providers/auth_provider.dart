@@ -149,18 +149,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (code == 'SESSION_ACTIVE' && res['data']?['user'] != null) {
       final userData = res['data']['user'] as Map<String, dynamic>;
       final currentUser = state.user;
-      if (currentUser != null) {
         final updatedName = userData['full_name']?.toString() ?? currentUser.fullName;
         final updatedEmail = userData['email']?.toString() ?? currentUser.email;
         final updatedPhone = userData['phone']?.toString();
         final updatedAddress = userData['address']?.toString();
         final updatedAvatar = userData['avatar']?.toString() ?? userData['profile_picture']?.toString() ?? currentUser.avatar;
+        final updatedClassName = userData['class_name']?.toString() ?? currentUser.className;
+        final updatedNis = userData['nis']?.toString() ?? currentUser.nis;
+        final updatedNip = userData['nip']?.toString() ?? currentUser.nip;
+        final updatedUniqueId = userData['nisn']?.toString() ?? userData['unique_id']?.toString() ?? currentUser.uniqueId;
 
         if (currentUser.fullName != updatedName ||
             currentUser.email != updatedEmail ||
             currentUser.phone != updatedPhone ||
             currentUser.address != updatedAddress ||
-            currentUser.avatar != updatedAvatar) {
+            currentUser.avatar != updatedAvatar ||
+            currentUser.className != updatedClassName ||
+            currentUser.nis != updatedNis ||
+            currentUser.nip != updatedNip ||
+            currentUser.uniqueId != updatedUniqueId) {
           state = state.copyWith(
             user: currentUser.copyWith(
               fullName: updatedName,
@@ -168,6 +175,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
               phone: updatedPhone,
               address: updatedAddress,
               avatar: updatedAvatar,
+              className: updatedClassName,
+              nis: updatedNis,
+              nip: updatedNip,
+              uniqueId: updatedUniqueId,
             ),
           );
         }

@@ -71,6 +71,14 @@ class AuthController extends Controller
                 'address' => $user->address,
                 'gender' => $user->gender,
                 'religion' => $user->religion,
+                'avatar' => $user->avatar,
+                'profile_picture' => $user->avatar,
+                'is_active' => $user->is_active,
+                'is_wali_kelas' => $user->is_wali_kelas,
+                'class_name' => $user->class_name,
+                'nisn' => $user->siswaProfile?->nisn,
+                'nis' => $user->siswaProfile?->nis,
+                'nip' => $user->guruProfile?->nip_nuptk ?? $user->guruProfile?->nip,
             ]
         ], 'Login successful');
     }
@@ -152,6 +160,10 @@ class AuthController extends Controller
                     'profile_picture' => $user->avatar,
                     'is_active' => $user->is_active,
                     'is_wali_kelas' => $user->is_wali_kelas,
+                    'class_name' => $user->class_name,
+                    'nisn' => $user->siswaProfile?->nisn,
+                    'nis' => $user->siswaProfile?->nis,
+                    'nip' => $user->guruProfile?->nip_nuptk ?? $user->guruProfile?->nip,
                 ]
             ]
         ]);
