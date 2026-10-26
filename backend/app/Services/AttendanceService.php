@@ -174,7 +174,8 @@ class AttendanceService
         $totalKwkMinutes = 0;
 
         foreach ($logs as $log) {
-            $logDateStr = substr((string)$log->tanggal, 0, 10);
+            // Normalisasi tanggal log ke timezone Asia/Jakarta untuk mencegah mismatch UTC/WIB
+            $logDateStr = Carbon::parse($log->tanggal)->setTimezone('Asia/Jakarta')->format('Y-m-d');
             $isToday = ($logDateStr === $todayStr);
             $hasReturnedHome = !empty($log->jam_pulang);
 
@@ -196,9 +197,9 @@ class AttendanceService
                 $isTapDay = true;
             }
 
-            // Ambil semua event scan di hari ini
+            // Ambil semua event scan di hari ini (normalisasi ke Asia/Jakarta)
             $dayEvents = $allEvents->filter(function ($ev) use ($logDateStr) {
-                return substr((string)$ev->scan_time, 0, 10) === $logDateStr;
+                return Carbon::parse($ev->scan_time)->setTimezone('Asia/Jakarta')->format('Y-m-d') === $logDateStr;
             })->sortBy('scan_time')->values();
 
             // 1. Tentukan Jam Masuk Efektif
@@ -208,13 +209,13 @@ class AttendanceService
             });
 
             if ($firstMasukEvent) {
-                $masukTimeOnly = Carbon::parse($firstMasukEvent->scan_time)->format('H:i:s');
-                $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
+                $masukTimeOnly = Carbon::parse($firstMasukEvent->scan_time)->setTimezone('Asia/Jakarta')->format('H:i:s');
+                $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly, 'Asia/Jakarta');
             } elseif (!empty($log->jam_masuk) && $log->status !== 'TAM') {
-                $masukTimeOnly = Carbon::parse($log->jam_masuk)->format('H:i:s');
-                $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly);
+                $masukTimeOnly = Carbon::parse($log->jam_masuk)->setTimezone('Asia/Jakarta')->format('H:i:s');
+                $effectiveMasuk = Carbon::parse($logDateStr . ' ' . $masukTimeOnly, 'Asia/Jakarta');
             } else {
-                $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00');
+                $effectiveMasuk = Carbon::parse($logDateStr . ' 12:01:00', 'Asia/Jakarta');
             }
 
             // 2. Tentukan Jam Pulang Efektif
@@ -224,14 +225,14 @@ class AttendanceService
             });
 
             if ($pulangEvent) {
-                $pulangTimeOnly = Carbon::parse($pulangEvent->scan_time)->format('H:i:s');
-                $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
+                $pulangTimeOnly = Carbon::parse($pulangEvent->scan_time)->setTimezone('Asia/Jakarta')->format('H:i:s');
+                $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly, 'Asia/Jakarta');
             } elseif (!empty($log->jam_pulang)) {
-                $pulangTimeOnly = Carbon::parse($log->jam_pulang)->format('H:i:s');
-                $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly);
+                $pulangTimeOnly = Carbon::parse($log->jam_pulang)->setTimezone('Asia/Jakarta')->format('H:i:s');
+                $effectivePulang = Carbon::parse($logDateStr . ' ' . $pulangTimeOnly, 'Asia/Jakarta');
             } else {
                 // Tidak ada jam pulang sampai penutupan dinas (TAP penalti 15:59:00)
-                $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00');
+                $effectivePulang = Carbon::parse($logDateStr . ' 15:59:00', 'Asia/Jakarta');
             }
 
             // 3. Hitung Durasi Kotor (Jam Pulang - Jam Masuk)
