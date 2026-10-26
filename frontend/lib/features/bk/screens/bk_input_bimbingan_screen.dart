@@ -165,8 +165,6 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
                     _selectedType = val;
                     _selectedClassId = null;
                     _selectedScheduleId = null;
-                    _selectedTeacherId = null;
-                    _selectedSubjectId = null;
                     _selectedStudents.clear();
                   });
                 }
