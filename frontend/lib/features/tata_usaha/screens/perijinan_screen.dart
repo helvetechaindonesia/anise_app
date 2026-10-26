@@ -318,6 +318,35 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
             ),
           ],
 
+          // Lampiran Surat / Bukti jika diunggah
+          if (item['attachment_path'] != null) ...[
+            SizedBox(height: 8.h(context)),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(8.w(context)),
+                border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  Icon(PhosphorIcons.paperclip(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
+                  SizedBox(width: 6.w(context)),
+                  Expanded(
+                    child: Text(
+                      'Terdapat Dokumen Lampiran Surat',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.8)),
+                    ),
+                  ),
+                  Text(
+                    'Terlampir',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Tombol Aksi Approval / Konfirmasi Kembali
           if (status == 'PENDING') ...[
             SizedBox(height: 12.h(context)),
