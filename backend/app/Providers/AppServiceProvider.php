@@ -56,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
         // 4. Virtual Time Travel (php artisan server:travel)
         try {
             $mockTime = \Illuminate\Support\Facades\Cache::get('app_mock_time');
+            if (empty($mockTime) && file_exists(storage_path('app/mock_time.txt'))) {
+                $mockTime = trim(file_get_contents(storage_path('app/mock_time.txt')));
+            }
             if (!empty($mockTime)) {
                 \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse($mockTime));
             }

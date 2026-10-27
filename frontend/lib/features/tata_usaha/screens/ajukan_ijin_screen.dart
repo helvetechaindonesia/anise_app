@@ -182,6 +182,23 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
       initialTime: _exitTime ?? TimeOfDay.fromDateTime(_serverNow),
     );
     if (picked != null && mounted) {
+      final serverToday = DateTime(_serverNow.year, _serverNow.month, _serverNow.day);
+      final chosenStart = _startDate != null ? DateTime(_startDate!.year, _startDate!.month, _startDate!.day) : serverToday;
+      final isToday = chosenStart.isAtSameMomentAs(serverToday);
+
+      if (isToday) {
+        final currentMinutes = _serverNow.hour * 60 + _serverNow.minute;
+        final pickedMinutes = picked.hour * 60 + picked.minute;
+        if (pickedMinutes < currentMinutes) {
+          final currentStr = "${_serverNow.hour.toString().padLeft(2, '0')}:${_serverNow.minute.toString().padLeft(2, '0')}";
+          AniseFeedbackDialog.showError(
+            context,
+            title: 'Jam Tidak Valid',
+            message: 'Jam keluar dispensasi tidak boleh lebih awal dari jam saat ini ($currentStr WIB).',
+          );
+          return;
+        }
+      }
       setState(() => _exitTime = picked);
     }
   }
@@ -227,6 +244,21 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
         message: 'Batas pengajuan perizinan untuk hari ini maksimal pukul 16.01 WIB.',
       );
       return;
+    }
+
+    // Khusus Dispensasi: Jam keluar tidak boleh lebih awal dari jam saat ini jika hari ini
+    if (_selectedCategory == 'DISPENSASI' && isToday && _exitTime != null) {
+      final currentMinutes = _serverNow.hour * 60 + _serverNow.minute;
+      final exitMinutes = _exitTime!.hour * 60 + _exitTime!.minute;
+      if (exitMinutes < currentMinutes) {
+        final currentStr = "${_serverNow.hour.toString().padLeft(2, '0')}:${_serverNow.minute.toString().padLeft(2, '0')}";
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Jam Dispensasi Tidak Valid',
+          message: 'Jam keluar dispensasi tidak boleh lebih awal dari jam saat ini ($currentStr WIB).',
+        );
+        return;
+      }
     }
 
     final startDateStr = "${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}";

@@ -280,12 +280,15 @@ class AttendanceHistoryService
         $logsQuery = DB::table('attendances')->where('user_id', $user->id);
         if ($year > 0) $logsQuery->whereYear('tanggal', $year);
         if ($month > 0) $logsQuery->whereMonth('tanggal', $month);
-        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
+        $logsEventsQuery = DB::table('presensi_logs')->where('user_id', $user->id);
+        if ($year > 0) $logsEventsQuery->whereYear('scan_time', $year);
+        if ($month > 0) $logsEventsQuery->whereMonth('scan_time', $month);
+        $allEvents = $logsEventsQuery->get();
 
         $hadirPenuhCount = $logs->whereIn('status', ['MASUK', 'Hadir', 'Hadir Tepat', 'PULANG', 'Pulang Tepat'])->count();
         $terlambatCount = $logs->whereIn('status', ['TERLAMBAT', 'Terlambat', 'TAM'])->count();
-        $pulangAwalCount = $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
-        $kembaliCount = $logs->whereIn('status', ['K', 'Kembali'])->count();
+        $pulangAwalCount = $allEvents->where('status', 'PA')->count() ?: $logs->whereIn('status', ['PA', 'Pulang Awal'])->count();
+        $kembaliCount = $allEvents->where('status', 'K')->count() ?: $logs->whereIn('status', ['K', 'Kembali'])->count();
 
         $sakitCount = 0;
         $izinCount = 0;
@@ -413,6 +416,32 @@ class AttendanceHistoryService
         });
 
         $mergedLogs = collect($formattedLogs);
+
+        // Tambahkan event khusus seperti Kembali (K) atau Pulang Awal (PA) dari presensi_logs ke riwayat siswa
+        if ($allEvents->isNotEmpty()) {
+            foreach ($allEvents as $ev) {
+                if (in_array($ev->status, ['K', 'PA'])) {
+                    $evDate = Carbon::parse($ev->scan_time);
+                    $evDateStr = $evDate->format('Y-m-d');
+                    $statusLabel = $ev->status === 'K' ? 'Kembali (K)' : 'Pulang Awal (PA)';
+                    $catatan = $ev->status === 'K' ? 'Siswa telah kembali ke sekolah (Divalidasi Wali Kelas)' : 'Izin Pulang Awal';
+
+                    $mergedLogs->push([
+                        'hari' => $evDate->locale('id')->dayName,
+                        'tanggal' => $evDate->translatedFormat('d F Y'),
+                        'waktu' => $evDate->format('H:i') . ' WIB',
+                        'lokasi' => $primaryLocation,
+                        'catatan' => $catatan,
+                        'status' => $ev->status,
+                        'status_label' => $statusLabel,
+                        'isLate' => false,
+                        'role' => 'SISWA',
+                        'raw_date' => $ev->scan_time,
+                    ]);
+                }
+            }
+        }
+
         if ($approvedLeaves->isNotEmpty()) {
             foreach ($approvedLeaves as $leave) {
                 $startDate = Carbon::parse($leave->start_date);

@@ -59,6 +59,19 @@ class LeaveController extends Controller
             ], 422);
         }
 
+        // Khusus Dispensasi: Jam keluar tidak boleh sudah lewat dari jam saat ini jika diajukan untuk hari ini
+        if ($request->type === 'DISPENSASI' && $request->start_date === $todayStr) {
+            if ($request->filled('exit_time')) {
+                $requestedExitTime = Carbon::parse($request->exit_time)->format('H:i');
+                if ($requestedExitTime < $currentTimeStr) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Jam pengajuan dispensasi ($requestedExitTime WIB) tidak boleh lebih awal dari jam saat ini ($currentTimeStr WIB).",
+                    ], 422);
+                }
+            }
+        }
+
         // 1. Simpan lampiran berkas jika ada
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
