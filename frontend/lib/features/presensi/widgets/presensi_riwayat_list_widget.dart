@@ -48,7 +48,24 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
             final log = entry.value as Map<String, dynamic>;
             final isLast = index == sortedList.length - 1;
             final String rawStatus = log['status']?.toString() ?? 'H';
-            final String statusLabel = log['status_label']?.toString() ?? log['status']?.toString() ?? 'Hadir';
+            String statusLabel = log['status_label']?.toString() ?? log['status']?.toString() ?? 'Hadir Tepat (H)';
+            
+            // Standardisasi format nama lengkap: Alpha (A), Ijin (I), Sakit (S), dsb
+            final statusUpper = rawStatus.toUpperCase();
+            if (statusUpper == 'A' || statusLabel.toUpperCase() == 'ALPHA') {
+              statusLabel = 'Alpha (A)';
+            } else if (statusUpper == 'I' || statusLabel.toUpperCase() == 'IZIN' || statusLabel.toUpperCase() == 'IJIN') {
+              statusLabel = 'Ijin (I)';
+            } else if (statusUpper == 'S' || statusLabel.toUpperCase() == 'SAKIT') {
+              statusLabel = 'Sakit (S)';
+            } else if (statusUpper == 'C' || statusLabel.toUpperCase() == 'CUTI') {
+              statusLabel = 'Cuti (C)';
+            } else if (statusUpper == 'T' || statusLabel.toUpperCase() == 'TERLAMBAT') {
+              statusLabel = 'Terlambat (T)';
+            } else if (statusUpper == 'H' || statusUpper == 'MASUK') {
+              statusLabel = 'Hadir Tepat (H)';
+            }
+
             final String waktu = log['waktu']?.toString() ?? '-';
             final String? jamPulang = log['jam_pulang']?.toString();
             final String? catatan = log['catatan']?.toString();
@@ -56,7 +73,6 @@ class PresensiRiwayatListWidget extends ConsumerWidget {
             Color statusColor;
             IconData statusIcon;
 
-            final statusUpper = rawStatus.toUpperCase();
             final labelLower = statusLabel.toLowerCase();
 
             if (statusUpper == 'T' || labelLower.contains('terlambat')) {

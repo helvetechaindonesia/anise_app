@@ -74,7 +74,16 @@ class PresensiRekapWidget extends ConsumerWidget {
             kwkJam: kwkJam,
           ),
           SizedBox(height: 24.h(context)),
-          _buildKetidakhadiranSummary(context, periodeStr, sakit, alpha, cuti: cuti),
+          // Guru: Cuti (Izin/Cuti), Sakit, Alpha
+          _buildKetidakhadiranSummary(
+            context,
+            periodeStr: periodeStr,
+            title: 'Rekap Ketidakhadiran Guru & Pegawai',
+            sakit: sakit,
+            alpha: alpha,
+            cuti: cuti != '0' ? cuti : (izin != '0' ? izin : cuti),
+            cutiLabel: 'Cuti / Izin (C)',
+          ),
         ],
       );
     }
@@ -85,7 +94,15 @@ class PresensiRekapWidget extends ConsumerWidget {
         SizedBox(height: 24.h(context)),
         _buildCombinedStatsCard(context, pulangAwal, kembali),
         SizedBox(height: 24.h(context)),
-        _buildKetidakhadiranSummary(context, periodeStr, sakit, alpha),
+        // Siswa: Sakit (S), Izin (I), Alpha (A)
+        _buildKetidakhadiranSummary(
+          context,
+          periodeStr: periodeStr,
+          title: 'Rekap Ketidakhadiran Siswa',
+          sakit: sakit,
+          alpha: alpha,
+          izin: izin,
+        ),
       ],
     );
   }
@@ -474,17 +491,30 @@ class PresensiRekapWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildKetidakhadiranSummary(BuildContext context, String periodeStr, String sakit, String alpha, {String? cuti}) {
+  Widget _buildKetidakhadiranSummary(
+    BuildContext context, {
+    required String periodeStr,
+    String title = 'Rekap Ketidakhadiran',
+    required String sakit,
+    required String alpha,
+    String? izin,
+    String? cuti,
+    String cutiLabel = 'Cuti (C)',
+  }) {
     return AniseExpandableCard(
-      title: 'Rekap Ketidakhadiran & Cuti',
+      title: title,
       subtitle: periodeStr,
       icon: PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
       child: Column(
         children: [
-          _buildSiaRow(context, 'Sakit (S)', '$sakit Hari', AppColors.primary, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
+          _buildSiaRow(context, 'Sakit (S)', '$sakit Hari', AppColors.info, PhosphorIcons.firstAid(PhosphorIconsStyle.fill)),
+          if (izin != null) ...[
+            Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
+            _buildSiaRow(context, 'Ijin (I)', '$izin Hari', AppColors.warning, PhosphorIcons.envelopeSimple(PhosphorIconsStyle.fill)),
+          ],
           if (cuti != null) ...[
             Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
-            _buildSiaRow(context, 'Cuti (C)', '$cuti Hari', AppColors.warning, PhosphorIcons.calendarStar(PhosphorIconsStyle.fill)),
+            _buildSiaRow(context, cutiLabel, '$cuti Hari', AppColors.warning, PhosphorIcons.calendarStar(PhosphorIconsStyle.fill)),
           ],
           Divider(color: AppColors.outlineVariant.withValues(alpha: 0.5), height: 16.h(context)),
           _buildSiaRow(context, 'Alpha (A)', '$alpha Hari', AppColors.error, PhosphorIcons.xCircle(PhosphorIconsStyle.fill)),

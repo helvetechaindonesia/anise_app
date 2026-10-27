@@ -35,12 +35,33 @@ class AttendanceHistoryService
         if ($month > 0) $logsQuery->whereMonth('tanggal', $month);
         $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
 
-        // 3. Query cuti & izin pegawai (employee_leaves)
+        // 3. Query cuti & izin pegawai (tabel leaves & employee_leaves)
         $sakitCount = 0;
         $izinCount = 0;
         $cutiCount = 0;
         $approvedLeaves = collect();
 
+        // Ambil dari tabel universal leaves
+        if (Schema::hasTable('leaves')) {
+            $leavesQuery = DB::table('leaves')
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['APPROVED', 'ACC']);
+
+            if ($year > 0 || $month > 0) {
+                $leavesQuery->where(function ($q) use ($year, $month) {
+                    $q->where(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('start_date', $year);
+                        if ($month > 0) $sub->whereMonth('start_date', $month);
+                    })->orWhere(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('end_date', $year);
+                        if ($month > 0) $sub->whereMonth('end_date', $month);
+                    });
+                });
+            }
+            $approvedLeaves = $approvedLeaves->concat($leavesQuery->get());
+        }
+
+        // Ambil juga dari employee_leaves jika ada
         if (Schema::hasTable('employee_leaves')) {
             $leavesQuery = DB::table('employee_leaves')
                 ->where('employee_id', $user->id)
@@ -57,7 +78,8 @@ class AttendanceHistoryService
                     });
                 });
             }
-            $approvedLeaves = $leavesQuery->get();
+            $approvedLeaves = $approvedLeaves->concat($leavesQuery->get());
+        }
 
             foreach ($approvedLeaves as $leave) {
                 $startDate = Carbon::parse($leave->start_date);
@@ -242,6 +264,27 @@ class AttendanceHistoryService
         $izinCount = 0;
         $approvedLeaves = collect();
 
+        // 1. Ambil dari tabel universal leaves
+        if (Schema::hasTable('leaves')) {
+            $leavesQuery = DB::table('leaves')
+                ->where('user_id', $user->id)
+                ->whereIn('status', ['APPROVED', 'ACC']);
+
+            if ($year > 0 || $month > 0) {
+                $leavesQuery->where(function ($q) use ($year, $month) {
+                    $q->where(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('start_date', $year);
+                        if ($month > 0) $sub->whereMonth('start_date', $month);
+                    })->orWhere(function ($sub) use ($year, $month) {
+                        if ($year > 0) $sub->whereYear('end_date', $year);
+                        if ($month > 0) $sub->whereMonth('end_date', $month);
+                    });
+                });
+            }
+            $approvedLeaves = $approvedLeaves->concat($leavesQuery->get());
+        }
+
+        // 2. Ambil dari tabel student_leaves jika ada
         if (Schema::hasTable('student_leaves')) {
             $studentLeavesQuery = DB::table('student_leaves')
                 ->where('student_id', $user->id)
@@ -258,20 +301,20 @@ class AttendanceHistoryService
                     });
                 });
             }
-            $approvedLeaves = $studentLeavesQuery->get();
+            $approvedLeaves = $approvedLeaves->concat($studentLeavesQuery->get());
+        }
 
-            foreach ($approvedLeaves as $leave) {
-                $startDate = Carbon::parse($leave->start_date);
-                $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
+        foreach ($approvedLeaves as $leave) {
+            $startDate = Carbon::parse($leave->start_date);
+            $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
-                for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
-                    $matchYear = ($year <= 0) || ((int)$c->year === $year);
-                    $matchMonth = ($month <= 0) || ((int)$c->month === $month);
-                    if ($matchYear && $matchMonth) {
-                        $type = strtoupper($leave->type ?? '');
-                        if ($type === 'SAKIT') $sakitCount++;
-                        elseif ($type === 'IZIN') $izinCount++;
-                    }
+            for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                $matchYear = ($year <= 0) || ((int)$c->year === $year);
+                $matchMonth = ($month <= 0) || ((int)$c->month === $month);
+                if ($matchYear && $matchMonth) {
+                    $type = strtoupper($leave->type ?? '');
+                    if ($type === 'SAKIT') $sakitCount++;
+                    elseif ($type === 'IZIN') $izinCount++;
                 }
             }
         }
@@ -279,17 +322,27 @@ class AttendanceHistoryService
         $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
         $formattedLogs = $logs->map(function ($log) use ($user) {
-            $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K']);
+            $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K', 'T']);
             $statusMap = [
-                'MASUK' => 'Hadir', 
-                'Hadir' => 'Hadir',
-                'K' => 'Kembali', 
-                'PA' => 'Pulang Awal', 
-                'TERLAMBAT' => 'Terlambat',
-                'Terlambat' => 'Terlambat',
-                'SAKIT' => 'Sakit',
-                'IZIN' => 'Izin',
-                'ALPHA' => 'Alpha',
+                'MASUK' => 'Hadir Tepat (H)', 
+                'Hadir' => 'Hadir Tepat (H)',
+                'H' => 'Hadir Tepat (H)',
+                'K' => 'Kembali (K)', 
+                'PA' => 'Pulang Awal (PA)', 
+                'TERLAMBAT' => 'Terlambat (T)',
+                'Terlambat' => 'Terlambat (T)',
+                'T' => 'Terlambat (T)',
+                'TAM' => 'Tidak Absen Masuk (TAM)',
+                'TAP' => 'Tidak Absen Pulang (TAP)',
+                'S' => 'Sakit (S)',
+                'SAKIT' => 'Sakit (S)',
+                'Sakit' => 'Sakit (S)',
+                'I' => 'Izin (I)',
+                'IZIN' => 'Izin (I)',
+                'Izin' => 'Izin (I)',
+                'A' => 'Alpha (A)',
+                'ALPHA' => 'Alpha (A)',
+                'Alpha' => 'Alpha (A)',
             ];
             $statusName = $statusMap[$log->status] ?? $log->status;
             $primaryLocation = $this->geofenceService->getPrimaryLocationName();
@@ -300,7 +353,8 @@ class AttendanceHistoryService
                 'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-',
                 'lokasi' => $primaryLocation,
                 'catatan' => 'Status: ' . $statusName,
-                'status' => $statusName,
+                'status' => $log->status,
+                'status_label' => $statusName,
                 'isLate' => $isLate,
                 'role' => 'SISWA',
                 'raw_date' => $log->tanggal,
@@ -319,14 +373,17 @@ class AttendanceHistoryService
                     if ($matchYear && $matchMonth) {
                         $dateStr = $c->format('Y-m-d');
                         if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
-                            $leaveStatus = ucfirst(strtolower($leave->type));
+                            $typeUpper = strtoupper($leave->type ?? 'IZIN');
+                            $leaveLabel = ($typeUpper === 'SAKIT') ? 'Sakit (S)' : (($typeUpper === 'DISPENSASI') ? 'Dispensasi (DIS)' : 'Izin (I)');
+                            $leaveCode = ($typeUpper === 'SAKIT') ? 'S' : (($typeUpper === 'DISPENSASI') ? 'PA' : 'I');
                             $mergedLogs->push([
                                 'hari' => $c->locale('id')->dayName,
                                 'tanggal' => $c->translatedFormat('d F Y'),
                                 'waktu' => '-',
                                 'lokasi' => 'Surat Elektronik (ACC)',
-                                'catatan' => $leave->reason ?? ('Pengajuan ' . $leaveStatus),
-                                'status' => $leaveStatus,
+                                'catatan' => $leave->reason ?? ('Pengajuan ' . $leaveLabel),
+                                'status' => $leaveCode,
+                                'status_label' => $leaveLabel,
                                 'isLate' => false,
                                 'role' => 'SISWA',
                                 'raw_date' => $dateStr,
