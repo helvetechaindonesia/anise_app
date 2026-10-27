@@ -324,12 +324,33 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
             SizedBox(height: 8.h(context)),
             Builder(builder: (context) {
               final rawPath = item['attachment_path'].toString();
-              final fileName = rawPath.split('/').last.isNotEmpty
-                  ? rawPath.split('/').last
-                  : 'Surat_Izin_${studentName.replaceAll(' ', '_')}.pdf';
-              final fileUrl = rawPath.startsWith('http')
-                  ? rawPath
-                  : "${ApiConstants.baseUrl.replaceAll('/api', '')}/storage/$rawPath";
+              final ext = rawPath.contains('.') ? rawPath.split('.').last : 'pdf';
+              
+              // Kategori (Izin, Sakit, Dispensasi)
+              final formattedCategory = type.isNotEmpty ? "${type[0]}${type.substring(1).toLowerCase()}" : "Izin";
+              // Siswa name
+              final cleanStudentName = studentName.trim().replaceAll(RegExp(r'\s+'), '_');
+              // Tingkat & Kelas
+              final gradeLevel = item['user']?['student_class']?['grade_level'] ?? item['user']?['siswa_profile']?['school_class']?['grade_level'] ?? '';
+              final tingkatStr = gradeLevel.toString().isNotEmpty ? "Kelas_${gradeLevel}" : "Kelas";
+              final cleanClassName = (item['user']?['student_class']?['name'] ?? item['user']?['class_name'] ?? className).toString().trim().replaceAll(RegExp(r'\s+'), '_');
+              
+              // Tanggal DD_MM_YYYY
+              String dateFormatted = '';
+              try {
+                final parsedDate = DateTime.parse(startDate);
+                final d = parsedDate.day.toString().padLeft(2, '0');
+                final m = parsedDate.month.toString().padLeft(2, '0');
+                final y = parsedDate.year.toString();
+                dateFormatted = "${d}_${m}_${y}";
+              } catch (_) {
+                final now = DateTime.now();
+                dateFormatted = "${now.day.toString().padLeft(2, '0')}_${now.month.toString().padLeft(2, '0')}_${now.year}";
+              }
+
+              // Format yang diminta: {Kategori Perijinan}_{Nama Siswa}_{Tingkat}_{Nama Kelas}_{DD/MM/YYYY}.ext (menggunakan _ agar aman di file system)
+              final standardFileName = "${formattedCategory}_${cleanStudentName}_${tingkatStr}_${cleanClassName}_${dateFormatted}.$ext";
+              final downloadApiUrl = "/leaves/${item['id']}/download";
 
               return Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
@@ -344,7 +365,7 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
                     SizedBox(width: 8.w(context)),
                     Expanded(
                       child: Text(
-                        fileName,
+                        standardFileName,
                         style: AppTextStyles.labelSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -354,8 +375,8 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
                       onTap: () {
                         FileDownloadHelper.downloadFile(
                           context: context,
-                          fileUrl: fileUrl,
-                          preferredFileName: fileName,
+                          fileUrl: downloadApiUrl,
+                          preferredFileName: standardFileName,
                         );
                       },
                       borderRadius: BorderRadius.circular(6.w(context)),

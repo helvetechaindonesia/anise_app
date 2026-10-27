@@ -351,4 +351,69 @@ class LeaveController extends Controller
 
         return $this->success($leave, 'Siswa berhasil dikonfirmasi kembali dari masa dispensasi.');
     }
+
+    /**
+     * Unduh lampiran surat/berkas izin dengan penamaan standar:
+     * {Kategori Perijinan}_{Nama Siswa}_{Tingkat}_{Nama Kelas}_{DD/MM/YYYY}.{ext}
+     */
+    public function downloadAttachment($id)
+    {
+        try {
+            $leave = Leave::with(['user.studentClass', 'user.siswaProfile'])->findOrFail($id);
+
+            if (empty($leave->attachment_path)) {
+                return response()->json(['status' => 'error', 'message' => 'Pengajuan perizinan ini tidak memiliki file lampiran.'], 404);
+            }
+
+            $rawPath = ltrim(str_replace('/storage/', '', $leave->attachment_path), '/');
+            $rawPath = ltrim(str_replace('public/', '', $rawPath), '/');
+
+            $fullPath = null;
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($rawPath)) {
+                $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($rawPath);
+            } else {
+                $candidatePath = storage_path('app/public/' . $rawPath);
+                if (file_exists($candidatePath)) {
+                    $fullPath = $candidatePath;
+                }
+            }
+
+            if (!$fullPath || !file_exists($fullPath)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas fisik lampiran tidak ditemukan di server.'], 404);
+            }
+
+            $ext = pathinfo($fullPath, PATHINFO_EXTENSION) ?: 'pdf';
+
+            // Ekstrak data untuk penamaan: {Kategori Perijinan}_{Nama Siswa}_{Tingkat}_{Nama Kelas}_{DD/MM/YYYY}
+            $category = ucfirst(strtolower($leave->type ?? 'Izin'));
+            $user = $leave->user;
+            $studentName = $user ? ($user->full_name ?: $user->username) : 'Siswa';
+            
+            $grade = '';
+            $className = '';
+            if ($user && $user->studentClass) {
+                $grade = $user->studentClass->grade_level ? "Kelas_{$user->studentClass->grade_level}" : 'Kelas';
+                $className = $user->studentClass->name ?? 'Siswa';
+            } else {
+                $grade = 'Kelas';
+                $className = 'Siswa';
+            }
+
+            $dateFormatted = Carbon::parse($leave->start_date ?? $leave->created_at ?? now())->format('d_m_Y');
+
+            // Format bersih nama file
+            $slugCategory = \Illuminate\Support\Str::slug($category, '_');
+            $slugName = \Illuminate\Support\Str::slug($studentName, '_');
+            $slugGrade = \Illuminate\Support\Str::slug($grade, '_');
+            $slugClass = \Illuminate\Support\Str::slug($className, '_');
+
+            $fileName = "{$slugCategory}_{$slugName}_{$slugGrade}_{$slugClass}_{$dateFormatted}.{$ext}";
+
+            return response()->download($fullPath, $fileName, [
+                'Access-Control-Expose-Headers' => 'Content-Disposition',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => 'Gagal mengunduh berkas lampiran: ' . $e->getMessage()], 500);
+        }
+    }
 }

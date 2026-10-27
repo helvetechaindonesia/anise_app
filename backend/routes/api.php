@@ -73,6 +73,22 @@ Route::get('/journals/{journalId}/download', [JournalController::class, 'downloa
 Route::get('/assignments/attachments/{attachmentId}/download', [AssignmentController::class, 'downloadTaskAttachment']);
 Route::get('/assignments/submissions/{submissionId}/download', [AssignmentController::class, 'downloadSubmissionAttachment']);
 
+// Unduh Lampiran Surat Izin / Sakit / Dispensasi (Dapat diakses langsung)
+Route::get('/leaves/{id}/download', [LeaveController::class, 'downloadAttachment']);
+
+// Storage fallback route under api prefix
+Route::get('/storage/{path}', function ($path) {
+    $cleanPath = ltrim(str_replace('public/', '', $path), '/');
+    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($cleanPath)) {
+        return response()->file(\Illuminate\Support\Facades\Storage::disk('public')->path($cleanPath));
+    }
+    $storageFilePath = storage_path('app/public/' . $cleanPath);
+    if (file_exists($storageFilePath)) {
+        return response()->file($storageFilePath);
+    }
+    abort(404, 'Berkas tidak ditemukan.');
+})->where('path', '.*');
+
 Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     
     // ==========================================
