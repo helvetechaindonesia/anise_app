@@ -349,6 +349,7 @@ class AttendanceHistoryService
         $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
         $todayStr = AppTime::now()->format('Y-m-d');
+        $primaryLocation = $this->geofenceService->getPrimaryLocationName();
 
         $formattedLogs = $logs->map(function ($log) use ($user, $approvedLeaves, $primaryLocation) {
             $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K', 'T']);
