@@ -280,6 +280,8 @@ class AttendanceHistoryService
         $logsQuery = DB::table('attendances')->where('user_id', $user->id);
         if ($year > 0) $logsQuery->whereYear('tanggal', $year);
         if ($month > 0) $logsQuery->whereMonth('tanggal', $month);
+        $logs = $logsQuery->orderBy('tanggal', 'desc')->get();
+
         $logsEventsQuery = DB::table('presensi_logs')->where('user_id', $user->id);
         if ($year > 0) $logsEventsQuery->whereYear('scan_time', $year);
         if ($month > 0) $logsEventsQuery->whereMonth('scan_time', $month);
