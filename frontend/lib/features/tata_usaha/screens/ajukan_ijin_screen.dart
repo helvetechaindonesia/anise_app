@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_button.dart';
 import '../../../core/widgets/anise_card.dart';
