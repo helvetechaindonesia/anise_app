@@ -95,7 +95,6 @@ class AttendanceHistoryService
                     }
                 }
             }
-        }
 
         // 4. Hitung presensi_logs
         $logsEventsQuery = DB::table('presensi_logs')->where('user_id', $user->id);
