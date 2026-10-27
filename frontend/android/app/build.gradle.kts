@@ -23,10 +23,10 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.helvetecha.anise"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // MinSdk diset ke 24 (Android 7.0 Nougat) untuk kompatibilitas optimal ML Kit & Kamera
+        // TargetSdk diset ke 35 sesuai standar rilis Google Play Store terbaru
+        minSdk = 24
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
