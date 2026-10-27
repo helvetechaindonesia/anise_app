@@ -75,6 +75,8 @@ class AttendanceController extends Controller
                 'target_status' => $status,
                 'target_label' => $desc,
                 'current_time' => $timeString . ' WIB',
+                'current_date' => $today,
+                'current_date_iso' => $currentTime->toIso8601String(),
                 'location_name' => $primaryLocName,
             ]);
         }
@@ -90,6 +92,8 @@ class AttendanceController extends Controller
                 'target_status' => $prediction['status'],
                 'target_label' => $prediction['label'],
                 'current_time' => $timeString . ' WIB',
+                'current_date' => $today,
+                'current_date_iso' => $currentTime->toIso8601String(),
                 'location_name' => $primaryLocName,
             ]);
         }
@@ -99,6 +103,8 @@ class AttendanceController extends Controller
             'target_status' => $prediction['status'],
             'target_label' => $prediction['label'],
             'current_time' => $timeString . ' WIB',
+            'current_date' => $today,
+            'current_date_iso' => $currentTime->toIso8601String(),
             'location_name' => $primaryLocName,
         ]);
     }

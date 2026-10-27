@@ -35,6 +35,7 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
   File? _faceImageFile;
   Position? _currentPosition;
   bool _isGettingLocation = false;
+  DateTime _serverNow = DateTime.now();
 
   @override
   void initState() {
@@ -44,6 +45,25 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
     _endDate = now;
     _exitTime = TimeOfDay.now();
     _fetchLocation();
+    _fetchServerTime();
+  }
+
+  Future<void> _fetchServerTime() async {
+    try {
+      final dio = ref.read(dioProvider);
+      final res = await dio.get('/attendance/next-status');
+      if (res.data is Map && res.data['current_date'] != null) {
+        final parsedDate = DateTime.tryParse(res.data['current_date_iso'] ?? res.data['current_date']);
+        if (parsedDate != null && mounted) {
+          setState(() {
+            _serverNow = parsedDate;
+            _startDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+            _endDate = DateTime(parsedDate.year, parsedDate.month, parsedDate.day);
+            _exitTime = TimeOfDay(hour: parsedDate.hour, minute: parsedDate.minute);
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -129,10 +149,16 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
   }
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
+    final serverToday = DateTime(_serverNow.year, _serverNow.month, _serverNow.day);
+    DateTime initDate = isStart ? (_startDate ?? serverToday) : (_endDate ?? serverToday);
+    if (initDate.isBefore(serverToday)) {
+      initDate = serverToday;
+    }
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? (_startDate ?? DateTime.now()) : (_endDate ?? DateTime.now()),
-      firstDate: DateTime.now().subtract(const Duration(days: 3)),
+      initialDate: initDate,
+      firstDate: serverToday,
       lastDate: DateTime(2035),
     );
     if (picked != null && mounted) {
@@ -152,7 +178,7 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
   Future<void> _selectExitTime(BuildContext context) async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: _exitTime ?? TimeOfDay.now(),
+      initialTime: _exitTime ?? TimeOfDay.fromDateTime(_serverNow),
     );
     if (picked != null && mounted) {
       setState(() => _exitTime = picked);
@@ -177,10 +203,23 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
       return;
     }
 
-    final now = DateTime.now();
+    final serverToday = DateTime(_serverNow.year, _serverNow.month, _serverNow.day);
+    final chosenStart = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+
+    // Validasi pengajuan sebelum hari H dilarang
+    if (chosenStart.isBefore(serverToday)) {
+      final formattedDay = "${_serverNow.day.toString().padLeft(2, '0')}/${_serverNow.month.toString().padLeft(2, '0')}/${_serverNow.year}";
+      AniseFeedbackDialog.showError(
+        context,
+        title: 'Tanggal Tidak Valid',
+        message: 'Pengajuan perizinan tidak boleh untuk tanggal yang sudah lewat (sebelum hari ini: $formattedDay).',
+      );
+      return;
+    }
+
     // Cek batas jam 16.01 WIB untuk hari ini
-    final isToday = _startDate!.year == now.year && _startDate!.month == now.month && _startDate!.day == now.day;
-    if (isToday && (now.hour > 16 || (now.hour == 16 && now.minute > 1))) {
+    final isToday = chosenStart.isAtSameMomentAs(serverToday);
+    if (isToday && (_serverNow.hour > 16 || (_serverNow.hour == 16 && _serverNow.minute > 1))) {
       AniseFeedbackDialog.showError(
         context,
         title: 'Batas Waktu Lewat',

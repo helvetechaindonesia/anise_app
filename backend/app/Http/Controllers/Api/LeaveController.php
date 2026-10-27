@@ -43,6 +43,14 @@ class LeaveController extends Controller
         $todayStr = $now->format('Y-m-d');
         $currentTimeStr = $now->format('H:i');
 
+        // Pengajuan perizinan tanggal lampau (sebelum hari H) dilarang
+        if ($request->start_date < $todayStr) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pengajuan perizinan tidak boleh dilakukan untuk tanggal yang sudah lewat (sebelum ' . $now->translatedFormat('d F Y') . ').',
+            ], 422);
+        }
+
         // Batas pengajuan perijinan adalah pukul 16.01 WIB untuk hari berjalan
         if ($request->start_date === $todayStr && $currentTimeStr > '16:01') {
             return response()->json([

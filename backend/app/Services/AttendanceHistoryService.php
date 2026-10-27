@@ -183,18 +183,46 @@ class AttendanceHistoryService
             }
         }
 
-        // 7. Gabungkan izin resmi
+        // 7. Gabungkan izin resmi (hanya sampai hari berjalan / AppTime::now(), hari esok menunggu cron harian)
         $mergedLogs = collect($eventItems);
+        $todayStr = AppTime::now()->format('Y-m-d');
+
+        // Pastikan record log yang sudah ada untuk hari ini adaptif jika memiliki approved leave
         if ($approvedLeaves->isNotEmpty()) {
+            $mergedLogs = $mergedLogs->map(function ($item) use ($approvedLeaves, $statusTextMap) {
+                $rawDate = isset($item['raw_date']) ? substr($item['raw_date'], 0, 10) : null;
+                if ($rawDate) {
+                    $matchedLeave = $approvedLeaves->first(function ($leave) use ($rawDate) {
+                        $s = Carbon::parse($leave->start_date)->format('Y-m-d');
+                        $e = Carbon::parse($leave->end_date ?? $leave->start_date)->format('Y-m-d');
+                        return $rawDate >= $s && $rawDate <= $e;
+                    });
+                    if ($matchedLeave) {
+                        $typeUpper = strtoupper($matchedLeave->type ?? 'IZIN');
+                        $leaveLabel = $statusTextMap[$typeUpper] ?? $typeUpper;
+                        $item['status'] = $typeUpper;
+                        $item['status_label'] = $leaveLabel;
+                        $item['catatan'] = $matchedLeave->reason ?? ('Pengajuan ' . $leaveLabel);
+                        $item['lokasi'] = 'Surat Dinas Elektronik (ACC)';
+                    }
+                }
+                return $item;
+            });
+
             foreach ($approvedLeaves as $leave) {
                 $startDate = Carbon::parse($leave->start_date);
                 $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $dateStr = $c->format('Y-m-d');
+                    // Riwayat presensi untuk hari esok belum waktunya muncul (hanya sampai hari berjalan <= today)
+                    if ($dateStr > $todayStr) {
+                        continue;
+                    }
+
                     $matchYear = ($year <= 0) || ((int)$c->year === $year);
                     $matchMonth = ($month <= 0) || ((int)$c->month === $month);
                     if ($matchYear && $matchMonth) {
-                        $dateStr = $c->format('Y-m-d');
                         if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
                             $leaveType = strtoupper($leave->type ?? 'IZIN');
                             $leaveLabel = $statusTextMap[$leaveType] ?? $leaveType;
@@ -320,7 +348,9 @@ class AttendanceHistoryService
 
         $alphaCount = $logs->whereIn('status', ['ALPHA', 'Alpha', 'Tidak Hadir'])->count();
 
-        $formattedLogs = $logs->map(function ($log) use ($user) {
+        $todayStr = AppTime::now()->format('Y-m-d');
+
+        $formattedLogs = $logs->map(function ($log) use ($user, $approvedLeaves, $primaryLocation) {
             $isLate = in_array($log->status, ['TAM', 'PA', 'Terlambat', 'TERLAMBAT', 'TAP', 'K', 'T']);
             $statusMap = [
                 'MASUK' => 'Hadir Tepat (H)', 
@@ -343,16 +373,37 @@ class AttendanceHistoryService
                 'ALPHA' => 'Alpha (A)',
                 'Alpha' => 'Alpha (A)',
             ];
-            $statusName = $statusMap[$log->status] ?? $log->status;
-            $primaryLocation = $this->geofenceService->getPrimaryLocationName();
+            
+            $status = $log->status;
+            $statusName = $statusMap[$status] ?? $status;
+            $locationName = $primaryLocation;
+            $catatanStr = 'Status: ' . $statusName;
+
+            // Cek apakah tanggal log ini bertepatan dengan izin yang di-ACC
+            $logDate = Carbon::parse($log->tanggal)->format('Y-m-d');
+            if ($approvedLeaves->isNotEmpty()) {
+                $matchedLeave = $approvedLeaves->first(function ($leave) use ($logDate) {
+                    $s = Carbon::parse($leave->start_date)->format('Y-m-d');
+                    $e = Carbon::parse($leave->end_date ?? $leave->start_date)->format('Y-m-d');
+                    return $logDate >= $s && $logDate <= $e;
+                });
+                if ($matchedLeave) {
+                    $typeUpper = strtoupper($matchedLeave->type ?? 'IZIN');
+                    $status = ($typeUpper === 'SAKIT') ? 'S' : (($typeUpper === 'DISPENSASI') ? 'PA' : 'I');
+                    $statusName = ($typeUpper === 'SAKIT') ? 'Sakit (S)' : (($typeUpper === 'DISPENSASI') ? 'Dispensasi (DIS)' : 'Izin (I)');
+                    $locationName = 'Surat Elektronik (ACC)';
+                    $catatanStr = $matchedLeave->reason ?? ('Pengajuan ' . $statusName);
+                    $isLate = false;
+                }
+            }
 
             return [
                 'hari' => Carbon::parse($log->tanggal)->locale('id')->dayName,
                 'tanggal' => Carbon::parse($log->tanggal)->translatedFormat('d F Y'),
                 'waktu' => $log->jam_masuk ? Carbon::parse($log->jam_masuk)->format('H:i') . ' WIB' : '-',
-                'lokasi' => $primaryLocation,
-                'catatan' => 'Status: ' . $statusName,
-                'status' => $log->status,
+                'lokasi' => $locationName,
+                'catatan' => $catatanStr,
+                'status' => $status,
                 'status_label' => $statusName,
                 'isLate' => $isLate,
                 'role' => 'SISWA',
@@ -367,10 +418,15 @@ class AttendanceHistoryService
                 $endDate = Carbon::parse($leave->end_date ?? $leave->start_date);
 
                 for ($c = $startDate->copy(); $c->lte($endDate); $c->addDay()) {
+                    $dateStr = $c->format('Y-m-d');
+                    // Riwayat presensi untuk besok/lusa belum waktunya muncul (hanya sampai hari berjalan <= today)
+                    if ($dateStr > $todayStr) {
+                        continue;
+                    }
+
                     $matchYear = ($year <= 0) || ((int)$c->year === $year);
                     $matchMonth = ($month <= 0) || ((int)$c->month === $month);
                     if ($matchYear && $matchMonth) {
-                        $dateStr = $c->format('Y-m-d');
                         if (!$logs->contains('tanggal', $dateStr) && !$mergedLogs->contains('raw_date', $dateStr)) {
                             $typeUpper = strtoupper($leave->type ?? 'IZIN');
                             $leaveLabel = ($typeUpper === 'SAKIT') ? 'Sakit (S)' : (($typeUpper === 'DISPENSASI') ? 'Dispensasi (DIS)' : 'Izin (I)');
