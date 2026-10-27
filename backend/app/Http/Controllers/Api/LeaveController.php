@@ -221,6 +221,15 @@ class LeaveController extends Controller
         $leave->approval_notes = $request->notes;
         $leave->save();
 
+        // JIKA DITOLAK: Beri notifikasi ke murid/pemohon tanpa mengubah status ke Alpha
+        if ($request->status === 'REJECTED') {
+            $notifTitle = 'Pengajuan ' . ucfirst(strtolower($leave->type)) . ' Ditolak';
+            $rejectReason = !empty($request->notes) ? ": {$request->notes}" : '.';
+            $notifMsg = "Mohon maaf, pengajuan {$leave->type} Anda untuk tanggal {$leave->start_date} ditolak oleh Wali Kelas / Pihak Sekolah{$rejectReason}";
+            
+            \App\Services\NotificationService::sendInAppNotification($targetUser->id, $notifTitle, $notifMsg);
+        }
+
         // JIKA DISETUJUI, sinkronkan ke logic presensi hari ini secara realtime:
         if ($request->status === 'APPROVED') {
             $today = AppTime::now()->format('Y-m-d');

@@ -533,8 +533,58 @@ class AttendanceService
                 continue;
             }
 
+            // 3. Evaluasi KBM: Jika murid TIDAK HADIR di seluruh jam pelajaran di hari itu,
+            // maka akan dihitung ALPHA (Kecuali terdeteksi ada dispensasi di awal hari itu di murid tersebut).
+            $isAllDayAbsent = false;
+
+            // Cari kelas siswa aktif
+            $studentClass = DB::table('class_students')
+                ->where('student_id', $studentId)
+                ->where('status', 'ACTIVE')
+                ->first();
+
+            if ($studentClass) {
+                // Ambil seluruh jurnal KBM yang terbit di kelas tersebut pada hari itu
+                $journalIds = DB::table('journals')
+                    ->where('class_id', $studentClass->class_id)
+                    ->whereDate('teaching_date', $dateStr)
+                    ->pluck('id');
+
+                // Jika ada minimal 1 jurnal KBM yang terlaksana di kelasnya hari itu
+                if ($journalIds->isNotEmpty()) {
+                    // Hitung berapa KBM yang mencatat ketidakhadiran siswa ini
+                    $absentKbmCount = DB::table('journal_student_records')
+                        ->whereIn('journal_id', $journalIds)
+                        ->where('student_id', $studentId)
+                        ->where('record_type', 'ABSENCE')
+                        ->count();
+
+                    // Jika siswa tercatat absen di SELURUH jurnal KBM yang terlaksana hari itu
+                    if ($absentKbmCount >= $journalIds->count()) {
+                        // Cek apakah ada dispensasi di hari itu (misal dispensasi diajukan/aktif)
+                        $hasEarlyDispensasi = DB::table('leaves')
+                            ->where('user_id', $studentId)
+                            ->where('type', 'DISPENSASI')
+                            ->where('start_date', '<=', $dateStr)
+                            ->where('end_date', '>=', $dateStr)
+                            ->exists();
+
+                        if (!$hasEarlyDispensasi) {
+                            $isAllDayAbsent = true;
+                        }
+                    }
+                }
+            }
+
             if ($attendance) {
-                if ($isLate) {
+                if ($isAllDayAbsent) {
+                    DB::table('attendances')
+                        ->where('id', $attendance->id)
+                        ->update([
+                            'status' => 'ALPHA',
+                            'updated_at' => now(),
+                        ]);
+                } elseif ($isLate) {
                     DB::table('attendances')
                         ->where('id', $attendance->id)
                         ->update([
@@ -549,6 +599,7 @@ class AttendanceService
                     }
                 }
             } else {
+                $defaultStatus = $isAllDayAbsent ? 'ALPHA' : ($isLate ? 'TERLAMBAT' : 'MASUK');
                 // Jika belum ada record attendance sama sekali, buatkan
                 DB::table('attendances')->insert([
                     'id' => (string) Str::uuid(),
@@ -556,14 +607,14 @@ class AttendanceService
                     'tanggal' => $dateStr,
                     'jam_masuk' => Carbon::parse($dateStr . ' 07:00:00'),
                     'jam_pulang' => null,
-                    'status' => $isLate ? 'TERLAMBAT' : 'MASUK',
+                    'status' => $defaultStatus,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
 
-                if ($isLate) {
+                if ($defaultStatus === 'TERLAMBAT') {
                     $terlambatCount++;
-                } else {
+                } elseif ($defaultStatus === 'MASUK') {
                     $hadirCount++;
                 }
             }

@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/utils/file_download_helper.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_empty_state.dart';
@@ -318,33 +319,65 @@ class _PerijinanScreenState extends ConsumerState<PerijinanScreen> {
             ),
           ],
 
-          // Lampiran Surat / Bukti jika diunggah
+          // Lampiran Surat / Bukti jika diunggah (Bisa Didownload Terstandarisasi)
           if (item['attachment_path'] != null) ...[
             SizedBox(height: 8.h(context)),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 6.h(context)),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundLight,
-                borderRadius: BorderRadius.circular(8.w(context)),
-                border: Border.all(color: AppColors.outline.withValues(alpha: 0.1)),
-              ),
-              child: Row(
-                children: [
-                  Icon(PhosphorIcons.paperclip(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
-                  SizedBox(width: 6.w(context)),
-                  Expanded(
-                    child: Text(
-                      'Terdapat Dokumen Lampiran Surat',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.8)),
+            Builder(builder: (context) {
+              final rawPath = item['attachment_path'].toString();
+              final fileName = rawPath.split('/').last.isNotEmpty
+                  ? rawPath.split('/').last
+                  : 'Surat_Izin_${studentName.replaceAll(' ', '_')}.pdf';
+              final fileUrl = rawPath.startsWith('http')
+                  ? rawPath
+                  : "${ApiConstants.baseUrl.replaceAll('/api', '')}/storage/$rawPath";
+
+              return Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(PhosphorIcons.fileText(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
+                    SizedBox(width: 8.w(context)),
+                    Expanded(
+                      child: Text(
+                        fileName,
+                        style: AppTextStyles.labelSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Terlampir',
-                    style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ),
+                    InkWell(
+                      onTap: () {
+                        FileDownloadHelper.downloadFile(
+                          context: context,
+                          fileUrl: fileUrl,
+                          preferredFileName: fileName,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(6.w(context)),
+                      child: Padding(
+                        padding: EdgeInsets.all(4.w(context)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), size: 14.w(context), color: AppColors.primary),
+                            SizedBox(width: 4.w(context)),
+                            Text(
+                              'Unduh',
+                              style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
 
           // Tombol Aksi Approval / Konfirmasi Kembali
