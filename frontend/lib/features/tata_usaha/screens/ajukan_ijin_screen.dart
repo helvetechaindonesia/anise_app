@@ -213,12 +213,14 @@ class _AjukanIjinScreenState extends ConsumerState<AjukanIjinScreen> {
     );
 
     if (res['success'] == true && mounted) {
-      AniseFeedbackDialog.showSuccess(
+      await AniseFeedbackDialog.showSuccess(
         context,
         title: 'Pengajuan Terkirim',
         message: res['message'] ?? 'Pengajuan perizinan berhasil dikirim.',
+        onConfirm: () {
+          if (mounted) Navigator.pop(context);
+        },
       );
-      Navigator.pop(context);
     } else if (mounted) {
       AniseFeedbackDialog.showError(
         context,

@@ -98,7 +98,7 @@ class LeaveController extends Controller
         $isTeacher = in_array($user->role_type, ['GURU', 'GURU_BK']);
         $isKepsek = in_array($user->role_type, ['KEPALA_SEKOLAH', 'SUPER_ADMIN']);
 
-        $query = Leave::with(['user.siswaProfile.schoolClass', 'user.guruProfile', 'approver'])
+        $query = Leave::with(['user.studentClass', 'user.siswaProfile', 'user.guruProfile', 'approver'])
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('type')) {
@@ -125,8 +125,7 @@ class LeaveController extends Controller
             // Kepala Sekolah melihat perizinan Tenaga Pendidik (Guru / Tendik)
             $guruRoleIds = DB::table('roles')->whereIn(DB::raw('UPPER(name)'), ['GURU', 'GURU_BK', 'TATA_USAHA'])->pluck('id')->toArray();
             $query->whereHas('user', function ($q) use ($guruRoleIds) {
-                $q->whereIn('role_id', $guruRoleIds)
-                  ->orWhereIn(DB::raw('UPPER(role_type)'), ['GURU', 'GURU_BK', 'TATA_USAHA']);
+                $q->whereIn('role_id', $guruRoleIds);
             });
         }
 
