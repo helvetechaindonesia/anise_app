@@ -13,7 +13,7 @@ return new class extends Migration
         DB::table('school_settings')->updateOrInsert(
             ['setting_key' => 'app_release_date'],
             [
-                'setting_value' => '2026-10-26',
+                'setting_value' => '2026-11-02',
                 'created_at' => $now,
                 'updated_at' => $now,
             ]

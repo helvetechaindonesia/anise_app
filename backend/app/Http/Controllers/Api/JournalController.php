@@ -1223,10 +1223,10 @@ class JournalController extends Controller
                 }
             }
 
-            // 2. Ambil tanggal rilis resmi aplikasi dari school_settings (default 26 Oktober 2026)
+            // 2. Ambil tanggal rilis resmi aplikasi dari school_settings (default 02 November 2026)
             $releaseDateSetting = \Illuminate\Support\Facades\DB::table('school_settings')
                 ->where('setting_key', 'app_release_date')
-                ->value('setting_value') ?: '2026-10-26';
+                ->value('setting_value') ?: '2026-11-02';
 
             $releaseDate = \Carbon\Carbon::parse($releaseDateSetting)->startOfDay();
             $releaseMonday = $releaseDate->copy()->startOfWeek();
@@ -1293,7 +1293,7 @@ class JournalController extends Controller
                 $activeWeekStart = $now->copy()->startOfWeek();
             }
 
-            // Kunci: Tidak boleh lebih mundur dari tanggal rilis resmi (26 Oktober 2026)
+            // Kunci: Tidak boleh lebih mundur dari tanggal rilis resmi (02 November 2026)
             if ($activeWeekStart->lt($releaseMonday)) {
                 $activeWeekStart = $releaseMonday;
             }

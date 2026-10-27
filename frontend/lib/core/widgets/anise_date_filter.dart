@@ -25,7 +25,7 @@ const List<String> _bulanLengkap = [
 
 /// Menghitung hari Senin awal pekan aktif KBM berdasarkan respon API off-days
 /// dan otomatis reset pada pukul 01:00 di hari nonaktif pertama.
-/// Pekan tidak akan pernah lebih mundur dari tanggal rilis resmi (26 Oktober 2026).
+/// Pekan tidak akan pernah lebih mundur dari tanggal rilis resmi (02 November 2026).
 DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
   final releaseDateStr = offDaysData?['app_release_date']?.toString();
   final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
@@ -84,7 +84,7 @@ DateTime computeActiveWeekMonday(Map<String, dynamic>? offDaysData) {
     calculatedWeek = DateTime(thisWeek.year, thisWeek.month, thisWeek.day);
   }
 
-  // Kunci batas awal: tidak boleh lebih mundur dari tanggal rilis resmi (26 Oktober 2026)
+  // Kunci batas awal: tidak boleh lebih mundur dari tanggal rilis resmi (02 November 2026)
   if (calculatedWeek.isBefore(releaseMonday)) {
     return releaseMonday;
   }

@@ -30,7 +30,7 @@ class GuruTugasScreen extends ConsumerStatefulWidget {
 class _GuruTugasScreenState extends ConsumerState<GuruTugasScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  static final DateTime _releaseDate = ApiConstants.appReleaseDate; // 26 Oktober 2026
+  static final DateTime _releaseDate = ApiConstants.appReleaseDate; // 02 November 2026
 
   List<String> get _years => AniseTimeFilterDropdowns.getYears(_releaseDate);
   List<String> get _months => AniseTimeFilterDropdowns.getMonths(_releaseDate, _selectedYear);
