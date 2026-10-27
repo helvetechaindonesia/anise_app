@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.frontend"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -23,10 +23,11 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.helvetecha.anise"
-        // MinSdk diset ke 24 (Android 7.0 Nougat) untuk kompatibilitas optimal ML Kit & Kamera
-        // TargetSdk diset ke 35 sesuai standar rilis Google Play Store terbaru
+        // Sesuai syarat Publisher Play Store:
+        // Poin 12: SDK min 36 (compileSdk & targetSdk = 36 / Android 16)
+        // Poin 13: API level min 24 (minSdk = 24 / Android 7.0 Nougat)
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
