@@ -57,12 +57,8 @@ class AutoTamTapCommand extends Command
             ->where('users.is_active', true)
             ->where(function ($q) use ($teacherRoles) {
                 $q->whereIn(DB::raw('UPPER(roles.name)'), $teacherRoles)
-                  ->orWhereIn(DB::raw('UPPER(users.role_type)'), $teacherRoles)
                   ->orWhere(function ($sub) {
                       $sub->whereNotNull('roles.name')->where(DB::raw('UPPER(roles.name)'), '!=', 'SISWA');
-                  })
-                  ->orWhere(function ($sub) {
-                      $sub->whereNotNull('users.role_type')->where(DB::raw('UPPER(users.role_type)'), '!=', 'SISWA');
                   });
             })
             ->select('users.id', 'users.full_name')

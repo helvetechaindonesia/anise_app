@@ -420,19 +420,12 @@ class AttendanceService
             return 0;
         }
 
-        // Ambil role SISWA
-        $siswaRole = DB::table('roles')->where(DB::raw('UPPER(name)'), 'SISWA')->first();
-        $siswaRoleId = $siswaRole ? $siswaRole->id : null;
-
+        // Ambil ID seluruh siswa aktif dengan join ke tabel roles
         $students = DB::table('users')
-            ->where('is_active', true)
-            ->where(function ($q) use ($siswaRoleId) {
-                if ($siswaRoleId) {
-                    $q->where('role_id', $siswaRoleId);
-                }
-                $q->orWhere(DB::raw('UPPER(role_type)'), 'SISWA');
-            })
-            ->pluck('id');
+            ->join('roles', 'users.role_id', '=', 'roles.id')
+            ->where('users.is_active', true)
+            ->where(DB::raw('UPPER(roles.name)'), 'SISWA')
+            ->pluck('users.id');
 
         $createdCount = 0;
         $morningTime = Carbon::parse($dateStr . ' 07:00:00');
@@ -477,18 +470,12 @@ class AttendanceService
             return ['terlambat' => 0, 'hadir' => 0];
         }
 
-        $siswaRole = DB::table('roles')->where(DB::raw('UPPER(name)'), 'SISWA')->first();
-        $siswaRoleId = $siswaRole ? $siswaRole->id : null;
-
+        // Ambil ID seluruh siswa aktif dengan join ke tabel roles
         $students = DB::table('users')
-            ->where('is_active', true)
-            ->where(function ($q) use ($siswaRoleId) {
-                if ($siswaRoleId) {
-                    $q->where('role_id', $siswaRoleId);
-                }
-                $q->orWhere(DB::raw('UPPER(role_type)'), 'SISWA');
-            })
-            ->pluck('id');
+            ->join('roles', 'users.role_id', '=', 'roles.id')
+            ->where('users.is_active', true)
+            ->where(DB::raw('UPPER(roles.name)'), 'SISWA')
+            ->pluck('users.id');
 
         $terlambatCount = 0;
         $hadirCount = 0;
