@@ -19,11 +19,10 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _isReminderActive = true;
   String _selectedLanguage = 'Bahasa Indonesia';
 
   void _showLanguagePicker(BuildContext context) {
-    final languages = ['Bahasa Indonesia', 'English', 'Basa Sunda', 'Basa Jawa'];
+    final languages = ['Bahasa Indonesia'];
 
     showModalBottomSheet(
       context: context,
@@ -307,8 +306,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Column(
       children: [
         SettingsSectionWidget(
-          isReminderActive: _isReminderActive,
-          onReminderChanged: (value) => setState(() => _isReminderActive = value),
           selectedLanguage: _selectedLanguage,
           onLanguageTap: () => _showLanguagePicker(context),
         ),

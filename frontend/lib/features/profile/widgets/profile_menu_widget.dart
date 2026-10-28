@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../screens/keamanan_akun_screen.dart';
 import '../screens/bantuan_screen.dart';
-import '../screens/ganti_password_screen.dart';
 
 class InfoItemWidget extends StatelessWidget {
   final IconData icon;
@@ -138,15 +136,11 @@ class BiodataSectionWidget extends StatelessWidget {
 }
 
 class SettingsSectionWidget extends StatelessWidget {
-  final bool isReminderActive;
-  final ValueChanged<bool> onReminderChanged;
   final String selectedLanguage;
   final VoidCallback onLanguageTap;
 
   const SettingsSectionWidget({
     Key? key,
-    required this.isReminderActive,
-    required this.onReminderChanged,
     required this.selectedLanguage,
     required this.onLanguageTap,
   }) : super(key: key);
@@ -162,17 +156,6 @@ class SettingsSectionWidget extends StatelessWidget {
       child: Column(
         children: [
           InfoItemWidget(
-            icon: PhosphorIcons.bellRinging(PhosphorIconsStyle.fill),
-            title: 'Pengingat Tugas & Presensi',
-            subtitle: 'Aktifkan notifikasi',
-            trailing: CupertinoSwitch(
-              value: isReminderActive,
-              onChanged: onReminderChanged,
-              activeColor: AppColors.primary,
-            ),
-            showDivider: true,
-          ),
-          InfoItemWidget(
             icon: PhosphorIcons.translate(PhosphorIconsStyle.fill),
             title: 'Bahasa Aplikasi',
             subtitle: selectedLanguage,
@@ -186,22 +169,9 @@ class SettingsSectionWidget extends StatelessWidget {
             onTap: onLanguageTap,
           ),
           InfoItemWidget(
-            icon: PhosphorIcons.key(PhosphorIconsStyle.fill),
-            title: 'Ganti Kata Sandi',
-            subtitle: 'Ubah password lama ke baru',
-            trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
-            showDivider: true,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const GantiPasswordScreen()),
-              );
-            },
-          ),
-          InfoItemWidget(
             icon: PhosphorIcons.shieldCheck(PhosphorIconsStyle.fill),
             title: 'Keamanan Akun',
-            subtitle: 'Perangkat terhubung & autentikasi',
+            subtitle: 'Kata sandi & autentikasi',
             trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
             showDivider: true,
             onTap: () {
@@ -214,7 +184,7 @@ class SettingsSectionWidget extends StatelessWidget {
           InfoItemWidget(
             icon: PhosphorIcons.newspaper(PhosphorIconsStyle.fill),
             title: 'Bantuan & Kebijakan',
-            subtitle: 'Pusat bantuan',
+            subtitle: 'FAQ, kontak support, & legalitas',
             trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
             showDivider: false,
             onTap: () {
