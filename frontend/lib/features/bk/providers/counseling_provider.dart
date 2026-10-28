@@ -22,12 +22,15 @@ final guruBkListProvider = FutureProvider.autoDispose<List<GuruBkData>>((ref) as
   final dio = ref.watch(dioProvider);
   try {
     final response = await dio.get('/counseling/guru-bk');
+    print('[DEBUG GURU BK] API response: ${response.data}');
     if (response.data['status'] == 'success' && response.data['data'] is List) {
-      return (response.data['data'] as List).map((e) => GuruBkData.fromJson(e)).toList();
+      final list = (response.data['data'] as List).map((e) => GuruBkData.fromJson(e)).toList();
+      print('[DEBUG GURU BK] Parsed ${list.length} guru BK: ${list.map((g) => g.name).toList()}');
+      return list;
     }
     return [];
   } catch (e) {
-    print('Error fetching guru BK list: $e');
+    print('[DEBUG GURU BK] Error fetching guru BK list: $e');
     return [];
   }
 });

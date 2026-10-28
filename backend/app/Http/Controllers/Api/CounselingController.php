@@ -25,7 +25,7 @@ class CounselingController extends Controller
     public function getGuruBk()
     {
         try {
-            // 1. Cari user mandiri dengan Role 'GURU_BK' (atau nama role yang mengandung 'BK')
+            // 1. Cari user mandiri dengan Role 'GURU_BK' atau akun Wartono / BK
             $guruBkUsers = User::where('is_active', true)
                 ->where(function ($q) {
                     $q->whereHas('role', function ($r) {
@@ -34,6 +34,8 @@ class CounselingController extends Controller
                           ->orWhere('name', 'ILIKE', '%bimbingan%');
                     })
                     ->orWhere('username', 'ILIKE', '%bk%')
+                    ->orWhere('username', 'ILIKE', '%wartono%')
+                    ->orWhere('full_name', 'ILIKE', '%wartono%')
                     ->orWhere('full_name', 'ILIKE', '%BK%')
                     ->orWhere('full_name', 'ILIKE', '%Bimbingan%')
                     ->orWhere('full_name', 'ILIKE', '%Konseling%');
