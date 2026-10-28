@@ -25,57 +25,56 @@ class CounselingController extends Controller
     public function getGuruBk()
     {
         try {
-            // 1. Cari berdasarkan Role GURU_BK
-            $roleBk = Role::where('name', 'GURU_BK')->first();
-            $roleBkId = $roleBk ? $roleBk->id : null;
+            // 1. Cari user mandiri dengan Role 'GURU_BK' (atau nama role yang mengandung 'BK')
+            $roleBkIds = Role::where('name', 'GURU_BK')
+                ->orWhere('name', 'ILIKE', '%BK%')
+                ->orWhere('name', 'ILIKE', '%bimbingan%')
+                ->pluck('id');
 
-            $guruBkQuery = User::where('is_active', true)
-                ->where(function ($q) use ($roleBkId) {
-                    if ($roleBkId) {
-                        $q->where('role_id', $roleBkId);
+            $guruBkUsers = User::where('is_active', true)
+                ->where(function ($q) use ($roleBkIds) {
+                    if ($roleBkIds->isNotEmpty()) {
+                        $q->whereIn('role_id', $roleBkIds);
                     }
-                    $q->orWhere('full_name', 'ILIKE', '%BK%')
-                      ->orWhere('username', 'ILIKE', '%bk%')
-                      ->orWhereHas('role', function ($r) {
-                          $r->where('name', 'ILIKE', '%BK%');
-                      })
-                      ->orWhereHas('structuralAssignments', function ($s) {
-                          $s->whereHas('jabatan', function ($j) {
-                              $j->where('name', 'ILIKE', '%BK%')
-                                ->orWhere('task_area', 'ILIKE', '%BK%')
-                                ->orWhere('task_area', 'ILIKE', '%Bimbingan%');
-                          });
-                      });
-                });
-
-            $guruList = $guruBkQuery
+                    $q->orWhereHas('role', function ($r) {
+                        $r->where('name', 'GURU_BK')
+                          ->orWhere('name', 'ILIKE', '%BK%');
+                    });
+                })
                 ->select('id', 'full_name', 'username', 'email')
                 ->orderBy('full_name', 'asc')
-                ->get()
-                ->map(function ($g) {
-                    return [
-                        'id' => $g->id,
-                        'name' => $g->full_name ?: $g->username,
-                        'email' => $g->email ?? '',
-                    ];
-                });
+                ->get();
 
-            // 2. Fallback: jika belum ada akun spesifik ber-label BK, ambil seluruh Guru aktif
-            if ($guruList->isEmpty()) {
-                $roleGuru = Role::whereIn('name', ['GURU', 'GURU_WALI'])->pluck('id');
-                $guruList = User::where('is_active', true)
-                    ->when($roleGuru->isNotEmpty(), fn($q) => $q->whereIn('role_id', $roleGuru))
+            // 2. Jika tidak ada user dengan role GURU_BK, cari user dengan nama/username 'bk'
+            if ($guruBkUsers->isEmpty()) {
+                $guruBkUsers = User::where('is_active', true)
+                    ->where(function ($q) {
+                        $q->where('username', 'ILIKE', '%bk%')
+                          ->orWhere('full_name', 'ILIKE', '%BK%')
+                          ->orWhere('full_name', 'ILIKE', '%Konseling%');
+                    })
                     ->select('id', 'full_name', 'username', 'email')
                     ->orderBy('full_name', 'asc')
-                    ->get()
-                    ->map(function ($g) {
-                        return [
-                            'id' => $g->id,
-                            'name' => ($g->full_name ?: $g->username) . ' (Guru Pembimbing)',
-                            'email' => $g->email ?? '',
-                        ];
-                    });
+                    ->get();
             }
+
+            // 3. Fallback: jika tetap belum ada akun spesifik BK di database, tampilkan seluruh guru pengajar aktif sebagai pembimbing
+            if ($guruBkUsers->isEmpty()) {
+                $roleGuruIds = Role::whereIn('name', ['GURU', 'GURU_WALI'])->pluck('id');
+                $guruBkUsers = User::where('is_active', true)
+                    ->when($roleGuruIds->isNotEmpty(), fn($q) => $q->whereIn('role_id', $roleGuruIds))
+                    ->select('id', 'full_name', 'username', 'email')
+                    ->orderBy('full_name', 'asc')
+                    ->get();
+            }
+
+            $guruList = $guruBkUsers->map(function ($g) {
+                return [
+                    'id' => $g->id,
+                    'name' => $g->full_name ?: $g->username,
+                    'email' => $g->email ?? '',
+                ];
+            });
 
             return response()->json([
                 'status' => 'success',
