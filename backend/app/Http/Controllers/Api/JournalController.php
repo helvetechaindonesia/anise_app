@@ -1662,6 +1662,29 @@ class JournalController extends Controller
     {
         try {
             $user = Auth::user();
+
+            if (str_starts_with($journalId, 'counseling-')) {
+                $cId = substr($journalId, 11);
+                $c = \App\Models\CounselingRequest::findOrFail($cId);
+                $existing = \App\Models\CounselingLike::where('counseling_id', $cId)->where('user_id', $user->id)->first();
+                if ($existing) {
+                    $existing->delete();
+                    $c->decrement('likes_count');
+                    $liked = false;
+                } else {
+                    \App\Models\CounselingLike::create(['counseling_id' => $cId, 'user_id' => $user->id]);
+                    $c->increment('likes_count');
+                    $liked = true;
+                }
+                return response()->json([
+                    'status' => 'success',
+                    'data' => [
+                        'liked' => (bool)$liked,
+                        'likes_count' => (int)$c->likes_count,
+                    ]
+                ]);
+            }
+
             $journal = $this->resolveJournal($journalId);
             $journalId = $journal->id;
 
@@ -1746,9 +1769,40 @@ class JournalController extends Controller
         try {
             $request->validate(['comment_text' => 'required|string|max:500']);
             $user = Auth::user();
+            $role = $user->role?->name ?? ($user->role_type ?? 'SISWA');
+            $rawName = $user->siswaProfile?->full_name 
+                ?: ($user->guruProfile?->full_name 
+                    ?: ($user->full_name ?: ($user->username ?? 'Pengguna')));
+
+            if (str_starts_with($journalId, 'counseling-')) {
+                $cId = substr($journalId, 11);
+                $comment = \App\Models\CounselingComment::create([
+                    'counseling_id' => $cId,
+                    'user_id' => $user->id,
+                    'comment_text' => $request->comment_text
+                ]);
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Komentar bimbingan berhasil dikirim.',
+                    'data' => [
+                        'id' => $comment->id,
+                        'journal_id' => $journalId,
+                        'user_id' => $comment->user_id,
+                        'author_name' => 'Saya',
+                        'raw_author_name' => $rawName,
+                        'author_role' => $role,
+                        'author_avatar' => $user->avatar ?? $user->profile_picture ?? null,
+                        'comment_text' => $comment->comment_text,
+                        'created_at' => $comment->created_at ? $comment->created_at->toIso8601String() : now()->toIso8601String(),
+                        'is_me' => true,
+                        'can_delete' => true
+                    ]
+                ]);
+            }
+
             $journal = $this->resolveJournal($journalId);
             $journalId = $journal->id;
-            $role = $user->role?->name ?? ($user->role_type ?? 'SISWA');
 
             // Batasi siswa maksimal 1 komentar per sesi materi pembelajaran untuk menjaga ketertiban
             if ($role === 'SISWA') {
@@ -1769,10 +1823,6 @@ class JournalController extends Controller
                 'user_id' => $user->id,
                 'comment_text' => $request->comment_text
             ]);
-
-            $rawName = $user->siswaProfile?->full_name 
-                ?: ($user->guruProfile?->full_name 
-                    ?: ($user->full_name ?: ($user->username ?? 'Pengguna')));
 
             return response()->json([
                 'status' => 'success',
@@ -1802,6 +1852,42 @@ class JournalController extends Controller
     {
         try {
             $user = Auth::user();
+
+            if (str_starts_with($journalId, 'counseling-')) {
+                $cId = substr($journalId, 11);
+                $counseling = \App\Models\CounselingRequest::find($cId);
+                $comments = \App\Models\CounselingComment::where('counseling_id', $cId)
+                    ->with(['user.siswaProfile', 'user.guruProfile', 'user.role'])
+                    ->orderBy('created_at', 'asc')
+                    ->get()
+                    ->map(function ($c) use ($user, $counseling) {
+                        $isMe = $user && $c->user_id === $user->id;
+                        $role = $c->user?->role?->name ?? ($c->user?->role_type ?? 'SISWA');
+                        $rawName = $c->user?->siswaProfile?->full_name 
+                            ?: ($c->user?->guruProfile?->full_name 
+                                ?: ($c->user?->full_name ?: ($c->user?->username ?? 'Pengguna')));
+
+                        return [
+                            'id' => $c->id,
+                            'journal_id' => 'counseling-' . $c->counseling_id,
+                            'user_id' => $c->user_id,
+                            'author_name' => $rawName,
+                            'raw_author_name' => $rawName,
+                            'author_role' => $role,
+                            'author_avatar' => $c->user?->avatar ?? $c->user?->profile_picture ?? null,
+                            'comment_text' => $c->comment_text,
+                            'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
+                            'is_me' => $isMe,
+                            'can_delete' => $isMe || ($user && $counseling && $counseling->guru_bk_id === $user->id),
+                        ];
+                    });
+
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $comments
+                ]);
+            }
+
             if (str_starts_with($journalId, 'sched_')) {
                 $scheduleId = substr($journalId, 6);
                 $journal = Journal::where('schedule_id', $scheduleId)->whereDate('teaching_date', Carbon::today()->format('Y-m-d'))->first();
@@ -1896,6 +1982,23 @@ class JournalController extends Controller
 
         try {
             $user = Auth::user();
+
+            if (str_starts_with($journalId, 'counseling-')) {
+                $cId = substr($journalId, 11);
+                $c = \App\Models\CounselingRequest::findOrFail($cId);
+                $c->rating = (float)$request->rating;
+                $c->save();
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Penilaian bimbingan berhasil disimpan.',
+                    'data' => [
+                        'rating' => (int)$c->rating,
+                        'average_rating' => (float)$c->rating,
+                    ]
+                ]);
+            }
+
             $journal = $this->resolveJournal($journalId);
             $journalId = $journal->id;
 

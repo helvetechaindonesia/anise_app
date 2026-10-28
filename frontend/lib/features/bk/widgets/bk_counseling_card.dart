@@ -8,6 +8,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
+import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 import '../screens/bk_isi_jurnal_screen.dart';
 import 'bk_comment_modal.dart';
@@ -297,8 +298,10 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     final isLate = item['is_late'] == true;
     final minutesLate = item['minutes_late'] ?? 0;
 
-    // Evaluasi waktu sesi
-    final now = DateTime.now();
+    // Evaluasi waktu sesi (menggunakan server_time jika ada time travel)
+    final offDaysData = ref.watch(offDaysProvider).valueOrNull;
+    final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+    final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final targetDay = DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day);
     final isPastDay = targetDay.isBefore(today);
@@ -572,8 +575,8 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
             ),
           ],
 
-          // 5. RATING SECTION: Siswa bisa beri rating, Guru BK melihat rating
-          if (_userRating != null || widget.isStudent) ...[
+          // 5. RATING SECTION: Siswa bisa beri rating, Guru BK melihat rating (HANYA tampil setelah jurnal diisi)
+          if (isFilled && (_userRating != null || widget.isStudent)) ...[
             SizedBox(height: 12.h(context)),
             Container(
               width: double.infinity,

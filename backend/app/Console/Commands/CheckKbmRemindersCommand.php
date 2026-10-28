@@ -9,6 +9,7 @@ use App\Models\JournalTask;
 use App\Models\StudentTaskSubmission;
 use App\Models\ClassStudent;
 use App\Models\Notification;
+use App\Models\CounselingRequest;
 use App\Services\NotificationService;
 use Carbon\Carbon;
 
@@ -343,6 +344,97 @@ class CheckKbmRemindersCommand extends Command
             }
         }
         $this->info("Selesai Tugas Terlewat: {$expiredNotifiedCount} siswa dikirimi notifikasi tugas terlewat.");
+
+        // ========================================================
+        // 5. PENGINGAT SESI BIMBINGAN KONSELING (BK)
+        // Kirim notifikasi WA & In-App pengingat H-15 menit sebelum bimbingan dimulai
+        // ========================================================
+        $this->info("\n[5] Memeriksa jadwal sesi bimbingan konseling (BK) hari ini ({$todayDateStr})...");
+        $todayCounselings = CounselingRequest::whereDate('schedule_date', $todayDateStr)
+            ->whereIn('status', ['APPROVED', 'PENDING'])
+            ->whereNull('check_in_time')
+            ->with(['student.siswaProfile', 'guruBk.guruProfile'])
+            ->get();
+
+        $counselingNotifiedCount = 0;
+        foreach ($todayCounselings as $c) {
+            $startTimeStr = explode('-', $c->schedule_time)[0];
+            $startTimeStr = trim($startTimeStr);
+            try {
+                $startDateTime = Carbon::createFromFormat('Y-m-d H:i', "{$todayDateStr} {$startTimeStr}");
+            } catch (\Throwable $e) {
+                try {
+                    $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', "{$todayDateStr} {$startTimeStr}:00");
+                } catch (\Throwable $ex) {
+                    continue;
+                }
+            }
+
+            // Hitung menit menuju mulai sesi
+            $minutesUntilStart = (int)$now->diffInMinutes($startDateTime, false);
+
+            // Jendela notifikasi: antara 10 s/d 20 menit sebelum mulai sesi (ideal H-15 menit)
+            if (($minutesUntilStart >= 10 && $minutesUntilStart <= 20) || $force) {
+                $student = $c->student;
+                $guruBk = $c->guruBk;
+                $studentName = $student ? ($student->full_name ?: $student->username) : 'Siswa';
+                $guruBkName = $guruBk ? ($guruBk->full_name ?: $guruBk->username) : 'Guru BK';
+                $topic = $c->topic;
+                $time = $c->schedule_time;
+
+                $notifTitle = "🔔 Pengingat Sesi BK: {$startTimeStr} WIB";
+
+                // Deduplikasi jika tidak force
+                if (!$force) {
+                    $alreadyNotified = Notification::where('user_id', $c->student_id)
+                        ->where('title', $notifTitle)
+                        ->where('message', 'like', "%{$c->id}%")
+                        ->whereDate('created_at', $todayDateStr)
+                        ->exists();
+
+                    if ($alreadyNotified) {
+                        continue;
+                    }
+                }
+
+                $studentMsg = "Sesi bimbingan \"{$topic}\" bersama {$guruBkName} akan dimulai dalam 15 menit ({$time} WIB). Segera menuju ke ruang bimbingan konseling (BK).\n<!--DATA:" . json_encode(['type' => 'counseling', 'id' => $c->id]) . "-->";
+                NotificationService::sendInAppNotification($c->student_id, $notifTitle, $studentMsg);
+
+                // WhatsApp Siswa
+                $studentPhone = !empty($student?->phone) ? $student->phone : ($student?->siswaProfile?->phone ?? null);
+                if (!empty($studentPhone)) {
+                    $waStudent = "🔔 *[PENGINGAT SESI BIMBINGAN BK]*\n\n"
+                        . "Halo *{$studentName}*,\n"
+                        . "Sesi bimbingan Anda akan dimulai dalam 15 menit ({$time} WIB).\n\n"
+                        . "📋 *Topik:* {$topic}\n"
+                        . "👨‍🏫 *Guru BK:* {$guruBkName}\n\n"
+                        . "Silakan bersiap dan segera hadir di ruang BK tepat waktu.\n"
+                        . "Terima kasih.";
+                    NotificationService::sendWhatsApp($studentPhone, $waStudent);
+                }
+
+                // WhatsApp Guru BK
+                if ($guruBk) {
+                    $guruMsg = "Sesi bimbingan \"{$topic}\" bersama {$studentName} akan dimulai dalam 15 menit ({$time} WIB).\n<!--DATA:" . json_encode(['type' => 'counseling', 'id' => $c->id]) . "-->";
+                    NotificationService::sendInAppNotification($guruBk->id, $notifTitle, $guruMsg);
+
+                    $guruPhone = !empty($guruBk->phone) ? $guruBk->phone : ($guruBk->guruProfile?->phone ?? null);
+                    if (!empty($guruPhone)) {
+                        $waGuru = "🔔 *[PENGINGAT SESI BIMBINGAN BK]*\n\n"
+                            . "Halo *{$guruBkName}*,\n"
+                            . "Sesi bimbingan bersama siswa *{$studentName}* akan dimulai dalam 15 menit ({$time} WIB).\n\n"
+                            . "📋 *Topik:* {$topic}\n\n"
+                            . "Tombol presensi akan aktif ketika waktu bimbingan telah tiba di aplikasi.\n"
+                            . "Terima kasih.";
+                        NotificationService::sendWhatsApp($guruPhone, $waGuru);
+                    }
+                }
+
+                $this->warn(" -> Terkirim pengingat sesi BK ({$topic}) ke {$studentName} & {$guruBkName}");
+                $counselingNotifiedCount++;
+            }
+        }
+        $this->info("Selesai Pengingat BK: {$counselingNotifiedCount} sesi bimbingan dikirimi pengingat.");
 
         $this->info("\n=== PEMINDAIAN SELESAI ===");
         return Command::SUCCESS;
