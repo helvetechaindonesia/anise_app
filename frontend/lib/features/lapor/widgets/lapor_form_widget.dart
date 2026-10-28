@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/report_provider.dart';
 
 class LaporFormWidget extends ConsumerStatefulWidget {
@@ -60,22 +61,31 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
 
   Future<void> _submitReport() async {
     if (_selectedCategoryKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan pilih salah satu kategori laporan')),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Kategori Belum Dipilih',
+        message: 'Silakan pilih salah satu kategori laporan terlebih dahulu.',
+        buttonText: 'Pilih Kategori',
       );
       return;
     }
 
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Judul laporan wajib diisi')),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Judul Belum Diisi',
+        message: 'Judul atau perihal laporan wajib diisi.',
+        buttonText: 'Mengerti',
       );
       return;
     }
 
     if (_descController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Deskripsi rincian laporan wajib diisi')),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Deskripsi Belum Diisi',
+        message: 'Rincian deskripsi laporan wajib diisi secara jelas.',
+        buttonText: 'Mengerti',
       );
       return;
     }
@@ -96,11 +106,11 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
       _showSuccessDialog();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengirim laporan: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: AppColors.error,
-        ),
+      AniseFeedbackDialog.showError(
+        context,
+        title: 'Gagal Mengirim Laporan',
+        message: e.toString().replaceAll('Exception: ', ''),
+        buttonText: 'Tutup',
       );
     } finally {
       if (mounted) {
@@ -110,62 +120,14 @@ class _LaporFormWidgetState extends ConsumerState<LaporFormWidget> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(dialogCtx))),
-        backgroundColor: AppColors.surface,
-        contentPadding: EdgeInsets.all(24.w(dialogCtx)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.all(16.w(dialogCtx)),
-              decoration: const BoxDecoration(
-                color: AppColors.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
-                color: AppColors.onPrimaryContainer,
-                size: 40.w(dialogCtx),
-              ),
-            ),
-            SizedBox(height: 20.h(dialogCtx)),
-            Text(
-              'Laporan Terkirim',
-              style: AppTextStyles.titleLarge(dialogCtx),
-            ),
-            SizedBox(height: 12.h(dialogCtx)),
-            Text(
-              'Terima kasih atas partisipasi Anda. Laporan Anda telah berhasil dicatat dan akan segera ditindaklanjuti oleh pihak sekolah.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium(dialogCtx,
-                  color: AppColors.onSurface.withValues(alpha: 0.7)),
-            ),
-            SizedBox(height: 24.h(dialogCtx)),
-            SizedBox(
-              width: double.infinity,
-              height: 48.h(dialogCtx),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(dialogCtx); // close dialog
-                  Navigator.pop(context); // close screen
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.w(dialogCtx))),
-                ),
-                child: Text('Tutup',
-                    style: AppTextStyles.bodyMedium(dialogCtx,
-                        color: AppColors.onPrimary)),
-              ),
-            ),
-          ],
-        ),
-      ),
+    AniseFeedbackDialog.showSuccess(
+      context,
+      title: 'Laporan Terkirim',
+      message: 'Terima kasih atas partisipasi Anda. Laporan Anda telah berhasil dicatat dan akan segera ditindaklanjuti oleh pihak sekolah.',
+      buttonText: 'Selesai',
+      onConfirm: () {
+        Navigator.pop(context);
+      },
     );
   }
 

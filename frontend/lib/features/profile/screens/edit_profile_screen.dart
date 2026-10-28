@@ -9,6 +9,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_text_field.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/network/dio_client.dart';
 import '../../auth/models/user_model.dart';
@@ -135,22 +136,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         await ref.read(authProvider.notifier).checkAuth();
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto profil & biodata berhasil diperbarui!'),
-              backgroundColor: Colors.green,
-            ),
+          await AniseFeedbackDialog.showSuccess(
+            context,
+            title: 'Profil Diperbarui',
+            message: 'Foto profil dan biodata Anda berhasil disimpan!',
+            buttonText: 'Selesai',
           );
-          Navigator.pop(context);
+          if (mounted) {
+            Navigator.pop(context);
+          }
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memperbarui profil. Periksa data Anda.'),
-            backgroundColor: AppColors.error,
-          ),
+        await AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Memperbarui Profil',
+          message: 'Terjadi kesalahan saat menyimpan perubahan. Silakan periksa kembali data Anda.',
+          buttonText: 'Mengerti',
         );
       }
     } finally {

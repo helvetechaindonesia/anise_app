@@ -6,6 +6,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/file_download_helper.dart';
+import '../../../../core/widgets/anise_feedback_dialog.dart';
 import '../../lapor/models/complaint_model.dart';
 import '../../lapor/providers/report_provider.dart';
 
@@ -73,21 +74,21 @@ class _ComplaintDetailModalState extends ConsumerState<ComplaintDetailModal> {
       if (!mounted) return;
       Navigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Status dan tanggapan berhasil diperbarui'),
-          backgroundColor: Color(0xFF2E7D32),
-        ),
-      );
-
       widget.onUpdated?.call();
+
+      AniseFeedbackDialog.showSuccess(
+        context,
+        title: 'Status & Tanggapan Disimpan',
+        message: 'Status penanganan dan tanggapan resmi sekolah berhasil disimpan.',
+        buttonText: 'Tutup',
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: AppColors.error,
-        ),
+      AniseFeedbackDialog.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: e.toString().replaceAll('Exception: ', ''),
+        buttonText: 'Tutup',
       );
     } finally {
       if (mounted) {

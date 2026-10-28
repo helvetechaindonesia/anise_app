@@ -6,6 +6,7 @@ import 'package:frontend/core/constants/colors.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:frontend/core/utils/responsive.dart';
 import 'package:frontend/core/widgets/anise_app_bar.dart';
+import 'package:frontend/core/widgets/anise_feedback_dialog.dart';
 import 'package:frontend/core/network/dio_client.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -54,13 +55,15 @@ class _GantiPasswordScreenState extends ConsumerState<GantiPasswordScreen> {
       setState(() => _isLoading = false);
 
       if (response.data['status'] == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kata sandi berhasil diperbarui!'),
-            backgroundColor: Colors.green,
-          ),
+        await AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Kata Sandi Diperbarui',
+          message: 'Kata sandi akun Anda berhasil diperbarui dengan aman!',
+          buttonText: 'Selesai',
         );
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
       } else {
         final msg = response.data['message'] ?? 'Gagal memperbarui kata sandi.';
         _showErrorDialog(msg);
@@ -86,28 +89,11 @@ class _GantiPasswordScreenState extends ConsumerState<GantiPasswordScreen> {
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.error),
-            const SizedBox(width: 8),
-            Text('Gagal', style: AppTextStyles.titleMedium(ctx, color: AppColors.error)),
-          ],
-        ),
-        content: Text(
-          message,
-          style: AppTextStyles.bodyMedium(ctx),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Tutup', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+    AniseFeedbackDialog.showError(
+      context,
+      title: 'Gagal Ganti Kata Sandi',
+      message: message,
+      buttonText: 'Tutup',
     );
   }
 
