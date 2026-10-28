@@ -293,9 +293,7 @@ class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerPr
                                 borderRadius: BorderRadius.circular(18.w(context)),
                                 child: (widget.user?.avatar != null && widget.user!.avatar!.isNotEmpty)
                                     ? Image.network(
-                                        widget.user!.avatar!.startsWith('http')
-                                            ? widget.user!.avatar!
-                                            : '${ApiConstants.baseUrl.replaceAll('/api', '')}${widget.user!.avatar!}',
+                                        ApiConstants.formatStorageUrl(widget.user!.avatar),
                                         fit: BoxFit.cover,
                                         width: 64.w(context),
                                         height: 64.w(context),

@@ -161,12 +161,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   String _formatAvatarUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    final cleanBase = ApiConstants.baseUrl.replaceAll('/api', '');
-    return '$cleanBase$path';
+    return ApiConstants.formatStorageUrl(path);
   }
 
   Widget _buildFieldLabel(String label) {

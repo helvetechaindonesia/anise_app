@@ -180,9 +180,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
                   color: AppColors.primaryContainer,
                   child: widget.teacherImage != null && widget.teacherImage!.isNotEmpty
                       ? Image.network(
-                          widget.teacherImage!.startsWith('http')
-                              ? widget.teacherImage!
-                              : '${ApiConstants.baseUrl.replaceAll('/api', '')}${widget.teacherImage!}',
+                          ApiConstants.formatStorageUrl(widget.teacherImage),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.primary, size: 22.w(context)),
                         )
@@ -880,11 +878,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
                               final canDelete = item['can_delete'] == true;
 
                               final authorAvatar = item['avatar']?.toString() ?? '';
-                              final avatarUrl = authorAvatar.isNotEmpty
-                                  ? (authorAvatar.startsWith('http')
-                                      ? authorAvatar
-                                      : '${ApiConstants.baseUrl.replaceAll('/api', '')}$authorAvatar')
-                                  : '';
+                              final avatarUrl = ApiConstants.formatStorageUrl(authorAvatar);
 
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,

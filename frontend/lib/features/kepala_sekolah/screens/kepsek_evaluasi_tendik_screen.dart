@@ -202,11 +202,7 @@ class _KepsekEvaluasiTendikScreenState extends ConsumerState<KepsekEvaluasiTendi
                           radius: 24.w(context),
                           backgroundColor: AppColors.surfaceVariant,
                           backgroundImage: tendik['avatar'] != null && tendik['avatar'].toString().isNotEmpty
-                              ? NetworkImage(
-                                  tendik['avatar'].toString().startsWith('http')
-                                      ? tendik['avatar'].toString()
-                                      : '${ApiConstants.baseUrl.replaceAll('/api', '')}${tendik['avatar']}',
-                                )
+                              ? NetworkImage(ApiConstants.formatStorageUrl(tendik['avatar'].toString()))
                               : null,
                           child: tendik['avatar'] == null || tendik['avatar'].toString().isEmpty
                               ? Text(
@@ -720,11 +716,7 @@ class _KepsekEvaluasiTendikScreenState extends ConsumerState<KepsekEvaluasiTendi
                 radius: 22.w(context),
                 backgroundColor: AppColors.surfaceVariant,
                 backgroundImage: tendik['avatar'] != null && tendik['avatar'].toString().isNotEmpty
-                    ? NetworkImage(
-                        tendik['avatar'].toString().startsWith('http')
-                            ? tendik['avatar'].toString()
-                            : '${ApiConstants.baseUrl.replaceAll('/api', '')}${tendik['avatar']}',
-                      )
+                    ? NetworkImage(ApiConstants.formatStorageUrl(tendik['avatar'].toString()))
                     : null,
                 child: tendik['avatar'] == null || tendik['avatar'].toString().isEmpty
                     ? Text(

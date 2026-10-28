@@ -185,16 +185,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   String _formatAvatarUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    final cleanBase = ApiConstants.baseUrl.replaceAll('/api', '');
-    return '$cleanBase$path';
+    return ApiConstants.formatStorageUrl(path);
   }
 
   Widget _buildProfileCard(BuildContext context, String fullName, String role, String email, String? avatar) {
     final avatarUrl = _formatAvatarUrl(avatar);
+    debugPrint('--> [PROFILE_SCREEN] user avatar raw: "$avatar", formattedUrl: "$avatarUrl"');
 
     return Container(
       width: double.infinity,
@@ -225,12 +221,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               width: 72.w(context),
                               height: 72.w(context),
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Center(
-                                child: Text(
-                                  fullName.isNotEmpty ? fullName.substring(0, 1).toUpperCase() : 'U',
-                                  style: AppTextStyles.headlineMedium(context, color: AppColors.onSurface),
-                                ),
-                              ),
+                              errorBuilder: (context, error, stackTrace) {
+                                debugPrint('--> [PROFILE_SCREEN] Image.network ERROR: $error | URL: $avatarUrl');
+                                return Center(
+                                  child: Text(
+                                    fullName.isNotEmpty ? fullName.substring(0, 1).toUpperCase() : 'U',
+                                    style: AppTextStyles.headlineMedium(context, color: AppColors.onSurface),
+                                  ),
+                                );
+                              },
                             )
                           : Center(
                               child: Text(
