@@ -410,7 +410,10 @@ class CheckKbmRemindersCommand extends Command
                         . "👨‍🏫 *Guru BK:* {$guruBkName}\n\n"
                         . "Silakan bersiap dan segera hadir di ruang BK tepat waktu.\n"
                         . "Terima kasih.";
-                    NotificationService::sendWhatsApp($studentPhone, $waStudent);
+                    $resSiswa = NotificationService::sendWhatsApp($studentPhone, $waStudent);
+                    $this->line("    -> WA Siswa ({$studentName} - {$studentPhone}): " . ($resSiswa ? "DISPATCHED" : "FAILED"));
+                } else {
+                    $this->line("    -> [Skip WA Siswa] {$studentName} tidak memiliki nomor telepon terdaftar.");
                 }
 
                 // WhatsApp Guru BK
@@ -426,11 +429,14 @@ class CheckKbmRemindersCommand extends Command
                             . "📋 *Topik:* {$topic}\n\n"
                             . "Tombol presensi akan aktif ketika waktu bimbingan telah tiba di aplikasi.\n"
                             . "Terima kasih.";
-                        NotificationService::sendWhatsApp($guruPhone, $waGuru);
+                        $resGuru = NotificationService::sendWhatsApp($guruPhone, $waGuru);
+                        $this->line("    -> WA Guru BK ({$guruBkName} - {$guruPhone}): " . ($resGuru ? "DISPATCHED" : "FAILED"));
+                    } else {
+                        $this->line("    -> [Skip WA Guru BK] {$guruBkName} tidak memiliki nomor telepon terdaftar.");
                     }
                 }
 
-                $this->warn(" -> Terkirim pengingat sesi BK ({$topic}) ke {$studentName} & {$guruBkName}");
+                $this->warn(" -> Selesai proses pengingat BK ({$topic})");
                 $counselingNotifiedCount++;
             }
         }
