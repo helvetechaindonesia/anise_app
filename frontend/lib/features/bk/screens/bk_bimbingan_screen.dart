@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/main_header.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
-import '../../../core/widgets/item_list_tile.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
+import '../widgets/bk_counseling_card.dart';
 import 'bk_input_bimbingan_screen.dart';
 
 class BkBimbinganScreen extends ConsumerStatefulWidget {
@@ -356,7 +354,13 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final req = requests[index];
-                return _buildCounselingItemTile(context, req);
+                return BkCounselingCard(
+                  item: req,
+                  selectedDate: _selectedDate,
+                  onRefresh: () {
+                    ref.invalidate(bkCounselingRequestsProvider);
+                  },
+                );
               },
               childCount: requests.length,
             ),
@@ -370,121 +374,6 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
         child: Center(
           child: Text('Gagal memuat agenda bimbingan: $err'),
         ),
-      ),
-    );
-  }
-
-  /// Render item bimbingan menggunakan shared component ItemListTile
-  Widget _buildCounselingItemTile(BuildContext context, Map<String, dynamic> req) {
-    final String id = req['id']?.toString() ?? '';
-    final String studentName = req['student_name']?.toString() ?? 'Siswa';
-    final String className = req['class_name']?.toString() ?? '';
-    final String topic = req['topic']?.toString() ?? 'Bimbingan';
-    final String date = req['schedule_date']?.toString() ?? '-';
-    final String time = req['schedule_time']?.toString() ?? '-';
-    final String desc = (req['description'] != null && req['description'].toString().isNotEmpty)
-        ? req['description'].toString()
-        : '';
-    final String status = req['status']?.toString() ?? 'PENDING';
-    final String type = req['type']?.toString() ?? 'INDIVIDU';
-    final bool isApproved = status == 'APPROVED' || status == 'COMPLETED';
-
-    // Label Kategori
-    String categoryLabel = 'BIMBINGAN INDIVIDU';
-    if (type == 'KLASIKAL' || topic.contains('Klasikal')) {
-      categoryLabel = 'BIMBINGAN KLASIKAL';
-    } else if (type == 'KELOMPOK' || topic.contains('Kelompok')) {
-      categoryLabel = 'BIMBINGAN KELOMPOK';
-    }
-
-    // Status label & color
-    String statusLabel = 'Menunggu Persetujuan';
-    Color statusColor = AppColors.warning;
-    IconData statusIcon = PhosphorIcons.clock(PhosphorIconsStyle.bold);
-
-    if (isApproved) {
-      statusLabel = 'Terkonfirmasi';
-      statusColor = Colors.green;
-      statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
-    } else if (status == 'REJECTED') {
-      statusLabel = 'Ditolak';
-      statusColor = AppColors.error;
-      statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
-    }
-
-    return ItemListTile(
-      category: categoryLabel,
-      title: studentName,
-      subcategory: className.isNotEmpty ? 'Kelas $className' : null,
-      metadataText: '$date • $time WIB',
-      metadataIcon: PhosphorIcons.clock(PhosphorIconsStyle.regular),
-      secondaryMetadataText: topic,
-      secondaryMetadataIcon: PhosphorIcons.tag(PhosphorIconsStyle.regular),
-      statusText: statusLabel,
-      statusIcon: statusIcon,
-      statusColor: statusColor,
-      bottomWidget: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (desc.isNotEmpty) ...[
-            SizedBox(height: 6.h(context)),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(10.w(context)),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(10.w(context)),
-              ),
-              child: Text(
-                desc,
-                style: GoogleFonts.outfit(
-                  fontSize: 12.sp(context),
-                  color: AppColors.onBackground.withValues(alpha: 0.8),
-                  height: 1.35,
-                ),
-              ),
-            ),
-          ],
-          if (!isApproved && !id.startsWith('journal-')) ...[
-            SizedBox(height: 10.h(context)),
-            SizedBox(
-              width: double.infinity,
-              height: 40.h(context),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.w(context)),
-                  ),
-                  elevation: 0,
-                ),
-                icon: Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.bold), size: 16.w(context)),
-                label: Text(
-                  'Setujui Bimbingan Ini',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13.sp(context),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                onPressed: () async {
-                  final ok = await ref.read(counselingNotifierProvider.notifier).updateStatus(
-                        counselingId: id,
-                        status: 'APPROVED',
-                      );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(ok ? 'Bimbingan dengan $studentName berhasil disetujui!' : 'Gagal menyetujui jadwal'),
-                        backgroundColor: ok ? Colors.green : AppColors.error,
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

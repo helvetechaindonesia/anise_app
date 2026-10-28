@@ -21,7 +21,14 @@ class CounselingRequest extends Model
         'schedule_time',
         'description',
         'status',
+        'check_in_time',
+        'is_late',
+        'minutes_late',
         'counseling_result',
+        'filled_at',
+        'rating',
+        'notes_evaluasi',
+        'likes_count',
     ];
 
     public function student()
@@ -32,5 +39,15 @@ class CounselingRequest extends Model
     public function guruBk()
     {
         return $this->belongsTo(\App\Models\User::class, 'guru_bk_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(\App\Models\CounselingComment::class, 'counseling_id');
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(\App\Models\CounselingLike::class, 'counseling_id');
     }
 }

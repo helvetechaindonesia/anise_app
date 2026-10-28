@@ -211,8 +211,134 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  Future<bool> checkIn(String counselingId) async {
+    state = const AsyncValue.loading();
+    lastErrorMessage = null;
+    try {
+      final response = await _dio.post('/counseling/$counselingId/check-in');
+      state = const AsyncValue.data(null);
+      _ref.invalidate(bkCounselingRequestsProvider);
+      return response.data['status'] == 'success';
+    } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> fillJournal({
+    required String counselingId,
+    required String result,
+    String? notesEvaluasi,
+    double? rating,
+  }) async {
+    state = const AsyncValue.loading();
+    lastErrorMessage = null;
+    try {
+      final response = await _dio.post('/counseling/$counselingId/fill', data: {
+        'counseling_result': result,
+        if (notesEvaluasi != null) 'notes_evaluasi': notesEvaluasi,
+        if (rating != null) 'rating': rating,
+      });
+      state = const AsyncValue.data(null);
+      _ref.invalidate(bkCounselingRequestsProvider);
+      return response.data['status'] == 'success';
+    } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> updateCounseling({
+    required String counselingId,
+    String? topic,
+    String? scheduleDate,
+    String? scheduleTime,
+    String? description,
+  }) async {
+    state = const AsyncValue.loading();
+    lastErrorMessage = null;
+    try {
+      final response = await _dio.put('/counseling/$counselingId/update', data: {
+        if (topic != null) 'topic': topic,
+        if (scheduleDate != null) 'schedule_date': scheduleDate,
+        if (scheduleTime != null) 'schedule_time': scheduleTime,
+        if (description != null) 'description': description,
+      });
+      state = const AsyncValue.data(null);
+      _ref.invalidate(bkCounselingRequestsProvider);
+      return response.data['status'] == 'success';
+    } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
+      state = AsyncValue.error(e, st);
+      return false;
+    }
+  }
+
+  Future<bool> toggleLike(String counselingId) async {
+    try {
+      final response = await _dio.post('/counseling/$counselingId/like');
+      return response.data['status'] == 'success';
+    } catch (e) {
+      print('Error toggleLike bk counseling: $e');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getComments(String counselingId) async {
+    try {
+      final response = await _dio.get('/counseling/$counselingId/comments');
+      if (response.data['status'] == 'success' && response.data['data'] is List) {
+        return (response.data['data'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error getComments bk counseling: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> addComment(String counselingId, String commentText) async {
+    try {
+      final response = await _dio.post('/counseling/$counselingId/comments', data: {
+        'comment_text': commentText,
+      });
+      if (response.data['status'] == 'success') {
+        return Map<String, dynamic>.from(response.data['data']);
+      }
+      return null;
+    } catch (e) {
+      print('Error addComment bk counseling: $e');
+      return null;
+    }
+  }
+
+  Future<bool> deleteComment(String counselingId, String commentId) async {
+    try {
+      final response = await _dio.delete('/counseling/$counselingId/comments/$commentId');
+      return response.data['status'] == 'success';
+    } catch (e) {
+      print('Error deleteComment bk counseling: $e');
+      return false;
+    }
+  }
 }
 
 final counselingNotifierProvider = StateNotifierProvider<CounselingNotifier, AsyncValue<void>>((ref) {
   return CounselingNotifier(ref.watch(dioProvider), ref);
 });
+

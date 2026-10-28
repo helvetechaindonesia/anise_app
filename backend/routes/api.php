@@ -219,6 +219,12 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     Route::prefix('counseling')->group(function () {
         Route::get('/guru-bk', [CounselingController::class, 'getGuruBk']);
         
+        // Engagement: Like & Komentar bimbingan (Bisa diakses oleh role terkait: Siswa & Guru BK)
+        Route::post('/{id}/like', [CounselingController::class, 'toggleLike']);
+        Route::get('/{id}/comments', [CounselingController::class, 'getComments']);
+        Route::post('/{id}/comments', [CounselingController::class, 'addComment']);
+        Route::delete('/{id}/comments/{commentId}', [CounselingController::class, 'deleteComment']);
+
         Route::middleware('role:SISWA')->group(function () {
             Route::post('/', [CounselingController::class, 'store']);
             Route::get('/siswa', [CounselingController::class, 'siswaIndex']);
@@ -226,6 +232,9 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
         Route::middleware('role:GURU_BK')->group(function () {
             Route::get('/requests', [CounselingController::class, 'guruBkIndex']);
             Route::put('/{id}/status', [CounselingController::class, 'updateStatus']);
+            Route::put('/{id}/update', [CounselingController::class, 'updateCounseling']);
+            Route::post('/{id}/check-in', [CounselingController::class, 'checkIn']);
+            Route::post('/{id}/fill', [CounselingController::class, 'fillJournal']);
             Route::get('/klasikal/options', [CounselingController::class, 'getKlasikalOptions']);
             Route::get('/klasikal/schedules', [CounselingController::class, 'getKlasikalSchedules']);
             Route::post('/guru-bk/create', [CounselingController::class, 'storeByGuruBk']);

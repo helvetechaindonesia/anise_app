@@ -382,7 +382,7 @@ class CounselingController extends Controller
             $counselings = $query->orderBy('schedule_date', 'asc')
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function ($c) {
+                ->map(function ($c) use ($user) {
                     $student = $c->student;
                     
                     // Ambil kelas aktif siswa
@@ -404,18 +404,38 @@ class CounselingController extends Controller
                         $type = 'KELOMPOK';
                     }
 
+                    $hasLiked = \App\Models\CounselingLike::where('counseling_id', $c->id)
+                        ->where('user_id', $user->id)
+                        ->exists();
+
+                    $commentsCount = \App\Models\CounselingComment::where('counseling_id', $c->id)->count();
+
                     return [
-                        'id'            => $c->id,
-                        'type'          => $type,
-                        'student_name'  => $student ? ($student->full_name ?: $student->username) : 'Siswa',
-                        'class_name'    => $className,
-                        'topic'         => $c->topic,
-                        'schedule_date' => $c->schedule_date,
-                        'schedule_time' => $c->schedule_time,
-                        'description'   => $c->description,
-                        'status'        => $c->status,
-                        'initiator'     => $c->initiator ?? 'STUDENT',
-                        'created_at'    => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
+                        'id'                => $c->id,
+                        'type'              => $type,
+                        'student_id'        => $c->student_id,
+                        'student_name'      => $student ? ($student->full_name ?: $student->username) : 'Siswa',
+                        'student_avatar'    => $student ? ($student->avatar ?? $student->profile_picture ?? null) : null,
+                        'class_name'        => $className,
+                        'topic'             => $c->topic,
+                        'schedule_date'     => $c->schedule_date,
+                        'schedule_time'     => $c->schedule_time,
+                        'description'       => $c->description,
+                        'status'            => $c->status,
+                        'initiator'         => $c->initiator ?? 'STUDENT',
+                        'check_in_time'     => $c->check_in_time,
+                        'is_checked_in'     => !empty($c->check_in_time),
+                        'is_late'           => (bool)$c->is_late,
+                        'minutes_late'      => (int)$c->minutes_late,
+                        'counseling_result' => $c->counseling_result,
+                        'filled_at'         => $c->filled_at,
+                        'is_filled'         => !empty($c->filled_at),
+                        'rating'            => $c->rating ? (float)$c->rating : null,
+                        'notes_evaluasi'    => $c->notes_evaluasi,
+                        'likes'             => (int)($c->likes_count ?? 0),
+                        'is_liked'          => $hasLiked,
+                        'comments'          => $commentsCount,
+                        'created_at'        => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
                     ];
                 });
 
@@ -437,17 +457,31 @@ class CounselingController extends Controller
                     $timeStr = $endTime ? "{$startTime} - {$endTime}" : $startTime;
 
                     return [
-                        'id'            => 'journal-' . $j->id,
-                        'type'          => 'KLASIKAL',
-                        'student_name'  => "Seluruh Siswa ({$className})",
-                        'class_name'    => $className,
-                        'topic'         => $j->topic_material ?: '[Bimbingan Klasikal BK]',
-                        'schedule_date' => $j->teaching_date,
-                        'schedule_time' => $timeStr,
-                        'description'   => $j->description ?? 'Bimbingan klasikal menggantikan jadwal KBM di kelas',
-                        'status'        => 'APPROVED',
-                        'initiator'     => 'GURU_BK',
-                        'created_at'    => $j->created_at ? $j->created_at->format('Y-m-d H:i:s') : null,
+                        'id'                => 'journal-' . $j->id,
+                        'type'              => 'KLASIKAL',
+                        'student_id'        => null,
+                        'student_name'      => "Seluruh Siswa ({$className})",
+                        'student_avatar'    => null,
+                        'class_name'        => $className,
+                        'topic'             => $j->topic_material ?: '[Bimbingan Klasikal BK]',
+                        'schedule_date'     => $j->teaching_date,
+                        'schedule_time'     => $timeStr,
+                        'description'       => $j->description ?? 'Bimbingan klasikal menggantikan jadwal KBM di kelas',
+                        'status'            => 'APPROVED',
+                        'initiator'         => 'GURU_BK',
+                        'check_in_time'     => $j->check_in_time,
+                        'is_checked_in'     => !empty($j->check_in_time),
+                        'is_late'           => (bool)$j->is_late,
+                        'minutes_late'      => (int)($j->minutes_late ?? 0),
+                        'counseling_result' => $j->class_notes,
+                        'filled_at'         => $j->filled_at,
+                        'is_filled'         => !empty($j->filled_at),
+                        'rating'            => null,
+                        'notes_evaluasi'    => null,
+                        'likes'             => (int)($j->likes_count ?? 0),
+                        'is_liked'          => false,
+                        'comments'          => 0,
+                        'created_at'        => $j->created_at ? $j->created_at->format('Y-m-d H:i:s') : null,
                     ];
                 });
 
@@ -483,6 +517,349 @@ class CounselingController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/{id}/check-in — Guru BK melakukan presensi sesi bimbingan.
+     * Logika: Jika lewat >20 menit dari waktu mulai, ditandai Terlambat.
+     * WhatsApp trigger: Mengirim notifikasi WA ke Siswa dan Guru BK bahwa bimbingan telah dimulai.
+     */
+    public function checkIn(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            $counseling = CounselingRequest::with(['student', 'guruBk'])->findOrFail($id);
+
+            if (!empty($counseling->check_in_time)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Sesi bimbingan ini sudah melakukan presensi sebelumnya pada ' . Carbon::parse($counseling->check_in_time)->format('H:i') . ' WIB.'
+                ], 422);
+            }
+
+            $appNow = AppTime::now();
+
+            // Hitung keterlambatan dari schedule_time
+            $startTimeStr = explode('-', $counseling->schedule_time)[0];
+            $startTimeStr = trim($startTimeStr);
+            $targetDateTime = Carbon::parse($counseling->schedule_date . ' ' . $startTimeStr);
+
+            $diffMinutes = $appNow->diffInMinutes($targetDateTime, false); // jika negatif, berarti sudah lewat jadwal
+            $minutesLate = 0;
+            $isLate = false;
+
+            if ($appNow->gt($targetDateTime)) {
+                $minutesLate = abs($diffMinutes);
+                if ($minutesLate >= 20) {
+                    $isLate = true;
+                }
+            }
+
+            $counseling->check_in_time = $appNow;
+            $counseling->is_late = $isLate;
+            $counseling->minutes_late = $minutesLate;
+            $counseling->status = 'APPROVED'; // Sedang aktif berjalan
+            $counseling->save();
+
+            // Dispatch WhatsApp Notification (Non-blocking / try-catch)
+            $this->dispatchCounselingWhatsApp($counseling, 'START');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $isLate
+                    ? "Presensi berhasil dicatat (Terlambat {$minutesLate} menit)."
+                    : "Presensi bimbingan tepat waktu berhasil dicatat!",
+                'data' => [
+                    'check_in_time' => $counseling->check_in_time,
+                    'is_late' => $isLate,
+                    'minutes_late' => $minutesLate,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/{id}/fill — Guru BK mengisi jurnal/notulensi bimbingan, rating, dan catatan evaluasi.
+     */
+    public function fillJournal(Request $request, $id)
+    {
+        $request->validate([
+            'counseling_result' => 'required|string|min:5',
+            'notes_evaluasi'    => 'nullable|string',
+            'rating'            => 'nullable|numeric|min:1|max:5',
+        ]);
+
+        try {
+            $counseling = CounselingRequest::findOrFail($id);
+
+            $appNow = AppTime::now();
+            $counseling->counseling_result = $request->counseling_result;
+            $counseling->notes_evaluasi = $request->notes_evaluasi;
+            if ($request->filled('rating')) {
+                $counseling->rating = $request->rating;
+            }
+            $counseling->filled_at = $appNow;
+            $counseling->status = 'COMPLETED';
+            $counseling->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jurnal bimbingan konseling berhasil disimpan!',
+                'data' => $counseling,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * PUT /counseling/{id}/update — Guru BK memperbarui isi bimbingan/jadwal.
+     */
+    public function updateCounseling(Request $request, $id)
+    {
+        $request->validate([
+            'topic'         => 'sometimes|required|string',
+            'schedule_date' => 'sometimes|required|date',
+            'schedule_time' => 'sometimes|required|string',
+            'description'   => 'nullable|string',
+        ]);
+
+        try {
+            $counseling = CounselingRequest::findOrFail($id);
+            if ($request->has('topic')) $counseling->topic = $request->topic;
+            if ($request->has('schedule_date')) $counseling->schedule_date = $request->schedule_date;
+            if ($request->has('schedule_time')) $counseling->schedule_time = $request->schedule_time;
+            if ($request->has('description')) $counseling->description = $request->description;
+            $counseling->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Data sesi bimbingan berhasil diperbarui!',
+                'data' => $counseling,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/{id}/like — Toggle suka pada kartu sesi bimbingan.
+     */
+    public function toggleLike($id)
+    {
+        try {
+            $user = Auth::user();
+            $counseling = CounselingRequest::findOrFail($id);
+
+            $existing = \App\Models\CounselingLike::where('counseling_id', $id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if ($existing) {
+                $existing->delete();
+                $counseling->decrement('likes_count');
+                $isLiked = false;
+            } else {
+                \App\Models\CounselingLike::create([
+                    'counseling_id' => $id,
+                    'user_id' => $user->id,
+                ]);
+                $counseling->increment('likes_count');
+                $isLiked = true;
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'is_liked' => $isLiked,
+                    'likes_count' => (int)$counseling->likes_count,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * GET /counseling/{id}/comments — Mengambil daftar komentar sesi bimbingan.
+     */
+    public function getComments($id)
+    {
+        try {
+            $user = Auth::user();
+            $counseling = CounselingRequest::findOrFail($id);
+
+            $comments = \App\Models\CounselingComment::where('counseling_id', $id)
+                ->with(['user.siswaProfile', 'user.guruProfile', 'user.role'])
+                ->orderBy('created_at', 'asc')
+                ->get()
+                ->map(function ($c) use ($user, $counseling) {
+                    $isMe = $user && $c->user_id === $user->id;
+                    $role = $c->user?->role?->name ?? ($c->user?->role_type ?? 'PENGGUNA');
+                    $rawName = $c->user?->siswaProfile?->full_name 
+                        ?: ($c->user?->guruProfile?->full_name 
+                            ?: ($c->user?->full_name ?: ($c->user?->username ?? 'Pengguna')));
+
+                    return [
+                        'id'              => $c->id,
+                        'counseling_id'   => $c->counseling_id,
+                        'user_id'         => $c->user_id,
+                        'author_name'     => $rawName,
+                        'raw_author_name' => $rawName,
+                        'author_role'     => $role,
+                        'author_avatar'   => $c->user?->avatar ?? $c->user?->profile_picture ?? null,
+                        'comment_text'    => $c->comment_text,
+                        'created_at'      => $c->created_at ? $c->created_at->toIso8601String() : null,
+                        'is_me'           => $isMe,
+                        'can_delete'      => $isMe || ($user && $user->id === $counseling->guru_bk_id),
+                    ];
+                });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $comments,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/{id}/comments — Mengirim komentar pada sesi bimbingan.
+     */
+    public function addComment(Request $request, $id)
+    {
+        $request->validate([
+            'comment_text' => 'required|string|max:500',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $counseling = CounselingRequest::findOrFail($id);
+            $role = $user->role?->name ?? ($user->role_type ?? 'SISWA');
+
+            $comment = \App\Models\CounselingComment::create([
+                'counseling_id' => $id,
+                'user_id'       => $user->id,
+                'comment_text'  => $request->comment_text,
+            ]);
+
+            $rawName = $user->siswaProfile?->full_name 
+                ?: ($user->guruProfile?->full_name 
+                    ?: ($user->full_name ?: ($user->username ?? 'Pengguna')));
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Komentar bimbingan berhasil dikirim.',
+                'data' => [
+                    'id'              => $comment->id,
+                    'counseling_id'   => $comment->counseling_id,
+                    'user_id'         => $comment->user_id,
+                    'author_name'     => 'Saya',
+                    'raw_author_name' => $rawName,
+                    'author_role'     => $role,
+                    'author_avatar'   => $user->avatar ?? $user->profile_picture ?? null,
+                    'comment_text'    => $comment->comment_text,
+                    'created_at'      => $comment->created_at ? $comment->created_at->toIso8601String() : now()->toIso8601String(),
+                    'is_me'           => true,
+                    'can_delete'      => true,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * DELETE /counseling/{id}/comments/{commentId} — Hapus komentar bimbingan.
+     */
+    public function deleteComment($id, $commentId)
+    {
+        try {
+            $user = Auth::user();
+            $counseling = CounselingRequest::findOrFail($id);
+            $comment = \App\Models\CounselingComment::where('counseling_id', $id)
+                ->where('id', $commentId)
+                ->firstOrFail();
+
+            $isMe = $user && $comment->user_id === $user->id;
+            $isGuruBk = $user && $counseling->guru_bk_id === $user->id;
+
+            if (!$isMe && !$isGuruBk) {
+                return response()->json(['status' => 'error', 'message' => 'Tidak memiliki izin untuk menghapus komentar ini.'], 403);
+            }
+
+            $comment->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Komentar berhasil dihapus.'
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Helper: Dispatch WhatsApp Notification saat sesi bimbingan dimulai.
+     */
+    private function dispatchCounselingWhatsApp(CounselingRequest $counseling, string $event = 'START'): void
+    {
+        $gatewayUrl = env('WA_GATEWAY_URL', 'http://127.0.0.1:3001/send-message');
+        $gatewayKey = env('WA_GATEWAY_KEY', 'anise_secret_gateway_key_2026');
+
+        $student = $counseling->student;
+        $guruBk = $counseling->guruBk;
+
+        $studentName = $student ? ($student->full_name ?: $student->username) : 'Siswa';
+        $guruBkName = $guruBk ? ($guruBk->full_name ?: $guruBk->username) : 'Guru BK';
+        $topic = $counseling->topic;
+        $time = $counseling->schedule_time;
+        $date = Carbon::parse($counseling->schedule_date)->isoFormat('dddd, D MMMM Y');
+
+        $studentPhone = $student?->phone ?? $student?->siswaProfile?->phone ?? null;
+        $guruPhone = $guruBk?->phone ?? $guruBk?->guruProfile?->phone ?? null;
+
+        $msgForStudent = "🔔 *Pemberitahuan Sesi Bimbingan BK — ANIS-App*\n\n"
+            . "Halo *{$studentName}*,\n"
+            . "Sesi bimbingan konseling Anda telah *dimulai*.\n\n"
+            . "📋 *Topik:* {$topic}\n"
+            . "👨‍🏫 *Guru BK:* {$guruBkName}\n"
+            . "📅 *Waktu:* {$date} ({$time} WIB)\n\n"
+            . "Mohon segera hadir di ruang BK tepat waktu.\n"
+            . "Terima kasih.";
+
+        $msgForGuru = "🔔 *Sesi Bimbingan BK Dimulai — ANIS-App*\n\n"
+            . "Halo *{$guruBkName}*,\n"
+            . "Presensi sesi bimbingan bersama siswa *{$studentName}* telah berhasil dicatat.\n\n"
+            . "📋 *Topik:* {$topic}\n"
+            . "📅 *Waktu:* {$date} ({$time} WIB)\n\n"
+            . "Setelah sesi berakhir, jangan lupa mengisi hasil evaluasi dan penilaian jurnal bimbingan.\n"
+            . "Semoga lancar!";
+
+        // Kirim ke siswa
+        if ($studentPhone) {
+            try {
+                \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withHeaders(['x-api-key' => $gatewayKey, 'Content-Type' => 'application/json'])
+                    ->post($gatewayUrl, ['phone' => $studentPhone, 'message' => $msgForStudent]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info("WA BK Student offline/error: " . $e->getMessage());
+            }
+        }
+
+        // Kirim ke guru BK
+        if ($guruPhone) {
+            try {
+                \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withHeaders(['x-api-key' => $gatewayKey, 'Content-Type' => 'application/json'])
+                    ->post($gatewayUrl, ['phone' => $guruPhone, 'message' => $msgForGuru]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info("WA BK Guru offline/error: " . $e->getMessage());
+            }
         }
     }
 }
