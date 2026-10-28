@@ -430,18 +430,22 @@
                 <i class="ph-fill ph-trophy"></i>
                 <span>SPRINT MASTERPIECE • VELOCITY GRADE S</span>
             </div>
-            <h1 class="hero-title">Perjalanan Pembangunan Kilat: 27 Hari Penuh Dedikasi</h1>
+            <h1 class="hero-title">Perjalanan Pembangunan: 57 Hari Dedikasi Arsitektur</h1>
             <p class="hero-desc">
-                Dari komit inisiasi pertama pada <strong>01 Oktober 2026</strong> hingga finalisasi seluruh modul enterprise sekolah dan kesiapan toko aplikasi Play Store pada <strong>28 Oktober 2026</strong>. Dibangun dengan komitmen penuh, presisi arsitektur, dan tanpa kompromi pada kualitas.
+                Folder proyek ini pertama kali lahir di filesystem PC pada <strong>Selasa, 01 September 2026 pukul 03:57 WIB</strong>. Dilanjutkan dengan fase demo & sprint maraton intensif (01 - 28 Oktober 2026) hingga mencapai tahap <em>Production Ready</em> dan siap rilis Play Store.
             </p>
             <div class="hero-meta">
                 <div class="meta-pill">
+                    <i class="ph-bold ph-hard-drives"></i>
+                    <span>Inisiasi Folder PC: 01 Sep 2026</span>
+                </div>
+                <div class="meta-pill">
                     <i class="ph-bold ph-calendar"></i>
-                    <span>Sprint: 01 Okt - 28 Okt 2026</span>
+                    <span>Sprint Git: 01 Okt - 28 Okt 2026</span>
                 </div>
                 <div class="meta-pill">
                     <i class="ph-bold ph-rocket-launch"></i>
-                    <span>Target Rilis Resmi: 02 Nov 2026</span>
+                    <span>Rilis Resmi: 02 Nov 2026</span>
                 </div>
                 <div class="meta-pill">
                     <i class="ph-bold ph-code"></i>
@@ -457,9 +461,9 @@
             <div class="card-icon icon-amber">
                 <i class="ph-fill ph-clock-countdown"></i>
             </div>
-            <div class="stat-value">27 Hari</div>
-            <div class="stat-title">Durasi Pengerjaan Sprint</div>
-            <div class="stat-subtitle">Kurang dari 1 bulan kalender penuh</div>
+            <div class="stat-value">57 Hari</div>
+            <div class="stat-title">Total Siklus Hidup Proyek</div>
+            <div class="stat-subtitle">Terhitung sejak folder dibuat (01 Sep 2026)</div>
         </div>
 
         <div class="card-stat">
@@ -468,7 +472,7 @@
             </div>
             <div class="stat-value">379 Commit</div>
             <div class="stat-title">Total Jejak Iterasi Git</div>
-            <div class="stat-subtitle">Rata-rata 14+ commit produktif per hari</div>
+            <div class="stat-subtitle">Fase sprint cepat 27 hari (rata-rata 14/hari)</div>
         </div>
 
         <div class="card-stat">
