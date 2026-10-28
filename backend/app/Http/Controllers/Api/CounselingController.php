@@ -25,20 +25,24 @@ class CounselingController extends Controller
     public function getGuruBk()
     {
         try {
-            // 1. Cari user mandiri dengan Role 'GURU_BK' atau akun Wartono / BK
-            $guruBkUsers = User::where('is_active', true)
-                ->where(function ($q) {
+            // 1. Cari user dengan Role GURU_BK atau nama/username mengandung BK / Wartono
+            $guruBkUsers = User::where(function ($q) {
                     $q->whereHas('role', function ($r) {
                         $r->where('name', 'GURU_BK')
-                          ->orWhere('name', 'ILIKE', '%BK%')
-                          ->orWhere('name', 'ILIKE', '%bimbingan%');
+                          ->orWhere('name', 'LIKE', '%BK%')
+                          ->orWhere('name', 'LIKE', '%bimbingan%');
                     })
-                    ->orWhere('username', 'ILIKE', '%bk%')
-                    ->orWhere('username', 'ILIKE', '%wartono%')
-                    ->orWhere('full_name', 'ILIKE', '%wartono%')
-                    ->orWhere('full_name', 'ILIKE', '%BK%')
-                    ->orWhere('full_name', 'ILIKE', '%Bimbingan%')
-                    ->orWhere('full_name', 'ILIKE', '%Konseling%');
+                    ->orWhere('username', 'LIKE', '%199209092023211014%')
+                    ->orWhere('username', 'LIKE', '%bk%')
+                    ->orWhere('username', 'LIKE', '%wartono%')
+                    ->orWhere('full_name', 'LIKE', '%Wartono%')
+                    ->orWhere('full_name', 'LIKE', '%wartono%')
+                    ->orWhere('full_name', 'LIKE', '%BK%')
+                    ->orWhere('full_name', 'LIKE', '%Bimbingan%');
+                })
+                ->where(function ($q) {
+                    $q->where('is_active', true)
+                      ->orWhereNull('is_active');
                 })
                 ->select('id', 'full_name', 'username', 'email')
                 ->orderBy('full_name', 'asc')
