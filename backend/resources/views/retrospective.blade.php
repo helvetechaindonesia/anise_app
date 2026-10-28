@@ -479,18 +479,18 @@
             <div class="card-icon icon-purple">
                 <i class="ph-fill ph-lightning"></i>
             </div>
-            <div class="stat-value">95.2 / 100</div>
-            <div class="stat-title">Velocity & Quality Score</div>
-            <div class="stat-subtitle">Standar industri arsitektur enterprise</div>
+            <div class="stat-value">~14 / Hari</div>
+            <div class="stat-title">Rata-rata Push Commit</div>
+            <div class="stat-subtitle">Velocity harian selama fase sprint maraton</div>
         </div>
 
         <div class="card-stat">
             <div class="card-icon icon-cyan">
-                <i class="ph-fill ph-users-three"></i>
+                <i class="ph-fill ph-cubes"></i>
             </div>
-            <div class="stat-value">7 Role</div>
-            <div class="stat-title">Ekosistem Multi-Tenant</div>
-            <div class="stat-subtitle">Siswa, Pengajar, Wali, BK, TU, Sarpras, Kepsek</div>
+            <div class="stat-value">17 Modul</div>
+            <div class="stat-title">Jumlah Modul Sistem</div>
+            <div class="stat-subtitle">Presensi, BK, Jurnal, Poin KPI, Sarpras, dkk</div>
         </div>
     </section>
 
