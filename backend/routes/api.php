@@ -217,8 +217,9 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     // 10. BIMBINGAN KONSELING (BK)
     // ==========================================
     Route::prefix('counseling')->group(function () {
+        Route::get('/guru-bk', [CounselingController::class, 'getGuruBk']);
+        
         Route::middleware('role:SISWA')->group(function () {
-            Route::get('/guru-bk', [CounselingController::class, 'getGuruBk']);
             Route::post('/', [CounselingController::class, 'store']);
             Route::get('/siswa', [CounselingController::class, 'siswaIndex']);
         });

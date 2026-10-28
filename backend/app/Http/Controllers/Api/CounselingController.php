@@ -26,43 +26,40 @@ class CounselingController extends Controller
     {
         try {
             // 1. Cari user mandiri dengan Role 'GURU_BK' (atau nama role yang mengandung 'BK')
-            $roleBkIds = Role::where('name', 'GURU_BK')
-                ->orWhere('name', 'ILIKE', '%BK%')
-                ->orWhere('name', 'ILIKE', '%bimbingan%')
-                ->pluck('id');
-
             $guruBkUsers = User::where('is_active', true)
-                ->where(function ($q) use ($roleBkIds) {
-                    if ($roleBkIds->isNotEmpty()) {
-                        $q->whereIn('role_id', $roleBkIds);
-                    }
-                    $q->orWhereHas('role', function ($r) {
+                ->where(function ($q) {
+                    $q->whereHas('role', function ($r) {
                         $r->where('name', 'GURU_BK')
-                          ->orWhere('name', 'ILIKE', '%BK%');
-                    });
+                          ->orWhere('name', 'ILIKE', '%BK%')
+                          ->orWhere('name', 'ILIKE', '%bimbingan%');
+                    })
+                    ->orWhere('username', 'ILIKE', '%bk%')
+                    ->orWhere('full_name', 'ILIKE', '%BK%')
+                    ->orWhere('full_name', 'ILIKE', '%Bimbingan%')
+                    ->orWhere('full_name', 'ILIKE', '%Konseling%');
                 })
                 ->select('id', 'full_name', 'username', 'email')
                 ->orderBy('full_name', 'asc')
                 ->get();
 
-            // 2. Jika tidak ada user dengan role GURU_BK, cari user dengan nama/username 'bk'
+            // 2. Fallback: jika tidak ada role BK khusus, ambil user pendidik (non-siswa)
             if ($guruBkUsers->isEmpty()) {
                 $guruBkUsers = User::where('is_active', true)
                     ->where(function ($q) {
-                        $q->where('username', 'ILIKE', '%bk%')
-                          ->orWhere('full_name', 'ILIKE', '%BK%')
-                          ->orWhere('full_name', 'ILIKE', '%Konseling%');
+                        $q->whereHas('role', function ($r) {
+                            $r->whereNotIn('name', ['SISWA']);
+                        })
+                        ->orWhereNull('role_id')
+                        ->orWhere('role_id', '!=', '');
                     })
                     ->select('id', 'full_name', 'username', 'email')
                     ->orderBy('full_name', 'asc')
                     ->get();
             }
 
-            // 3. Fallback: jika tetap belum ada akun spesifik BK di database, tampilkan seluruh guru pengajar aktif sebagai pembimbing
+            // 3. Fallback absolut: ambil seluruh user aktif
             if ($guruBkUsers->isEmpty()) {
-                $roleGuruIds = Role::whereIn('name', ['GURU', 'GURU_WALI'])->pluck('id');
                 $guruBkUsers = User::where('is_active', true)
-                    ->when($roleGuruIds->isNotEmpty(), fn($q) => $q->whereIn('role_id', $roleGuruIds))
                     ->select('id', 'full_name', 'username', 'email')
                     ->orderBy('full_name', 'asc')
                     ->get();

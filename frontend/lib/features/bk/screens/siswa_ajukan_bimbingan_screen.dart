@@ -64,9 +64,8 @@ class SiswaAjukanBimbinganScreen extends ConsumerWidget {
                     return AniseCard(
                       padding: EdgeInsets.symmetric(vertical: 30.h(context), horizontal: 16.w(context)),
                       child: const AniseEmptyState(
-                        icon: PhosphorIconsRegular.chatsCircle,
-                        title: 'Belum Ada Pengajuan Bimbingan',
-                        subtitle: 'Kamu belum pernah mengajukan jadwal konsultasi ke Guru BK. Klik tombol di atas untuk membuat jadwal baru.',
+                        title: 'Belum Ada Data Bimbingan',
+                        subtitle: 'Kamu belum memiliki riwayat bimbingan atau konsultasi dengan Guru BK. Klik tombol "Ajukan Sesi Bimbingan" di atas untuk membuat jadwal baru.',
                       ),
                     );
                   }

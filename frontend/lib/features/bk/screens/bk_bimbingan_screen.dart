@@ -7,6 +7,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/main_header.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
@@ -89,9 +90,9 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
-            // 1. Header Standar Sub-Page (SliverSubHeader) dengan judul "Bimbingan"
-            const SliverSubHeader(
-              title: 'Bimbingan',
+            // 1. Header Utama Standar Aplikasi (MainHeader)
+            MainHeader(
+              showBackButton: widget.className != null,
             ),
 
             SliverToBoxAdapter(
@@ -328,9 +329,8 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
               child: Padding(
                 padding: EdgeInsets.all(24.w(context)),
                 child: AniseEmptyState(
-                  icon: PhosphorIconsRegular.calendarBlank,
-                  title: 'Tidak Ada Bimbingan',
-                  subtitle: 'Belum ada agenda bimbingan pada ${_formatDateHeader(_selectedDate)}.',
+                  title: 'Belum Ada Data Bimbingan',
+                  subtitle: 'Belum ada agenda bimbingan yang dijadwalkan pada ${_formatDateHeader(_selectedDate)}.',
                 ),
               ),
             ),
