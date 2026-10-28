@@ -17,7 +17,15 @@ import 'bk_input_bimbingan_screen.dart';
 
 class BkBimbinganScreen extends ConsumerStatefulWidget {
   final String? className;
-  const BkBimbinganScreen({Key? key, this.className}) : super(key: key);
+  final DateTime? initialDate;
+  final String? targetCounselingId;
+
+  const BkBimbinganScreen({
+    Key? key,
+    this.className,
+    this.initialDate,
+    this.targetCounselingId,
+  }) : super(key: key);
 
   @override
   ConsumerState<BkBimbinganScreen> createState() => _BkBimbinganScreenState();
@@ -28,11 +36,20 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   late DateTime _currentWeekStart;
   bool _isCustomDateSelected = false;
   Timer? _realtimeTicker;
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _itemKeys = {};
+  bool _hasScrolledToTarget = false;
 
   @override
   void initState() {
     super.initState();
-    _initDefaultDates();
+    if (widget.initialDate != null) {
+      _selectedDate = DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day);
+      _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+      _isCustomDateSelected = true;
+    } else {
+      _initDefaultDates();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
     });
@@ -48,6 +65,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   @override
   void dispose() {
     _realtimeTicker?.cancel();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -102,6 +120,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
           ref.invalidate(bkCounselingRequestsProvider);
         },
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
             // 1. Header Utama Standar Aplikasi (MainHeader)
@@ -364,18 +383,40 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
           );
         }
 
+        // Auto scroll to target item if targetCounselingId matches
+        if (widget.targetCounselingId != null && !_hasScrolledToTarget) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final targetKey = _itemKeys[widget.targetCounselingId.toString()];
+            if (targetKey != null && targetKey.currentContext != null) {
+              Scrollable.ensureVisible(
+                targetKey.currentContext!,
+                alignment: 0.5, // Center of screen
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeInOut,
+              );
+              _hasScrolledToTarget = true;
+            }
+          });
+        }
+
         return SliverPadding(
           padding: EdgeInsets.symmetric(horizontal: 20.w(context)),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final req = requests[index];
-                return BkCounselingCard(
-                  item: req,
-                  selectedDate: _selectedDate,
-                  onRefresh: () {
-                    ref.invalidate(bkCounselingRequestsProvider);
-                  },
+                final reqId = req['id']?.toString() ?? '';
+                final key = _itemKeys.putIfAbsent(reqId, () => GlobalKey());
+
+                return Container(
+                  key: key,
+                  child: BkCounselingCard(
+                    item: req,
+                    selectedDate: _selectedDate,
+                    onRefresh: () {
+                      ref.invalidate(bkCounselingRequestsProvider);
+                    },
+                  ),
                 );
               },
               childCount: requests.length,

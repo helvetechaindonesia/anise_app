@@ -75,6 +75,21 @@ final bkCounselingRequestsProvider = FutureProvider.autoDispose<List<Map<String,
   }
 });
 
+// Provider daftar semua sesi bimbingan Guru BK (untuk overview di Home Dashboard)
+final bkAllCounselingOverviewProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  try {
+    final response = await dio.get('/counseling/requests');
+    if (response.data['status'] == 'success' && response.data['data'] is List) {
+      return (response.data['data'] as List).map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    return [];
+  } catch (e) {
+    print('Error fetching bk all counseling overview: $e');
+    return [];
+  }
+});
+
 // Provider daftar opsi kelas untuk Bimbingan Klasikal
 final bkKlasikalClassesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final dio = ref.watch(dioProvider);

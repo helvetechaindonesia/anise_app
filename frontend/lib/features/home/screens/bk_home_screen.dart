@@ -10,7 +10,6 @@ import '../../../core/widgets/main_header.dart';
 import '../widgets/bk_layanan_cepat_widget.dart';
 import '../widgets/bk_bimbingan_widget.dart';
 import '../widgets/bk_surat_widget.dart';
-import '../widgets/bk_disiplin_widget.dart';
 import '../../../core/utils/time_helper.dart';
 
 class BkHomeScreen extends ConsumerStatefulWidget {
@@ -66,11 +65,7 @@ class _BkHomeScreenState extends ConsumerState<BkHomeScreen> {
                     BkBimbinganWidget(onNavigateTab: widget.onNavigateTab),
                     Spacing.custom(context, 32),
                     
-                    // 6. Pantau Disiplin (Pengganti Agenda Penilaian)
-                    const BkDisiplinWidget(),
-                    Spacing.custom(context, 32),
-                    
-                    // 7. Pantau Surat (Pengganti Penugasan)
+                    // 6. Pantau Surat (Pengganti Penugasan)
                     const BkSuratWidget(),
                     Spacing.custom(context, 32),
                   ],

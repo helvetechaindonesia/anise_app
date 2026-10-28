@@ -3,40 +3,13 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
-import '../../../core/widgets/section_action_link.dart';
-import '../../tugas/widgets/tugas_item_card.dart';
-import '../../bk/screens/bk_surat_screen.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 
 class BkSuratWidget extends StatelessWidget {
   const BkSuratWidget({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> suratList = [
-      {
-        'subject': 'Siswa: Aji Akbar (X CND)',
-        'teacher': 'Pelanggaran: Bolos Sekolah 3x',
-        'title': 'Surat Panggilan Orang Tua (SP1)',
-        'timeInfo': 'Besok, 09:00 WIB',
-        'statusText': 'Menunggu TTD',
-        'statusColor': AppColors.warning,
-        'statusIcon': PhosphorIcons.clock(PhosphorIconsStyle.bold),
-        'timeBgColor': AppColors.warning.withValues(alpha: 0.1),
-        'timeIconColor': AppColors.warning,
-      },
-      {
-        'subject': 'Siswa: Sendi Aritanoga (XI JS)',
-        'teacher': 'Pelanggaran: Berkelahi',
-        'title': 'Surat Peringatan (SP2)',
-        'timeInfo': 'Hari ini, 13:00 WIB',
-        'statusText': 'Terkirim',
-        'statusColor': AppColors.primary,
-        'statusIcon': PhosphorIcons.checkCircle(PhosphorIconsStyle.bold),
-        'timeBgColor': AppColors.primary.withValues(alpha: 0.1),
-        'timeIconColor': AppColors.primary,
-      }
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -52,74 +25,73 @@ class BkSuratWidget extends StatelessWidget {
                 ),
                 SizedBox(width: 8.w(context)),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 2.h(context)),
+                  padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 2.h(context)),
                   decoration: BoxDecoration(
-                    color: AppColors.error,
-                    borderRadius: BorderRadius.circular(20.w(context)),
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12.w(context)),
                   ),
                   child: Text(
-                    '2',
-                    style: AppTextStyles.labelMedium(context, color: AppColors.onPrimary),
+                    'Segera Hadir',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10.sp(context),
+                    ),
                   ),
                 ),
               ],
             ),
-            SectionActionLink(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BkSuratScreen()),
-                );
-              },
-            ),
           ],
         ),
         Spacing.custom(context, 16),
-        ...suratList.asMap().entries.map((entry) {
-          final index = entry.key;
-          final surat = entry.value;
-          final isLast = index == suratList.length - 1;
-          
-          return Column(
-            children: [
-              TugasItemCard(
-                subject: surat['subject'] as String,
-                teacher: surat['teacher'] as String,
-                title: surat['title'] as String,
-                timeInfo: surat['timeInfo'] as String,
-                statusText: surat['statusText'] as String,
-                statusColor: surat['statusColor'] as Color,
-                statusIcon: surat['statusIcon'] as IconData,
-                timeBgColor: surat['timeBgColor'] as Color,
-                timeIconColor: surat['timeIconColor'] as Color,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Detail surat ${surat['title']} segera hadir!', style: AppTextStyles.bodyMedium(context)),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 24.h(context)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20.w(context)),
+            border: Border.all(color: AppColors.outline.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.onBackground.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-              if (!isLast)
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.h(context)),
-                  child: Center(
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.8,
-                      height: 1,
-                      color: AppColors.primary,
-                    ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 52.w(context),
+                height: 52.w(context),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    PhosphorIcons.envelopeSimple(PhosphorIconsStyle.duotone),
+                    color: AppColors.primary,
+                    size: 26.w(context),
                   ),
                 ),
+              ),
+              SizedBox(height: 12.h(context)),
+              Text(
+                'Segera Hadir',
+                style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 4.h(context)),
+              Text(
+                'Fitur penerbitan dan pemantauan surat panggilan orang tua sedang dalam tahap integrasi.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
+              ),
             ],
-          );
-        }).toList(),
+          ),
+        ),
       ],
     );
   }
 }
-
-
-

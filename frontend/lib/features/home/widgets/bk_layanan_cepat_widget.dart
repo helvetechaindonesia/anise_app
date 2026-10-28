@@ -46,7 +46,7 @@ class BkLayananCepatWidget extends ConsumerWidget {
         },
       ),
       QuickActionItem(
-        icon: PhosphorIcons.star(PhosphorIconsStyle.bold),
+        icon: PhosphorIcons.heart(PhosphorIconsStyle.bold),
         label: 'G7-KAIH',
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GuruPembiasaanScreen())),
       ),
