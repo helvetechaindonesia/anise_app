@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,6 +38,7 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
   late int _currentLikes;
   bool _isCheckingIn = false;
   double? _userRating;
+  Timer? _ticker;
 
   @override
   void initState() {
@@ -48,6 +50,17 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     if (r != null) {
       _userRating = (r is num) ? r.toDouble() : double.tryParse(r.toString());
     }
+
+    // Ticker realtime setiap 1 detik agar kartu langsung mendeteksi waktu mulai/terlambat secara live
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
@@ -201,8 +214,8 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
             if (!widget.isStudent) ...[
               ListTile(
                 leading: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), color: AppColors.primary),
-                title: const Text('Edit Hasil Jurnal & Penilaian'),
-                subtitle: const Text('Perbarui ringkasan, catatan evaluasi, dan rating bintang'),
+                title: const Text('Edit Isi Bimbingan & Catatan'),
+                subtitle: const Text('Perbarui ringkasan hasil bimbingan dan catatan evaluasi'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _handleIsiJurnal();
@@ -587,56 +600,76 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
             ),
           ],
 
-          // 5. RATING SECTION: Siswa bisa beri rating, Guru BK melihat rating (HANYA tampil setelah jurnal diisi)
-          if (isFilled && (_userRating != null || widget.isStudent)) ...[
+          // 5. RATING ATAU EDIT ISI BIMBINGAN (Setelah Jurnal Terisi)
+          if (isFilled) ...[
             SizedBox(height: 12.h(context)),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
-                borderRadius: BorderRadius.circular(10.w(context)),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    'Rating:',
-                    style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
+            if (!widget.isStudent) ...[
+              // Khusus Guru BK: Tombol Cepat "Edit Isi Bimbingan"
+              SizedBox(
+                width: double.infinity,
+                height: 42.h(context),
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary, width: 1.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
                   ),
-                  SizedBox(width: 8.w(context)),
-                  ...List.generate(5, (idx) {
-                    final starVal = idx + 1.0;
-                    final isFilledStar = (_userRating ?? 0.0) >= starVal;
-                    return GestureDetector(
-                      onTap: widget.isStudent
-                          ? () async {
-                              setState(() {
-                                _userRating = starVal;
-                              });
-                              if (!id.startsWith('journal-')) {
-                                await ref.read(counselingNotifierProvider.notifier).submitRating(id, starVal);
-                                widget.onRefresh();
-                              }
-                            }
-                          : null,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
-                        child: Icon(
-                          isFilledStar ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.bold),
-                          color: const Color(0xFFF59E0B),
-                          size: 20.w(context),
+                  onPressed: _handleIsiJurnal,
+                  icon: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), size: 16.w(context)),
+                  label: Text(
+                    'Edit Isi Bimbingan & Catatan',
+                    style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ] else if (_userRating != null || widget.isStudent) ...[
+              // Khusus Siswa: Penilaian Bintang
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(10.w(context)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'Rating Bimbingan:',
+                      style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(width: 8.w(context)),
+                    ...List.generate(5, (idx) {
+                      final starVal = idx + 1.0;
+                      final isFilledStar = (_userRating ?? 0.0) >= starVal;
+                      return GestureDetector(
+                        onTap: () async {
+                          setState(() {
+                            _userRating = starVal;
+                          });
+                          if (!id.startsWith('journal-')) {
+                            await ref.read(counselingNotifierProvider.notifier).submitRating(id, starVal);
+                            widget.onRefresh();
+                          }
+                        },
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
+                          child: Icon(
+                            isFilledStar ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.bold),
+                            color: const Color(0xFFF59E0B),
+                            size: 20.w(context),
+                          ),
                         ),
-                      ),
-                    );
-                  }),
-                  const Spacer(),
-                  Text(
-                    _userRating != null ? '${_userRating!.toStringAsFixed(1)} / 5.0' : 'Beri Nilai',
-                    style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
+                      );
+                    }),
+                    const Spacer(),
+                    Text(
+                      _userRating != null ? '${_userRating!.toStringAsFixed(1)} / 5.0' : 'Beri Nilai',
+                      style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
 
           // 6. ACTION BUTTONS (Khusus Guru BK): Presensi Masuk / Isi Jurnal

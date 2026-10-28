@@ -167,8 +167,8 @@ class CounselingController extends Controller
         $request->validate([
             'type'          => 'required|in:KLASIKAL,INDIVIDU,KELOMPOK',
             'topic'         => 'required|string',
-            'schedule_date' => 'required|date',
-            'schedule_time' => 'required|string',
+            'schedule_date' => 'nullable|date',
+            'schedule_time' => 'nullable|string',
             'description'   => 'nullable|string',
             // Untuk Klasikal:
             'class_id'      => 'required_if:type,KLASIKAL|nullable|exists:classes,id',
@@ -179,12 +179,22 @@ class CounselingController extends Controller
         ]);
 
         $appNow = AppTime::now();
-        $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
-        if ($targetDateTime->lt($appNow)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Jadwal pelaksanaan tidak boleh di waktu yang telah berlalu! (Waktu Server: ' . $appNow->format('d/m/Y H:i') . ' WIB)'
-            ], 422);
+
+        // Jika tipe Individu / Kelompok, schedule_date dan schedule_time wajib ada dan dicek
+        if ($request->type !== 'KLASIKAL') {
+            if (!$request->filled('schedule_date') || !$request->filled('schedule_time')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tanggal dan jam pelaksanaan wajib diisi!'
+                ], 422);
+            }
+            $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
+            if ($targetDateTime->lt($appNow)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Jadwal pelaksanaan tidak boleh di waktu yang telah berlalu! (Waktu Server: ' . $appNow->format('d/m/Y H:i') . ' WIB)'
+                ], 422);
+            }
         }
 
         try {
@@ -194,6 +204,35 @@ class CounselingController extends Controller
 
             if ($type === 'KLASIKAL') {
                 $schedule = Schedule::with(['subject', 'class', 'teacher'])->findOrFail($request->schedule_id);
+
+                // Tentukan schedule_date dan schedule_time otomatis dari jadwal mapel jika tidak dikirim dari UI
+                $scheduleDate = $request->schedule_date;
+                $scheduleTime = $request->schedule_time;
+
+                if (empty($scheduleTime)) {
+                    $scheduleTime = substr($schedule->start_time, 0, 5) . ' - ' . substr($schedule->end_time, 0, 5);
+                }
+
+                if (empty($scheduleDate)) {
+                    $daysMap = [
+                        'Senin' => 1, 'Selasa' => 2, 'Rabu' => 3, 'Kamis' => 4,
+                        'Jumat' => 5, 'Sabtu' => 6, 'Minggu' => 7,
+                    ];
+                    $targetIso = $daysMap[$schedule->day_of_week] ?? null;
+                    if ($targetIso !== null) {
+                        $currentWeekMonday = $appNow->copy()->startOfWeek();
+                        $computedDate = $currentWeekMonday->copy()->addDays($targetIso - 1);
+                        // Jika hari jadwal dalam pekan ini sudah lewat dari sekarang, jadwalkan untuk pekan depan
+                        $scheduleStartTimeStr = substr($schedule->start_time, 0, 5);
+                        $checkDateTime = Carbon::parse($computedDate->format('Y-m-d') . ' ' . $scheduleStartTimeStr);
+                        if ($checkDateTime->lt($appNow)) {
+                            $computedDate->addWeek();
+                        }
+                        $scheduleDate = $computedDate->format('Y-m-d');
+                    } else {
+                        $scheduleDate = $appNow->format('Y-m-d');
+                    }
+                }
 
                 // 1. Ambil seluruh siswa aktif di kelas tersebut
                 $studentIds = ClassStudent::where('class_id', $request->class_id)
@@ -209,8 +248,8 @@ class CounselingController extends Controller
                     'guru_bk_id'    => $user->id,
                     'initiator'     => 'GURU_BK',
                     'topic'         => "[Bimbingan Klasikal] " . $request->topic,
-                    'schedule_date' => $request->schedule_date,
-                    'schedule_time' => $request->schedule_time,
+                    'schedule_date' => $scheduleDate,
+                    'schedule_time' => $scheduleTime,
                     'description'   => $request->description ?? "Bimbingan Klasikal menggantikan jadwal {$schedule->subject?->name} ({$schedule->teacher?->full_name})",
                     'status'        => 'APPROVED',
                 ]);
@@ -220,7 +259,7 @@ class CounselingController extends Controller
                 $journal = Journal::updateOrCreate(
                     [
                         'schedule_id'   => $schedule->id,
-                        'teaching_date' => $request->schedule_date,
+                        'teaching_date' => $scheduleDate,
                     ],
                     [
                         'teacher_id'       => $user->id,

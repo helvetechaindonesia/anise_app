@@ -63,29 +63,6 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
       _showSnackbar('Topik / Agenda bimbingan wajib diisi!', AppColors.error);
       return;
     }
-    if (_selectedDate == null) {
-      _showSnackbar('Pilih tanggal pelaksanaan!', AppColors.error);
-      return;
-    }
-    if (_selectedTime == null) {
-      _showSnackbar('Pilih jam pelaksanaan!', AppColors.error);
-      return;
-    }
-
-    final serverNow = _getServerNow(offDaysData);
-    final timeParts = _selectedTime!.split(':');
-    final targetDateTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      int.tryParse(timeParts[0]) ?? 0,
-      int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0,
-    );
-
-    if (targetDateTime.isBefore(serverNow)) {
-      _showSnackbar('Waktu pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
-      return;
-    }
 
     if (_selectedType == 'KLASIKAL') {
       if (_selectedClassId == null) {
@@ -102,16 +79,39 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
         _showSnackbar('Pilih minimal 1 siswa!', AppColors.error);
         return;
       }
+      if (_selectedDate == null) {
+        _showSnackbar('Pilih tanggal pelaksanaan!', AppColors.error);
+        return;
+      }
+      if (_selectedTime == null) {
+        _showSnackbar('Pilih jam pelaksanaan!', AppColors.error);
+        return;
+      }
+
+      final serverNow = _getServerNow(offDaysData);
+      final timeParts = _selectedTime!.split(':');
+      final targetDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        int.tryParse(timeParts[0]) ?? 0,
+        int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0,
+      );
+
+      if (targetDateTime.isBefore(serverNow)) {
+        _showSnackbar('Waktu pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+        return;
+      }
     }
 
-    final dateStr = _formatDateForApi(_selectedDate!);
+    final dateStr = _selectedDate != null ? _formatDateForApi(_selectedDate!) : '';
     final studentIds = _selectedStudents.map((s) => s['id'].toString()).toList();
 
     final ok = await ref.read(counselingNotifierProvider.notifier).createByGuruBk(
           type: _selectedType,
           topic: topic,
-          scheduleDate: dateStr,
-          scheduleTime: _selectedTime!,
+          scheduleDate: dateStr.isNotEmpty ? dateStr : null,
+          scheduleTime: _selectedTime,
           description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
           classId: _selectedClassId,
           scheduleId: _selectedScheduleId,
@@ -218,110 +218,114 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
             ),
             SizedBox(height: 18.h(context)),
 
-            // 4. Tanggal Pelaksanaan (Kalender Picker)
-            _buildSectionLabel('Tanggal Pelaksanaan'),
-            SizedBox(height: 8.h(context)),
-            GestureDetector(
-              onTap: () async {
-                final initial = _selectedDate != null && !_selectedDate!.isBefore(minDate)
-                    ? _selectedDate!
-                    : minDate;
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: initial,
-                  firstDate: minDate,
-                  lastDate: minDate.add(const Duration(days: 90)),
-                );
-                if (picked != null) {
-                  setState(() {
-                    _selectedDate = picked;
-                    if (_selectedTime != null) {
-                      final parts = _selectedTime!.split(':');
-                      final checkDt = DateTime(
-                        picked.year,
-                        picked.month,
-                        picked.day,
-                        int.tryParse(parts[0]) ?? 0,
-                        int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
-                      );
-                      if (checkDt.isBefore(serverNow)) {
-                        _selectedTime = null;
+            // 4 & 5. Tanggal & Jam Pelaksanaan (HANYA UNTUK INDIVIDU & KELOMPOK)
+            // (Untuk Klasikal otomatis mengikuti jadwal mapel KBM yang diganti)
+            if (_selectedType != 'KLASIKAL') ...[
+              // Tanggal Pelaksanaan (Kalender Picker)
+              _buildSectionLabel('Tanggal Pelaksanaan'),
+              SizedBox(height: 8.h(context)),
+              GestureDetector(
+                onTap: () async {
+                  final initial = _selectedDate != null && !_selectedDate!.isBefore(minDate)
+                      ? _selectedDate!
+                      : minDate;
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initial,
+                    firstDate: minDate,
+                    lastDate: minDate.add(const Duration(days: 90)),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedDate = picked;
+                      if (_selectedTime != null) {
+                        final parts = _selectedTime!.split(':');
+                        final checkDt = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          int.tryParse(parts[0]) ?? 0,
+                          int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
+                        );
+                        if (checkDt.isBefore(serverNow)) {
+                          _selectedTime = null;
+                        }
                       }
-                    }
-                  });
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.all(16.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
-                    SizedBox(width: 12.w(context)),
-                    Text(
-                      _selectedDate != null ? _formatDate(_selectedDate!) : 'Pilih tanggal bimbingan',
-                      style: AppTextStyles.bodyMedium(context,
-                          color: _selectedDate != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.5)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 18.h(context)),
-
-            // 5. Jam Pelaksanaan (Input Jam)
-            _buildSectionLabel('Jam Pelaksanaan'),
-            SizedBox(height: 8.h(context)),
-            GestureDetector(
-              onTap: () async {
-                final initial = _selectedTime != null && _selectedTime!.contains(':')
-                    ? TimeOfDay(
-                        hour: int.tryParse(_selectedTime!.split(':')[0]) ?? serverNow.hour,
-                        minute: int.tryParse(_selectedTime!.split(':')[1]) ?? serverNow.minute,
-                      )
-                    : TimeOfDay(hour: serverNow.hour, minute: serverNow.minute);
-
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: initial,
-                );
-                if (picked != null) {
-                  final h = picked.hour.toString().padLeft(2, '0');
-                  final m = picked.minute.toString().padLeft(2, '0');
-                  final checkDate = _selectedDate ?? serverToday;
-                  final pickedDt = DateTime(checkDate.year, checkDate.month, checkDate.day, picked.hour, picked.minute);
-                  if (pickedDt.isBefore(serverNow)) {
-                    _showSnackbar('Jam pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
-                    return;
+                    });
                   }
-                  setState(() => _selectedTime = '$h:$m');
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.all(16.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12.w(context)),
-                  border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(PhosphorIcons.clock(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
-                    SizedBox(width: 12.w(context)),
-                    Text(
-                      _selectedTime != null ? '$_selectedTime WIB' : 'Pilih jam pelaksanaan',
-                      style: AppTextStyles.bodyMedium(context,
-                          color: _selectedTime != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.5)),
-                    ),
-                  ],
+                },
+                child: Container(
+                  padding: EdgeInsets.all(16.w(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                    border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                      SizedBox(width: 12.w(context)),
+                      Text(
+                        _selectedDate != null ? _formatDate(_selectedDate!) : 'Pilih tanggal bimbingan',
+                        style: AppTextStyles.bodyMedium(context,
+                            color: _selectedDate != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.5)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: 18.h(context)),
+              SizedBox(height: 18.h(context)),
+
+              // Jam Pelaksanaan (Input Jam)
+              _buildSectionLabel('Jam Pelaksanaan'),
+              SizedBox(height: 8.h(context)),
+              GestureDetector(
+                onTap: () async {
+                  final initial = _selectedTime != null && _selectedTime!.contains(':')
+                      ? TimeOfDay(
+                          hour: int.tryParse(_selectedTime!.split(':')[0]) ?? serverNow.hour,
+                          minute: int.tryParse(_selectedTime!.split(':')[1]) ?? serverNow.minute,
+                        )
+                      : TimeOfDay(hour: serverNow.hour, minute: serverNow.minute);
+
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: initial,
+                  );
+                  if (picked != null) {
+                    final h = picked.hour.toString().padLeft(2, '0');
+                    final m = picked.minute.toString().padLeft(2, '0');
+                    final checkDate = _selectedDate ?? serverToday;
+                    final pickedDt = DateTime(checkDate.year, checkDate.month, checkDate.day, picked.hour, picked.minute);
+                    if (pickedDt.isBefore(serverNow)) {
+                      _showSnackbar('Jam pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+                      return;
+                    }
+                    setState(() => _selectedTime = '$h:$m');
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.all(16.w(context)),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12.w(context)),
+                    border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIcons.clock(PhosphorIconsStyle.bold), size: 18.w(context), color: AppColors.primary),
+                      SizedBox(width: 12.w(context)),
+                      Text(
+                        _selectedTime != null ? '$_selectedTime WIB' : 'Pilih jam pelaksanaan',
+                        style: AppTextStyles.bodyMedium(context,
+                            color: _selectedTime != null ? AppColors.onBackground : AppColors.onBackground.withValues(alpha: 0.5)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 18.h(context)),
+            ],
 
             // 6. Deskripsi / Catatan Khusus
             _buildSectionLabel('Deskripsi / Catatan Tambahan (Opsional)'),

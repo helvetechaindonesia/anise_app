@@ -152,8 +152,8 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
   Future<bool> createByGuruBk({
     required String type, // 'KLASIKAL', 'INDIVIDU', 'KELOMPOK'
     required String topic,
-    required String scheduleDate,
-    required String scheduleTime,
+    String? scheduleDate,
+    String? scheduleTime,
     String? description,
     String? classId,
     String? scheduleId,
@@ -165,8 +165,8 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       final response = await _dio.post('/counseling/guru-bk/create', data: {
         'type': type,
         'topic': topic,
-        'schedule_date': scheduleDate,
-        'schedule_time': scheduleTime,
+        if (scheduleDate != null) 'schedule_date': scheduleDate,
+        if (scheduleTime != null) 'schedule_time': scheduleTime,
         'description': description,
         if (classId != null) 'class_id': classId,
         if (scheduleId != null) 'schedule_id': scheduleId,

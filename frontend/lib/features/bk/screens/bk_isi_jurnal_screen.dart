@@ -22,7 +22,6 @@ class BkIsiJurnalScreen extends ConsumerStatefulWidget {
 class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
   final _resultController = TextEditingController();
   final _notesEvaluasiController = TextEditingController();
-  double _rating = 5.0;
   bool _isSubmitting = false;
 
   @override
@@ -30,13 +29,9 @@ class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
     super.initState();
     final existingResult = widget.item['counseling_result']?.toString() ?? '';
     final existingEvaluasi = widget.item['notes_evaluasi']?.toString() ?? '';
-    final existingRating = widget.item['rating'];
 
     _resultController.text = existingResult;
     _notesEvaluasiController.text = existingEvaluasi;
-    if (existingRating != null) {
-      _rating = (existingRating is num) ? existingRating.toDouble() : double.tryParse(existingRating.toString()) ?? 5.0;
-    }
   }
 
   @override
@@ -64,7 +59,7 @@ class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
           counselingId: counselingId,
           result: _resultController.text.trim(),
           notesEvaluasi: _notesEvaluasiController.text.trim().isNotEmpty ? _notesEvaluasiController.text.trim() : null,
-          rating: _rating,
+          rating: null,
         );
 
     setState(() => _isSubmitting = false);
@@ -236,66 +231,6 @@ class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
                     borderRadius: BorderRadius.circular(12.w(context)),
                     borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                   ),
-                ),
-              ),
-              SizedBox(height: 24.h(context)),
-
-              // Form 3: Penilaian / Rating Siswa (1 - 5 Bintang)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(16.w(context)),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16.w(context)),
-                  border: Border.all(color: AppColors.outlineVariant, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Penilaian Respons & Keterbukaan Siswa',
-                      style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 4.h(context)),
-                    Text(
-                      'Beri rating 1 - 5 bintang atas keterbukaan dan komitmen siswa selama sesi bimbingan.',
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 14.h(context)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        final starValue = index + 1.0;
-                        final isSelected = _rating >= starValue;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _rating = starValue;
-                            });
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6.w(context)),
-                            child: Icon(
-                              isSelected ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.bold),
-                              color: isSelected ? const Color(0xFFF59E0B) : AppColors.outlineVariant,
-                              size: 34.w(context),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    SizedBox(height: 8.h(context)),
-                    Text(
-                      '${_rating.toStringAsFixed(1)} / 5.0 Bintang',
-                      style: AppTextStyles.titleMedium(context, color: const Color(0xFFF59E0B)).copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
                 ),
               ),
               SizedBox(height: 32.h(context)),
