@@ -668,31 +668,62 @@ class GuruJurnalCard extends ConsumerWidget {
           ),
         );
       } else {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return Column(
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 16.w(context)),
-                SizedBox(width: 6.w(context)),
-                Text(
-                  'KBM & Laporan Selesai',
-                  style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                Row(
+                  children: [
+                    Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.secondary, size: 16.w(context)),
+                    SizedBox(width: 6.w(context)),
+                    Text(
+                      'KBM & Laporan Selesai',
+                      style: AppTextStyles.labelSmall(context, color: AppColors.secondary).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GuruJurnalDetailScreen(journal: journal),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Lihat Detail >',
+                    style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GuruJurnalDetailScreen(journal: journal),
-                  ),
-                );
-              },
-              child: Text(
-                'Lihat Detail >',
-                style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+            SizedBox(height: 10.h(context)),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final res = await GuruIsiJurnalDialog.show(
+                    context,
+                    journalId: jId,
+                    subjectName: subjectName,
+                    className: className,
+                    timeRange: timeRange,
+                  );
+                  if (res == true) {
+                    onRefresh();
+                  }
+                },
+                icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.primary),
+                label: Text(
+                  'Edit Isi Jurnal KBM',
+                  style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primary, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                ),
               ),
             ),
           ],

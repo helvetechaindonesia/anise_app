@@ -414,7 +414,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
             SizedBox(height: 16.h(context)),
             const ImageGridWidget(isLive: false),
           ],
-          if (widget.status == ScheduleStatus.selesai) ...[
+          if (widget.status == ScheduleStatus.selesai && !widget.isPublisher) ...[
             SizedBox(height: 16.h(context)),
             RatingSectionWidget(
               initialRating: widget.userRating ?? widget.initialRating,
