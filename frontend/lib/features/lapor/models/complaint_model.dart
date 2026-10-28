@@ -156,12 +156,6 @@ class ComplaintModel {
     if (attachmentUrl == null || attachmentUrl!.trim().isEmpty) {
       return null;
     }
-    final url = attachmentUrl!.trim();
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    final serverHost = ApiConstants.baseUrl.replaceAll('/api', '');
-    final cleanPath = url.startsWith('/') ? url.substring(1) : url;
-    return '$serverHost/$cleanPath';
+    return ApiConstants.formatStorageUrl(attachmentUrl);
   }
 }
