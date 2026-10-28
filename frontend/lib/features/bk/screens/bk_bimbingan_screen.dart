@@ -31,28 +31,39 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
-    _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+    _initDefaultDates();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
     });
   }
 
-  void _resetToCurrentWeek(Map<String, dynamic>? offDaysData) {
+  void _initDefaultDates([Map<String, dynamic>? offDaysData]) {
+    _isCustomDateSelected = false;
+    _currentWeekStart = computeActiveWeekMonday(offDaysData);
+    final activeDates = filterActiveWeekDates(
+      weekMonday: _currentWeekStart,
+      offDaysData: offDaysData,
+    );
+    final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+    final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
+    if (today.isBefore(releaseDate)) {
+      _selectedDate = activeDates.isNotEmpty ? activeDates.first : releaseDate;
+    } else if (activeDates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day)) {
+      _selectedDate = today;
+    } else if (activeDates.isNotEmpty) {
+      _selectedDate = activeDates.first;
+    } else {
+      _selectedDate = _currentWeekStart;
+    }
+  }
+
+  void _resetToCurrentWeek([Map<String, dynamic>? offDaysData]) {
     setState(() {
-      _currentWeekStart = computeActiveWeekMonday(offDaysData);
-      final activeDates = filterActiveWeekDates(
-        weekMonday: _currentWeekStart,
-        offDaysData: offDaysData,
-      );
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      _selectedDate = activeDates.firstWhere(
-        (d) => d.year == today.year && d.month == today.month && d.day == today.day,
-        orElse: () => activeDates.isNotEmpty ? activeDates.first : today,
-      );
-      _isCustomDateSelected = false;
+      _initDefaultDates(offDaysData);
     });
     ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
   }
@@ -117,7 +128,8 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                               d.month == _selectedDate.month &&
                               d.day == _selectedDate.day);
                           if (!isSelectedInActive) {
-                            final now = DateTime.now();
+                            final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+                            final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
                             final today = DateTime(now.year, now.month, now.day);
                             _selectedDate = activeDates.firstWhere(
                               (d) => d.year == today.year && d.month == today.month && d.day == today.day,

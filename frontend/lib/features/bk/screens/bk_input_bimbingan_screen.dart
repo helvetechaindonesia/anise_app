@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
+import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 import '../providers/disiplin_provider.dart';
 
@@ -50,7 +52,12 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
   String _formatDateForApi(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  Future<void> _submit() async {
+  DateTime _getServerNow(Map<String, dynamic>? offDaysData) {
+    final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+    return (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
+  }
+
+  Future<void> _submit(Map<String, dynamic>? offDaysData) async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) {
       _showSnackbar('Topik / Agenda bimbingan wajib diisi!', AppColors.error);
@@ -62,6 +69,21 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
     }
     if (_selectedTime == null) {
       _showSnackbar('Pilih jam pelaksanaan!', AppColors.error);
+      return;
+    }
+
+    final serverNow = _getServerNow(offDaysData);
+    final timeParts = _selectedTime!.split(':');
+    final targetDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      int.tryParse(timeParts[0]) ?? 0,
+      int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0,
+    );
+
+    if (targetDateTime.isBefore(serverNow)) {
+      _showSnackbar('Waktu pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
       return;
     }
 
@@ -102,7 +124,8 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
       _showSnackbar('Jadwal bimbingan berhasil dibuat dan disimpan!', Colors.green);
       Navigator.pop(context);
     } else {
-      _showSnackbar('Gagal menyimpan jadwal bimbingan, coba lagi.', AppColors.error);
+      final errorMsg = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
+      _showSnackbar(errorMsg ?? 'Gagal menyimpan jadwal bimbingan, coba lagi.', AppColors.error);
     }
   }
 
@@ -121,6 +144,14 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
     final classesAsync = ref.watch(bkKlasikalClassesProvider);
     final studentsAsync = ref.watch(allSiswaProvider);
     final submitState = ref.watch(counselingNotifierProvider);
+    final offDaysAsync = ref.watch(offDaysProvider);
+    final offDaysData = offDaysAsync.valueOrNull;
+
+    final serverNow = _getServerNow(offDaysData);
+    final serverToday = DateTime(serverNow.year, serverNow.month, serverNow.day);
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+    final minDate = serverToday.isBefore(releaseDate) ? releaseDate : serverToday;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -192,14 +223,32 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
             SizedBox(height: 8.h(context)),
             GestureDetector(
               onTap: () async {
+                final initial = _selectedDate != null && !_selectedDate!.isBefore(minDate)
+                    ? _selectedDate!
+                    : minDate;
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: _selectedDate ?? DateTime.now(),
-                  firstDate: DateTime.now().subtract(const Duration(days: 7)),
-                  lastDate: DateTime.now().add(const Duration(days: 60)),
+                  initialDate: initial,
+                  firstDate: minDate,
+                  lastDate: minDate.add(const Duration(days: 90)),
                 );
                 if (picked != null) {
-                  setState(() => _selectedDate = picked);
+                  setState(() {
+                    _selectedDate = picked;
+                    if (_selectedTime != null) {
+                      final parts = _selectedTime!.split(':');
+                      final checkDt = DateTime(
+                        picked.year,
+                        picked.month,
+                        picked.day,
+                        int.tryParse(parts[0]) ?? 0,
+                        int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
+                      );
+                      if (checkDt.isBefore(serverNow)) {
+                        _selectedTime = null;
+                      }
+                    }
+                  });
                 }
               },
               child: Container(
@@ -231,10 +280,10 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
               onTap: () async {
                 final initial = _selectedTime != null && _selectedTime!.contains(':')
                     ? TimeOfDay(
-                        hour: int.tryParse(_selectedTime!.split(':')[0]) ?? 7,
-                        minute: int.tryParse(_selectedTime!.split(':')[1]) ?? 30,
+                        hour: int.tryParse(_selectedTime!.split(':')[0]) ?? serverNow.hour,
+                        minute: int.tryParse(_selectedTime!.split(':')[1]) ?? serverNow.minute,
                       )
-                    : const TimeOfDay(hour: 7, minute: 30);
+                    : TimeOfDay(hour: serverNow.hour, minute: serverNow.minute);
 
                 final picked = await showTimePicker(
                   context: context,
@@ -243,6 +292,12 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
                 if (picked != null) {
                   final h = picked.hour.toString().padLeft(2, '0');
                   final m = picked.minute.toString().padLeft(2, '0');
+                  final checkDate = _selectedDate ?? serverToday;
+                  final pickedDt = DateTime(checkDate.year, checkDate.month, checkDate.day, picked.hour, picked.minute);
+                  if (pickedDt.isBefore(serverNow)) {
+                    _showSnackbar('Jam pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+                    return;
+                  }
                   setState(() => _selectedTime = '$h:$m');
                 }
               },
@@ -290,7 +345,7 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.w(context))),
                   elevation: 0,
                 ),
-                onPressed: submitState is AsyncLoading ? null : _submit,
+                onPressed: submitState is AsyncLoading ? null : () => _submit(offDaysData),
                 child: submitState is AsyncLoading
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text(

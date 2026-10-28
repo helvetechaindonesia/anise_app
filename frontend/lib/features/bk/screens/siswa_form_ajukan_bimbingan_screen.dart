@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 
 class SiswaFormAjukanBimbinganScreen extends ConsumerStatefulWidget {
@@ -41,13 +43,33 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
   String _formatDateForApi(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  Future<void> _submit(BuildContext context) async {
+  DateTime _getServerNow(Map<String, dynamic>? offDaysData) {
+    final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+    return (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
+  }
+
+  Future<void> _submit(BuildContext context, Map<String, dynamic>? offDaysData) async {
     if (_selectedGuruBkId == null) {
       _showSnackbar('Silakan pilih Guru BK terlebih dahulu!', AppColors.error);
       return;
     }
     if (_selectedTopic == null || _selectedDate == null || _selectedTime == null) {
       _showSnackbar('Lengkapi topik, tanggal, dan waktu bimbingan!', AppColors.error);
+      return;
+    }
+
+    final serverNow = _getServerNow(offDaysData);
+    final timeParts = _selectedTime!.split(':');
+    final targetDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      int.tryParse(timeParts[0]) ?? 0,
+      int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0,
+    );
+
+    if (targetDateTime.isBefore(serverNow)) {
+      _showSnackbar('Waktu bimbingan tidak boleh di waktu yang telah berlalu!', AppColors.error);
       return;
     }
 
@@ -65,7 +87,8 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
       _showSnackbar('Pengajuan bimbingan berhasil dikirim ke Guru BK! ✅', Colors.green);
       Navigator.pop(context);
     } else {
-      _showSnackbar('Gagal mengajukan bimbingan, silakan coba lagi.', AppColors.error);
+      final errorMsg = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
+      _showSnackbar(errorMsg ?? 'Gagal mengajukan bimbingan, silakan coba lagi.', AppColors.error);
     }
   }
 
@@ -83,6 +106,14 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
   Widget build(BuildContext context) {
     final guruBkListAsync = ref.watch(guruBkListProvider);
     final submitState = ref.watch(counselingNotifierProvider);
+    final offDaysAsync = ref.watch(offDaysProvider);
+    final offDaysData = offDaysAsync.valueOrNull;
+
+    final serverNow = _getServerNow(offDaysData);
+    final serverToday = DateTime(serverNow.year, serverNow.month, serverNow.day);
+    final releaseDateStr = offDaysData?['app_release_date']?.toString();
+    final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+    final minDate = serverToday.isBefore(releaseDate) ? releaseDate : serverToday;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -218,13 +249,34 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
               SizedBox(height: 8.h(context)),
               GestureDetector(
                 onTap: () async {
+                  final initial = _selectedDate != null && !_selectedDate!.isBefore(minDate)
+                      ? _selectedDate!
+                      : minDate;
                   final picked = await showDatePicker(
                     context: context,
-                    initialDate: DateTime.now().add(const Duration(days: 1)),
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 60)),
+                    initialDate: initial,
+                    firstDate: minDate,
+                    lastDate: minDate.add(const Duration(days: 90)),
                   );
-                  if (picked != null) setState(() => _selectedDate = picked);
+                  if (picked != null) {
+                    setState(() {
+                      _selectedDate = picked;
+                      // Jika ganti tanggal dan jam sebelumnya jadi lampau, reset jam
+                      if (_selectedTime != null) {
+                        final parts = _selectedTime!.split(':');
+                        final checkDt = DateTime(
+                          picked.year,
+                          picked.month,
+                          picked.day,
+                          int.tryParse(parts[0]) ?? 0,
+                          int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
+                        );
+                        if (checkDt.isBefore(serverNow)) {
+                          _selectedTime = null;
+                        }
+                      }
+                    });
+                  }
                 },
                 child: Container(
                   padding: EdgeInsets.all(16.w(context)),
@@ -264,8 +316,38 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
                         style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.5))),
                     isExpanded: true,
                     icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onBackground.withValues(alpha: 0.6), size: 16.w(context)),
-                    items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t, style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground)))).toList(),
-                    onChanged: (v) => setState(() => _selectedTime = v),
+                    items: _timeSlots.map((t) {
+                      bool isPastSlot = false;
+                      if (_selectedDate != null) {
+                        final parts = t.split(':');
+                        final slotDt = DateTime(
+                          _selectedDate!.year,
+                          _selectedDate!.month,
+                          _selectedDate!.day,
+                          int.tryParse(parts[0]) ?? 0,
+                          int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0,
+                        );
+                        if (slotDt.isBefore(serverNow)) {
+                          isPastSlot = true;
+                        }
+                      }
+                      return DropdownMenuItem(
+                        value: isPastSlot ? null : t,
+                        enabled: !isPastSlot,
+                        child: Text(
+                          isPastSlot ? '$t (Telah Berlalu)' : t,
+                          style: AppTextStyles.bodyMedium(
+                            context,
+                            color: isPastSlot ? AppColors.textSecondary.withValues(alpha: 0.4) : AppColors.onBackground,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _selectedTime = v);
+                      }
+                    },
                   ),
                 ),
               ),
@@ -298,7 +380,7 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
 
               // 6. Tombol Kirim Pengajuan
               ElevatedButton(
-                onPressed: submitState is AsyncLoading ? null : () => _submit(context),
+                onPressed: submitState is AsyncLoading ? null : () => _submit(context, offDaysData),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: EdgeInsets.symmetric(vertical: 16.h(context)),

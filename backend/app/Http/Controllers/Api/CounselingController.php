@@ -15,6 +15,7 @@ use App\Models\Journal;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\ClassStudent;
+use App\Helpers\AppTime;
 
 class CounselingController extends Controller
 {
@@ -24,17 +25,30 @@ class CounselingController extends Controller
     public function getGuruBk()
     {
         try {
+            // 1. Cari berdasarkan Role GURU_BK
             $roleBk = Role::where('name', 'GURU_BK')->first();
             $roleBkId = $roleBk ? $roleBk->id : null;
 
-            $guruList = User::where('is_active', true)
+            $guruBkQuery = User::where('is_active', true)
                 ->where(function ($q) use ($roleBkId) {
                     if ($roleBkId) {
                         $q->where('role_id', $roleBkId);
                     }
                     $q->orWhere('full_name', 'ILIKE', '%BK%')
-                      ->orWhere('username', 'ILIKE', '%bk%');
-                })
+                      ->orWhere('username', 'ILIKE', '%bk%')
+                      ->orWhereHas('role', function ($r) {
+                          $r->where('name', 'ILIKE', '%BK%');
+                      })
+                      ->orWhereHas('structuralAssignments', function ($s) {
+                          $s->whereHas('jabatan', function ($j) {
+                              $j->where('name', 'ILIKE', '%BK%')
+                                ->orWhere('task_area', 'ILIKE', '%BK%')
+                                ->orWhere('task_area', 'ILIKE', '%Bimbingan%');
+                          });
+                      });
+                });
+
+            $guruList = $guruBkQuery
                 ->select('id', 'full_name', 'username', 'email')
                 ->orderBy('full_name', 'asc')
                 ->get()
@@ -46,11 +60,13 @@ class CounselingController extends Controller
                     ];
                 });
 
+            // 2. Fallback: jika belum ada akun spesifik ber-label BK, ambil seluruh Guru aktif
             if ($guruList->isEmpty()) {
-                $roleGuru = Role::where('name', 'GURU')->first();
+                $roleGuru = Role::whereIn('name', ['GURU', 'GURU_WALI'])->pluck('id');
                 $guruList = User::where('is_active', true)
-                    ->when($roleGuru, fn($q) => $q->where('role_id', $roleGuru->id))
-                    ->limit(5)
+                    ->when($roleGuru->isNotEmpty(), fn($q) => $q->whereIn('role_id', $roleGuru))
+                    ->select('id', 'full_name', 'username', 'email')
+                    ->orderBy('full_name', 'asc')
                     ->get()
                     ->map(function ($g) {
                         return [
@@ -160,6 +176,15 @@ class CounselingController extends Controller
             'student_ids.*' => 'exists:users,id',
         ]);
 
+        $appNow = AppTime::now();
+        $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
+        if ($targetDateTime->lt($appNow)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Jadwal pelaksanaan tidak boleh di waktu yang telah berlalu! (Waktu Server: ' . $appNow->format('d/m/Y H:i') . ' WIB)'
+            ], 422);
+        }
+
         try {
             $user = Auth::user();
             $type = $request->type;
@@ -262,6 +287,15 @@ class CounselingController extends Controller
             'schedule_time'  => 'required|string',
             'description'    => 'nullable|string',
         ]);
+
+        $appNow = AppTime::now();
+        $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
+        if ($targetDateTime->lt($appNow)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Jadwal konsultasi tidak boleh di waktu yang telah berlalu! (Waktu Server: ' . $appNow->format('d/m/Y H:i') . ' WIB)'
+            ], 422);
+        }
 
         try {
             $user = Auth::user();

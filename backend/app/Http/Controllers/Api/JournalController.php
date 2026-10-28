@@ -1319,7 +1319,7 @@ class JournalController extends Controller
             $firstOffDayIso = !empty($offDayIsos) ? $offDayIsos[0] : 7;
             $firstOffDayName = $isoToDay[$firstOffDayIso] ?? 'Minggu';
 
-            $now = \Carbon\Carbon::now();
+            $now = \App\Helpers\AppTime::now();
             $todayIso = $now->dayOfWeekIso;
 
             // Logika Reset Mingguan pada pukul 01.00 di hari nonaktif pertama:
@@ -1360,6 +1360,8 @@ class JournalController extends Controller
                     'reset_time' => '01:00',
                     'current_week_start' => $activeWeekStartStr,
                     'app_release_date' => $releaseDateSetting,
+                    'server_time' => $now->toDateTimeString(),
+                    'server_time_iso' => $now->toIso8601String(),
                     'holidays' => $holidays,
                 ]
             ]);

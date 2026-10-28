@@ -113,6 +113,8 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
 
   CounselingNotifier(this._dio, this._ref) : super(const AsyncValue.data(null));
 
+  String? lastErrorMessage;
+
   Future<bool> submit({
     required String guruBkId,
     required String topic,
@@ -121,6 +123,7 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
     String? description,
   }) async {
     state = const AsyncValue.loading();
+    lastErrorMessage = null;
     try {
       final response = await _dio.post('/counseling', data: {
         'guru_bk_id': guruBkId,
@@ -133,6 +136,11 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       _ref.invalidate(siswaKonsultasiProvider);
       return response.data['status'] == 'success';
     } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
       state = AsyncValue.error(e, st);
       return false;
     }
@@ -149,6 +157,7 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
     List<String>? studentIds,
   }) async {
     state = const AsyncValue.loading();
+    lastErrorMessage = null;
     try {
       final response = await _dio.post('/counseling/guru-bk/create', data: {
         'type': type,
@@ -165,6 +174,11 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       _ref.invalidate(siswaKonsultasiProvider);
       return response.data['status'] == 'success';
     } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
       state = AsyncValue.error(e, st);
       return false;
     }
@@ -175,6 +189,7 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
     required String status,
   }) async {
     state = const AsyncValue.loading();
+    lastErrorMessage = null;
     try {
       final response = await _dio.put('/counseling/$counselingId/status', data: {
         'status': status,
@@ -184,6 +199,11 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       _ref.invalidate(siswaKonsultasiProvider);
       return response.data['status'] == 'success';
     } catch (e, st) {
+      if (e is DioException && e.response?.data != null && e.response?.data['message'] != null) {
+        lastErrorMessage = e.response?.data['message'].toString();
+      } else {
+        lastErrorMessage = e.toString();
+      }
       state = AsyncValue.error(e, st);
       return false;
     }
