@@ -25,8 +25,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final TextEditingController _nisnController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _religionController = TextEditingController();
   final TextEditingController _parentController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  String? _selectedGender;
   
   bool _isInit = false;
   bool _isLoading = false;
@@ -56,6 +58,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (_nisnController.text.isEmpty) _nisnController.text = user.uniqueId ?? user.nip ?? user.nis ?? '';
       if (_emailController.text.isEmpty) _emailController.text = user.email ?? '';
       if (_phoneController.text.isEmpty) _phoneController.text = user.phone ?? '';
+      if (_religionController.text.isEmpty) _religionController.text = user.religion ?? '';
+      if (_selectedGender == null && user.gender != null && user.gender!.isNotEmpty) {
+        final g = user.gender!.toUpperCase();
+        if (g == 'L' || g == 'LAKI-LAKI' || g == 'LAKI_LAKI') {
+          _selectedGender = 'L';
+        } else if (g == 'P' || g == 'PEREMPUAN') {
+          _selectedGender = 'P';
+        }
+      }
       if (_parentController.text.isEmpty) _parentController.text = user.parentName ?? '';
       if (_addressController.text.isEmpty) _addressController.text = user.address ?? '';
     }
@@ -67,6 +78,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nisnController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _religionController.dispose();
     _parentController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -97,6 +109,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'full_name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'gender': _selectedGender ?? '',
+        'religion': _religionController.text.trim(),
         'parent_name': _parentController.text.trim(),
         'address': _addressController.text.trim(),
       };
@@ -104,9 +118,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final formData = FormData.fromMap(dataMap);
 
       if (_selectedImage != null) {
+        final filePath = _selectedImage!.path;
+        final fileName = filePath.split(Platform.pathSeparator).last;
         formData.files.add(MapEntry(
           'avatar',
-          await MultipartFile.fromFile(_selectedImage!.path),
+          await MultipartFile.fromFile(
+            filePath,
+            filename: fileName,
+          ),
         ));
       }
 
@@ -292,6 +311,49 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               hintText: 'Masukkan nomor telepon',
               icon: PhosphorIcons.phone(),
               keyboardType: TextInputType.phone,
+            ),
+            SizedBox(height: 16.h(context)),
+            _buildFieldLabel('Jenis Kelamin'),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16.w(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(12.w(context)),
+                border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedGender,
+                  hint: Row(
+                    children: [
+                      Icon(PhosphorIcons.genderIntersex(), color: AppColors.onBackground.withValues(alpha: 0.6), size: 18.w(context)),
+                      SizedBox(width: 12.w(context)),
+                      Text(
+                        'Pilih jenis kelamin',
+                        style: AppTextStyles.bodyMedium(context, color: AppColors.onBackground.withValues(alpha: 0.4)),
+                      ),
+                    ],
+                  ),
+                  isExpanded: true,
+                  icon: Icon(PhosphorIcons.caretDown(PhosphorIconsStyle.bold), color: AppColors.onBackground.withValues(alpha: 0.6), size: 16.w(context)),
+                  items: const [
+                    DropdownMenuItem(value: 'L', child: Text('Laki-laki')),
+                    DropdownMenuItem(value: 'P', child: Text('Perempuan')),
+                  ],
+                  onChanged: (val) {
+                    setState(() {
+                      _selectedGender = val;
+                    });
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 16.h(context)),
+            _buildFieldLabel('Agama'),
+            AniseTextField(
+              controller: _religionController,
+              hintText: 'Contoh: Islam, Kristen, Katolik, dll',
+              icon: PhosphorIcons.bookOpen(),
             ),
             if (isSiswa) ...[
               SizedBox(height: 16.h(context)),

@@ -118,6 +118,9 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                     // 4. Filter Item Tanggal Mingguan (Shared Component AniseDateFilter)
                     offDaysAsync.when(
                       data: (offDaysData) {
+                        if (!_isCustomDateSelected) {
+                          _currentWeekStart = computeActiveWeekMonday(offDaysData);
+                        }
                         final activeDates = filterActiveWeekDates(
                           weekMonday: _currentWeekStart,
                           offDaysData: offDaysData,
@@ -132,10 +135,20 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                             final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
                             final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
                             final today = DateTime(now.year, now.month, now.day);
-                            _selectedDate = activeDates.firstWhere(
-                              (d) => d.year == today.year && d.month == today.month && d.day == today.day,
-                              orElse: () => activeDates.first,
-                            );
+                            final releaseDateStr = offDaysData?['app_release_date']?.toString();
+                            final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
+
+                            if (today.isBefore(releaseDate)) {
+                              _selectedDate = activeDates.first;
+                            } else {
+                              _selectedDate = activeDates.firstWhere(
+                                (d) => d.year == today.year && d.month == today.month && d.day == today.day,
+                                orElse: () => activeDates.first,
+                              );
+                            }
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
+                            });
                           }
                         }
 

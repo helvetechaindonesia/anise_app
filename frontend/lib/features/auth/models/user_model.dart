@@ -22,6 +22,7 @@ class UserModel {
   final String? nis;
   final String? nip;
   final String? className;
+  final String? gender;
   final String? religion;
   final String? avatar;
 
@@ -41,6 +42,7 @@ class UserModel {
     this.nis,
     this.nip,
     this.className,
+    this.gender,
     this.religion,
     this.avatar,
   });
@@ -123,6 +125,7 @@ class UserModel {
       nis: parsedNis,
       nip: guruProf?['nip_nuptk']?.toString() ?? guruProf?['nip']?.toString() ?? json['nip']?.toString(),
       className: (parsedClassName != null && parsedClassName.isNotEmpty) ? parsedClassName : null,
+      gender: json['gender']?.toString(),
       religion: json['religion']?.toString(),
       avatar: json['avatar']?.toString() ?? json['profile_picture']?.toString(),
     );
@@ -144,6 +147,7 @@ class UserModel {
     String? nis,
     String? nip,
     String? className,
+    String? gender,
     String? religion,
     String? avatar,
   }) {
@@ -163,6 +167,7 @@ class UserModel {
       nis: nis ?? this.nis,
       nip: nip ?? this.nip,
       className: className ?? this.className,
+      gender: gender ?? this.gender,
       religion: religion ?? this.religion,
       avatar: avatar ?? this.avatar,
     );

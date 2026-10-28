@@ -200,7 +200,7 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $user = $request->user();
-        $fields = $request->only(['full_name', 'email', 'phone', 'address']);
+        $fields = $request->only(['full_name', 'email', 'phone', 'address', 'gender', 'religion']);
 
         // Jika ada upload avatar langsung pada form update profile
         if ($request->hasFile('avatar')) {
