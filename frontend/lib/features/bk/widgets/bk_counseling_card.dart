@@ -353,13 +353,6 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
       status = 'Belum';
     }
 
-    // DEBUG LOGGING UNTUK INVESTIGASI
-    debugPrint('[DEBUG BK CARD] ID: $id, topic: $topic, widget.isStudent: ${widget.isStudent}');
-    debugPrint('[DEBUG BK CARD] itemDate: $date, time: $time, targetDay: $targetDay');
-    debugPrint('[DEBUG BK CARD] now(server): $now, today: $today');
-    debugPrint('[DEBUG BK CARD] isToday: $isToday, isPastDay: $isPastDay');
-    debugPrint('[DEBUG BK CARD] currentMinutes: $currentMinutes, startMinutes: $startMinutes, isTimeStarted: $isTimeStarted');
-    debugPrint('[DEBUG BK CARD] isCheckedIn: $isCheckedIn, status: $status');
 
     final isLive = status == 'Aktif';
 

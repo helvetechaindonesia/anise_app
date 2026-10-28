@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
@@ -26,6 +27,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   late DateTime _selectedDate;
   late DateTime _currentWeekStart;
   bool _isCustomDateSelected = false;
+  Timer? _realtimeTicker;
 
   @override
   void initState() {
@@ -34,6 +36,19 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(bkSelectedDateProvider.notifier).state = _selectedDate;
     });
+
+    // Polling realtime setiap 5 detik agar pergantian server:travel langsung terdeteksi otomatis
+    _realtimeTicker = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        ref.invalidate(offDaysProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _realtimeTicker?.cancel();
+    super.dispose();
   }
 
   void _initDefaultDates([Map<String, dynamic>? offDaysData]) {
@@ -83,6 +98,7 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
       backgroundColor: AppColors.backgroundLight,
       body: RefreshIndicator(
         onRefresh: () async {
+          ref.invalidate(offDaysProvider);
           ref.invalidate(bkCounselingRequestsProvider);
         },
         child: CustomScrollView(
