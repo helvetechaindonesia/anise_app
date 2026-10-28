@@ -53,9 +53,21 @@ class _JadwalScreenState extends ConsumerState<JadwalScreen> {
   }
 
   ScheduleStatus _determineStatus(dynamic item) {
+    // 1. Jika dari server statusnya sudah 'Selesai' (guru sudah isi jurnal KBM), langsung selesai!
+    if (item['status'] == 'Selesai') {
+      return ScheduleStatus.selesai;
+    }
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final targetDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    
+    DateTime targetDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+    if (item['teaching_date'] != null) {
+      final parsedTd = DateTime.tryParse(item['teaching_date'].toString());
+      if (parsedTd != null) {
+        targetDay = DateTime(parsedTd.year, parsedTd.month, parsedTd.day);
+      }
+    }
 
     // Jika hari di masa depan
     if (targetDay.isAfter(today)) {
