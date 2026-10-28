@@ -320,18 +320,21 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     if (time.isNotEmpty) {
       try {
         final parts = time.split('-');
-        final startP = parts[0].trim().split(':');
+        // Support format baik '10:45' maupun '10.45'
+        final normalizedStart = parts[0].trim().replaceAll('.', ':');
+        final startP = normalizedStart.split(':');
         startMinutes = int.parse(startP[0]) * 60 + int.parse(startP[1]);
         if (parts.length > 1) {
-          final endP = parts[1].trim().split(':');
+          final normalizedEnd = parts[1].trim().replaceAll('.', ':');
+          final endP = normalizedEnd.split(':');
           endMinutes = int.parse(endP[0]) * 60 + int.parse(endP[1]);
         } else {
-          endMinutes = startMinutes + 45; // Default durasi bimbingan 45 menit
+          endMinutes = startMinutes + 60; // Default jendela bimbingan 60 menit
         }
       } catch (_) {}
     }
 
-    // Apakah waktu sesi sudah dimulai? (Tombol presensi baru boleh muncul jika isTimeStarted == true)
+    // Apakah waktu sesi sudah dimulai?
     final bool isTimeStarted = isPastDay || (isToday && currentMinutes >= startMinutes);
 
     // Status Jurnal KBM / Bimbingan
@@ -341,8 +344,9 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     } else if (isCheckedIn) {
       status = 'Aktif';
     } else if (isPastDay || (isToday && currentMinutes > endMinutes)) {
+      // Jika sudah lewat jam selesai tapi belum presensi
       status = 'Terlewat';
-    } else if (isToday && currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+    } else if (isToday && currentMinutes >= startMinutes) {
       status = 'Aktif';
     } else {
       status = 'Belum';

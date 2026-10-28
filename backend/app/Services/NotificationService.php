@@ -53,13 +53,13 @@ class NotificationService
                 Log::info("WhatsApp berhasil dikirim ke {$cleanPhone} via Gateway");
                 return true;
             } else {
-                Log::warning("WhatsApp Gateway response gagal: " . $response->body());
+                Log::warning("WhatsApp Gateway response gagal ({$response->status()}): " . $response->body());
+                return false;
             }
         } catch (\Throwable $e) {
             Log::info("WhatsApp Gateway offline ({$e->getMessage()}), pesan dicatat ke log untuk {$cleanPhone}:\n{$message}");
+            return false;
         }
-
-        return true;
     }
 
     /**
