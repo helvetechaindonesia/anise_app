@@ -1544,8 +1544,81 @@ class JournalController extends Controller
                 ];
             }
 
-            // B. Siswa HANYA melihat jurnal yang SUDAH DITERBITKAN oleh guru pengampu
-            // Cangkang jadwal yang belum diterbitkan dihilangkan dari feed siswa agar tidak rancu
+            // B. Masukkan juga sesi Bimbingan Konseling (BK) siswa ke timeline jadwal/jurnal
+            try {
+                $counselings = \App\Models\CounselingRequest::where('student_id', $user->id)
+                    ->whereIn('status', ['APPROVED', 'COMPLETED'])
+                    ->with(['guruBk.guruProfile', 'guruBk'])
+                    ->get();
+
+                foreach ($counselings as $c) {
+                    $guruBk = $c->guruBk;
+                    $guruBkName = $guruBk ? ($guruBk->full_name ?: $guruBk->username) : 'Guru BK';
+                    $guruBkAvatar = $guruBk ? ($guruBk->avatar ?? $guruBk->profile_picture ?? null) : null;
+
+                    $startTime = '08:00:00';
+                    $endTime = '08:45:00';
+                    if (!empty($c->schedule_time)) {
+                        $parts = explode('-', $c->schedule_time);
+                        $startTime = trim($parts[0]);
+                        if (!str_contains($startTime, ':')) $startTime = '08:00:00';
+                        elseif (strlen($startTime) === 5) $startTime .= ':00';
+
+                        if (count($parts) > 1) {
+                            $endTime = trim($parts[1]);
+                            if (strlen($endTime) === 5) $endTime .= ':00';
+                        }
+                    }
+
+                    $hasLiked = false;
+                    if (\Illuminate\Support\Facades\Schema::hasTable('counseling_likes')) {
+                        $hasLiked = \App\Models\CounselingLike::where('counseling_id', $c->id)->where('user_id', $user->id)->exists();
+                    }
+
+                    $commentsCount = 0;
+                    if (\Illuminate\Support\Facades\Schema::hasTable('counseling_comments')) {
+                        $commentsCount = \App\Models\CounselingComment::where('counseling_id', $c->id)->count();
+                    }
+
+                    $result[] = [
+                        'id' => 'counseling-' . $c->id,
+                        'schedule_id' => 'counseling-' . $c->id,
+                        'counseling_id' => $c->id,
+                        'type' => 'counseling',
+                        'status' => ($c->status === 'COMPLETED' || !empty($c->filled_at)) ? 'Selesai' : 'Aktif',
+                        'topic' => $c->topic,
+                        'description' => $c->description ?: 'Sesi bimbingan konseling bersama Guru BK',
+                        'class_notes' => $c->counseling_result,
+                        'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
+                        'teaching_date' => $c->schedule_date,
+                        'subject' => 'Bimbingan Konseling (BK)',
+                        'class_name' => 'Ruang BK',
+                        'class_id' => $classId,
+                        'teacher' => $guruBkName,
+                        'teacher_image' => $guruBkAvatar,
+                        'start_time' => $startTime,
+                        'end_time' => $endTime,
+                        'day_of_week' => Carbon::parse($c->schedule_date)->dayOfWeekIso,
+                        'has_task' => false,
+                        'task_id' => null,
+                        'task_title' => null,
+                        'task_due_date' => null,
+                        'attachment_url' => null,
+                        'likes' => (int)($c->likes_count ?? 0),
+                        'is_liked' => $hasLiked,
+                        'is_saved' => false,
+                        'comments' => $commentsCount,
+                        'rating' => $c->rating ? (float)$c->rating : 5.0,
+                        'has_rated' => !empty($c->rating),
+                        'my_rating' => $c->rating ? (int)round($c->rating) : null,
+                    ];
+                }
+            } catch (\Throwable $e) {}
+
+            // C. Urutkan seluruh sesi (Jurnal KBM + Bimbingan BK) berdasarkan jam mulai
+            usort($result, function ($a, $b) {
+                return strcmp($a['start_time'] ?? '', $b['start_time'] ?? '');
+            });
 
             return response()->json([
                 'status' => 'success',

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -8,8 +7,8 @@ import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_empty_state.dart';
-import '../../../core/widgets/item_list_tile.dart';
 import '../providers/counseling_provider.dart';
+import '../widgets/bk_counseling_card.dart';
 import 'siswa_form_ajukan_bimbingan_screen.dart';
 
 class SiswaAjukanBimbinganScreen extends ConsumerWidget {
@@ -70,84 +69,21 @@ class SiswaAjukanBimbinganScreen extends ConsumerWidget {
                     );
                   }
 
-                  return AniseCard(
-                    padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 6.h(context)),
-                    child: Column(
-                      children: riwayatList.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final item = entry.value;
-                        final isLast = idx == riwayatList.length - 1;
-
-                        final String topic = item['topic']?.toString() ?? 'Bimbingan';
-                        final String date = item['schedule_date']?.toString() ?? '-';
-                        final String time = item['schedule_time']?.toString() ?? '-';
-                        final String guruBkName = item['guru_bk_name']?.toString() ?? 'Guru BK';
-                        final String? desc = item['description']?.toString();
-                        final String status = item['status']?.toString() ?? 'PENDING';
-
-                        Color statusColor;
-                        IconData statusIcon;
-                        String statusLabel;
-
-                        if (status == 'APPROVED') {
-                          statusColor = AppColors.primary;
-                          statusIcon = PhosphorIcons.checkCircle(PhosphorIconsStyle.fill);
-                          statusLabel = 'Jadwal Disetujui';
-                        } else if (status == 'COMPLETED') {
-                          statusColor = AppColors.success;
-                          statusIcon = PhosphorIcons.sealCheck(PhosphorIconsStyle.fill);
-                          statusLabel = 'Selesai Dilaksanakan';
-                        } else if (status == 'REJECTED') {
-                          statusColor = AppColors.error;
-                          statusIcon = PhosphorIcons.xCircle(PhosphorIconsStyle.fill);
-                          statusLabel = 'Pengajuan Ditolak';
-                        } else {
-                          statusColor = AppColors.warning;
-                          statusIcon = PhosphorIcons.clock(PhosphorIconsStyle.fill);
-                          statusLabel = 'Menunggu Konfirmasi BK';
-                        }
-
-                        return ItemListTile(
-                          category: 'BIMBINGAN KONSELING',
-                          subcategory: 'Topik: $topic',
-                          title: 'Konsultasi: $topic',
-                          metadataText: 'Jadwal: $date • Pukul $time WIB',
-                          metadataIcon: PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold),
-                          secondaryMetadataText: 'Guru Pembimbing: $guruBkName',
-                          secondaryMetadataIcon: PhosphorIcons.user(PhosphorIconsStyle.bold),
-                          statusText: statusLabel,
-                          statusIcon: statusIcon,
-                          statusColor: statusColor,
-                          bottomWidget: (desc != null && desc.isNotEmpty)
-                              ? Container(
-                                  padding: EdgeInsets.all(8.w(context)),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.backgroundLight,
-                                    borderRadius: BorderRadius.circular(8.w(context)),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Icon(PhosphorIcons.note(PhosphorIconsStyle.regular),
-                                          size: 14.w(context), color: AppColors.textSecondary),
-                                      SizedBox(width: 6.w(context)),
-                                      Expanded(
-                                        child: Text(
-                                          desc,
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 12.sp(context),
-                                            color: AppColors.onBackground.withValues(alpha: 0.8),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : null,
-                          showDivider: !isLast,
-                        );
-                      }).toList(),
-                    ),
+                  return Column(
+                    children: riwayatList.map((item) {
+                      DateTime cardDate = DateTime.now();
+                      if (item['schedule_date'] != null) {
+                        cardDate = DateTime.tryParse(item['schedule_date'].toString()) ?? DateTime.now();
+                      }
+                      return BkCounselingCard(
+                        item: item,
+                        selectedDate: cardDate,
+                        isStudent: true,
+                        onRefresh: () {
+                          ref.invalidate(siswaKonsultasiProvider);
+                        },
+                      );
+                    }).toList(),
                   );
                 },
                 loading: () => const Center(

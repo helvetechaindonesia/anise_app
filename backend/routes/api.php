@@ -219,11 +219,12 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     Route::prefix('counseling')->group(function () {
         Route::get('/guru-bk', [CounselingController::class, 'getGuruBk']);
         
-        // Engagement: Like & Komentar bimbingan (Bisa diakses oleh role terkait: Siswa & Guru BK)
+        // Engagement: Like, Komentar, & Rating bimbingan (Bisa diakses oleh role terkait: Siswa & Guru BK)
         Route::post('/{id}/like', [CounselingController::class, 'toggleLike']);
         Route::get('/{id}/comments', [CounselingController::class, 'getComments']);
         Route::post('/{id}/comments', [CounselingController::class, 'addComment']);
         Route::delete('/{id}/comments/{commentId}', [CounselingController::class, 'deleteComment']);
+        Route::post('/{id}/rating', [CounselingController::class, 'submitRating']);
 
         Route::middleware('role:SISWA')->group(function () {
             Route::post('/', [CounselingController::class, 'store']);

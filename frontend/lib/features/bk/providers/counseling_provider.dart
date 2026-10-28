@@ -336,6 +336,20 @@ class CounselingNotifier extends StateNotifier<AsyncValue<void>> {
       return false;
     }
   }
+
+  Future<bool> submitRating(String counselingId, double rating) async {
+    try {
+      final response = await _dio.post('/counseling/$counselingId/rating', data: {
+        'rating': rating,
+      });
+      _ref.invalidate(siswaKonsultasiProvider);
+      _ref.invalidate(bkCounselingRequestsProvider);
+      return response.data['status'] == 'success';
+    } catch (e) {
+      print('Error submitRating bk counseling: $e');
+      return false;
+    }
+  }
 }
 
 final counselingNotifierProvider = StateNotifierProvider<CounselingNotifier, AsyncValue<void>>((ref) {

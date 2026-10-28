@@ -16,12 +16,14 @@ class BkCounselingCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
   final DateTime selectedDate;
   final VoidCallback onRefresh;
+  final bool isStudent;
 
   const BkCounselingCard({
     super.key,
     required this.item,
     required this.selectedDate,
     required this.onRefresh,
+    this.isStudent = false,
   });
 
   @override
@@ -30,24 +32,37 @@ class BkCounselingCard extends ConsumerStatefulWidget {
 
 class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
   late bool _isLiked;
+  late bool _isSaved;
   late int _currentLikes;
   bool _isCheckingIn = false;
+  double? _userRating;
 
   @override
   void initState() {
     super.initState();
     _isLiked = widget.item['is_liked'] == true;
+    _isSaved = widget.item['is_saved'] == true;
     _currentLikes = widget.item['likes'] is int ? widget.item['likes'] : int.tryParse(widget.item['likes']?.toString() ?? '0') ?? 0;
+    final r = widget.item['rating'];
+    if (r != null) {
+      _userRating = (r is num) ? r.toDouble() : double.tryParse(r.toString());
+    }
   }
 
   @override
   void didUpdateWidget(covariant BkCounselingCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item['is_liked'] != widget.item['is_liked'] ||
-        oldWidget.item['likes'] != widget.item['likes']) {
+        oldWidget.item['likes'] != widget.item['likes'] ||
+        oldWidget.item['rating'] != widget.item['rating']) {
       setState(() {
         _isLiked = widget.item['is_liked'] == true;
+        _isSaved = widget.item['is_saved'] == true;
         _currentLikes = widget.item['likes'] is int ? widget.item['likes'] : int.tryParse(widget.item['likes']?.toString() ?? '0') ?? 0;
+        final r = widget.item['rating'];
+        if (r != null) {
+          _userRating = (r is num) ? r.toDouble() : double.tryParse(r.toString());
+        }
       });
     }
   }
@@ -163,24 +178,46 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
         child: Wrap(
           children: [
             ListTile(
-              leading: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), color: AppColors.primary),
-              title: const Text('Edit Hasil Jurnal & Penilaian'),
-              subtitle: const Text('Perbarui ringkasan, catatan evaluasi, dan rating bintang'),
+              leading: Icon(
+                _isSaved ? PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill) : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.bold),
+                color: _isSaved ? AppColors.primary : AppColors.onSurfaceVariant,
+              ),
+              title: Text(_isSaved ? 'Hapus dari Simpanan' : 'Simpan Bimbingan Ini'),
+              subtitle: const Text('Tandai sesi bimbingan konseling ini ke daftar tersimpan'),
               onTap: () {
                 Navigator.pop(ctx);
-                _handleIsiJurnal();
+                setState(() {
+                  _isSaved = !_isSaved;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_isSaved ? 'Sesi bimbingan berhasil disimpan!' : 'Sesi bimbingan dihapus dari simpanan.'),
+                    backgroundColor: AppColors.primary,
+                  ),
+                );
               },
             ),
-            if (!isJournal)
+            if (!widget.isStudent) ...[
               ListTile(
-                leading: Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: AppColors.primary),
-                title: const Text('Edit Jadwal / Topik Bimbingan'),
-                subtitle: const Text('Perbarui informasi tanggal, jam, atau topik bimbingan'),
+                leading: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), color: AppColors.primary),
+                title: const Text('Edit Hasil Jurnal & Penilaian'),
+                subtitle: const Text('Perbarui ringkasan, catatan evaluasi, dan rating bintang'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _showEditScheduleDialog();
+                  _handleIsiJurnal();
                 },
               ),
+              if (!isJournal)
+                ListTile(
+                  leading: Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.bold), color: AppColors.primary),
+                  title: const Text('Edit Jadwal / Topik Bimbingan'),
+                  subtitle: const Text('Perbarui informasi tanggal, jam, atau topik bimbingan'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showEditScheduleDialog();
+                  },
+                ),
+            ],
           ],
         ),
       ),
@@ -285,6 +322,9 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
       } catch (_) {}
     }
 
+    // Apakah waktu sesi sudah dimulai? (Tombol presensi baru boleh muncul jika isTimeStarted == true)
+    final bool isTimeStarted = isPastDay || (isToday && currentMinutes >= startMinutes);
+
     // Status Jurnal KBM / Bimbingan
     String status = 'Belum';
     if (isFilled) {
@@ -340,6 +380,18 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
       badgeText = 'Belum Dimulai';
     }
 
+    // Nama dan avatar yang ditampilkan di header:
+    // Jika dilihat siswa, tampilkan identitas Guru BK. Jika dilihat Guru BK, tampilkan identitas Siswa.
+    final displayName = widget.isStudent
+        ? (item['guru_bk_name']?.toString() ?? 'Guru BK')
+        : studentName;
+    final displayAvatar = widget.isStudent
+        ? item['guru_bk_avatar']?.toString()
+        : studentAvatar;
+    final displaySubtitle = widget.isStudent
+        ? 'Guru Pembimbing BK • $time WIB'
+        : (className.isNotEmpty ? '$className • $time WIB' : '$time WIB');
+
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(bottom: 16.h(context)),
@@ -353,7 +405,7 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. HEADER: Avatar, Nama Siswa / Kelas, Waktu, Titik Tiga
+          // 1. HEADER: Avatar, Nama Siswa / Guru BK, Waktu, Titik Tiga
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -362,9 +414,9 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
                   width: 44.w(context),
                   height: 44.w(context),
                   color: AppColors.primaryContainer,
-                  child: (studentAvatar != null && studentAvatar.isNotEmpty)
+                  child: (displayAvatar != null && displayAvatar.isNotEmpty)
                       ? Image.network(
-                          ApiConstants.formatStorageUrl(studentAvatar),
+                          ApiConstants.formatStorageUrl(displayAvatar),
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Icon(
                             PhosphorIcons.user(PhosphorIconsStyle.bold),
@@ -385,7 +437,7 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      studentName,
+                      displayName,
                       style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -394,7 +446,7 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
                     ),
                     SizedBox(height: 2.h(context)),
                     Text(
-                      className.isNotEmpty ? '$className • $time WIB' : '$time WIB',
+                      displaySubtitle,
                       style: AppTextStyles.labelSmall(context, color: AppColors.onSurface.withValues(alpha: 0.5)),
                     ),
                   ],
@@ -520,28 +572,51 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
             ),
           ],
 
-          // 5. RATING SECTION
-          if (rating != null) ...[
+          // 5. RATING SECTION: Siswa bisa beri rating, Guru BK melihat rating
+          if (_userRating != null || widget.isStudent) ...[
             SizedBox(height: 12.h(context)),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 10.h(context)),
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(10.w(context)),
               ),
               child: Row(
                 children: [
+                  Text(
+                    'Rating:',
+                    style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(width: 8.w(context)),
                   ...List.generate(5, (idx) {
-                    final rVal = (rating is num) ? rating.toDouble() : double.tryParse(rating.toString()) ?? 5.0;
-                    return Icon(
-                      idx < rVal ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.bold),
-                      color: const Color(0xFFF59E0B),
-                      size: 18.w(context),
+                    final starVal = idx + 1.0;
+                    final isFilledStar = (_userRating ?? 0.0) >= starVal;
+                    return GestureDetector(
+                      onTap: widget.isStudent
+                          ? () async {
+                              setState(() {
+                                _userRating = starVal;
+                              });
+                              if (!id.startsWith('journal-')) {
+                                await ref.read(counselingNotifierProvider.notifier).submitRating(id, starVal);
+                                widget.onRefresh();
+                              }
+                            }
+                          : null,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2.w(context)),
+                        child: Icon(
+                          isFilledStar ? PhosphorIcons.star(PhosphorIconsStyle.fill) : PhosphorIcons.star(PhosphorIconsStyle.bold),
+                          color: const Color(0xFFF59E0B),
+                          size: 20.w(context),
+                        ),
+                      ),
                     );
                   }),
-                  SizedBox(width: 8.w(context)),
+                  const Spacer(),
                   Text(
-                    'Rating: $rating / 5.0',
+                    _userRating != null ? '${_userRating!.toStringAsFixed(1)} / 5.0' : 'Beri Nilai',
                     style: AppTextStyles.labelSmall(context, color: const Color(0xFFB45309)).copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -549,53 +624,57 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
             ),
           ],
 
-          // 6. ACTION BUTTONS: Presensi Masuk / Isi Jurnal
-          SizedBox(height: 16.h(context)),
-          if (!isCheckedIn && status != 'Selesai') ...[
-            SizedBox(
-              width: double.infinity,
-              height: 44.h(context),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
-                  elevation: 0,
-                ),
-                onPressed: _isCheckingIn ? null : _handlePresensi,
-                icon: _isCheckingIn
-                    ? SizedBox(
-                        width: 18.w(context),
-                        height: 18.w(context),
-                        child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Icon(PhosphorIcons.handTap(PhosphorIconsStyle.bold), size: 18.w(context)),
-                label: Text(
-                  _isCheckingIn ? 'Mencatat Presensi...' : 'Presensi Sesi Bimbingan',
-                  style: AppTextStyles.labelMedium(context, color: Colors.white).copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ] else if (!isFilled) ...[
-            SizedBox(
-              width: double.infinity,
-              height: 44.h(context),
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary, width: 1.5),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
-                  elevation: 0,
-                ),
-                onPressed: _handleIsiJurnal,
-                icon: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), size: 18.w(context)),
-                label: Text(
-                  'Isi Jurnal & Penilaian',
-                  style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+          // 6. ACTION BUTTONS (Khusus Guru BK): Presensi Masuk / Isi Jurnal
+          // Syarat: Tombol presensi HANYA MUNCUL KETIKA SUDAH MASUK WAKTUNYA (isTimeStarted == true)
+          if (!widget.isStudent) ...[
+            if (!isCheckedIn && status != 'Selesai' && isTimeStarted) ...[
+              SizedBox(height: 16.h(context)),
+              SizedBox(
+                width: double.infinity,
+                height: 44.h(context),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                    elevation: 0,
+                  ),
+                  onPressed: _isCheckingIn ? null : _handlePresensi,
+                  icon: _isCheckingIn
+                      ? SizedBox(
+                          width: 18.w(context),
+                          height: 18.w(context),
+                          child: const CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(PhosphorIcons.handTap(PhosphorIconsStyle.bold), size: 18.w(context)),
+                  label: Text(
+                    _isCheckingIn ? 'Mencatat Presensi...' : 'Presensi Sesi Bimbingan',
+                    style: AppTextStyles.labelMedium(context, color: Colors.white).copyWith(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
-            ),
+            ] else if (isCheckedIn && !isFilled) ...[
+              SizedBox(height: 16.h(context)),
+              SizedBox(
+                width: double.infinity,
+                height: 44.h(context),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary, width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                    elevation: 0,
+                  ),
+                  onPressed: _handleIsiJurnal,
+                  icon: Icon(PhosphorIcons.notePencil(PhosphorIconsStyle.bold), size: 18.w(context)),
+                  label: Text(
+                    'Isi Jurnal & Penilaian',
+                    style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
           ],
 
           SizedBox(height: 14.h(context)),

@@ -328,28 +328,67 @@ class CounselingController extends Controller
         try {
             $user = Auth::user();
 
-            // Cari kelas siswa untuk bimbingan klasikal
-            $classStudent = ClassStudent::where('student_id', $user->id)->where('status', 'ACTIVE')->first();
-            $classId = $classStudent?->class_id;
+            // Cari kelas siswa
+            $classStudent = ClassStudent::where('student_id', $user->id)->where('status', 'ACTIVE')->with('class')->first();
+            $className = 'Siswa';
+            if ($classStudent && $classStudent->class) {
+                $className = ($classStudent->class->grade_level ? "{$classStudent->class->grade_level} " : "") . $classStudent->class->name;
+            }
 
             $data = CounselingRequest::where(function ($q) use ($user) {
                     $q->where('student_id', $user->id);
                 })
-                ->with('guruBk')
+                ->with(['guruBk.guruProfile', 'guruBk'])
                 ->orderBy('schedule_date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get()
-                ->map(function ($c) {
+                ->map(function ($c) use ($user, $className) {
+                    $guruBk = $c->guruBk;
+                    $guruBkName = $guruBk ? ($guruBk->full_name ?: $guruBk->username) : 'Guru BK';
+                    $guruBkAvatar = $guruBk ? ($guruBk->avatar ?? $guruBk->profile_picture ?? null) : null;
+
+                    $type = 'INDIVIDU';
+                    if (str_contains($c->topic, '[Bimbingan Klasikal]')) {
+                        $type = 'KLASIKAL';
+                    } elseif (str_contains($c->topic, '[Bimbingan Kelompok]')) {
+                        $type = 'KELOMPOK';
+                    }
+
+                    $hasLiked = \App\Models\CounselingLike::where('counseling_id', $c->id)
+                        ->where('user_id', $user->id)
+                        ->exists();
+
+                    $commentsCount = \App\Models\CounselingComment::where('counseling_id', $c->id)->count();
+
                     return [
-                        'id'            => $c->id,
-                        'topic'         => $c->topic,
-                        'schedule_date' => $c->schedule_date,
-                        'schedule_time' => $c->schedule_time,
-                        'description'   => $c->description,
-                        'status'        => $c->status,
-                        'initiator'     => $c->initiator ?? 'STUDENT',
-                        'guru_bk_name'  => $c->guruBk ? ($c->guruBk->full_name ?: $c->guruBk->username) : 'Guru BK',
-                        'created_at'    => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
+                        'id'                => $c->id,
+                        'type'              => $type,
+                        'student_id'        => $c->student_id,
+                        'student_name'      => $user->full_name ?: $user->username,
+                        'student_avatar'    => $user->avatar ?? $user->profile_picture ?? null,
+                        'guru_bk_id'        => $c->guru_bk_id,
+                        'guru_bk_name'      => $guruBkName,
+                        'guru_bk_avatar'    => $guruBkAvatar,
+                        'class_name'        => $className,
+                        'topic'             => $c->topic,
+                        'schedule_date'     => $c->schedule_date,
+                        'schedule_time'     => $c->schedule_time,
+                        'description'       => $c->description,
+                        'status'            => $c->status,
+                        'initiator'         => $c->initiator ?? 'STUDENT',
+                        'check_in_time'     => $c->check_in_time,
+                        'is_checked_in'     => !empty($c->check_in_time),
+                        'is_late'           => (bool)$c->is_late,
+                        'minutes_late'      => (int)$c->minutes_late,
+                        'counseling_result' => $c->counseling_result,
+                        'filled_at'         => $c->filled_at,
+                        'is_filled'         => !empty($c->filled_at),
+                        'rating'            => $c->rating ? (float)$c->rating : null,
+                        'notes_evaluasi'    => $c->notes_evaluasi,
+                        'likes'             => (int)($c->likes_count ?? 0),
+                        'is_liked'          => $hasLiked,
+                        'comments'          => $commentsCount,
+                        'created_at'        => $c->created_at ? $c->created_at->format('Y-m-d H:i:s') : null,
                     ];
                 });
 
@@ -797,6 +836,32 @@ class CounselingController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Komentar berhasil dihapus.'
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /counseling/{id}/rating — Siswa atau Guru BK memberikan/memperbarui rating bintang.
+     */
+    public function submitRating(Request $request, $id)
+    {
+        $request->validate([
+            'rating' => 'required|numeric|min:1|max:5',
+        ]);
+
+        try {
+            $counseling = CounselingRequest::findOrFail($id);
+            $counseling->rating = (float)$request->rating;
+            $counseling->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Rating bimbingan berhasil disimpan!',
+                'data' => [
+                    'rating' => (float)$counseling->rating,
+                ]
             ]);
         } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
