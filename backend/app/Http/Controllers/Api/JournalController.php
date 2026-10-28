@@ -1557,17 +1557,30 @@ class JournalController extends Controller
                     $guruBkAvatar = $guruBk ? ($guruBk->avatar ?? $guruBk->profile_picture ?? null) : null;
 
                     $startTime = '08:00:00';
-                    $endTime = '08:45:00';
+                    $endTime = null;
                     if (!empty($c->schedule_time)) {
-                        $parts = explode('-', $c->schedule_time);
-                        $startTime = trim($parts[0]);
-                        if (!str_contains($startTime, ':')) $startTime = '08:00:00';
-                        elseif (strlen($startTime) === 5) $startTime .= ':00';
+                        $normalizedTime = str_replace('.', ':', $c->schedule_time);
+                        $parts = explode('-', $normalizedTime);
+                        $start = trim($parts[0]);
+                        if (!str_contains($start, ':')) {
+                            $startTime = '08:00:00';
+                        } else {
+                            $startTime = (strlen($start) === 5) ? ($start . ':00') : $start;
+                        }
 
                         if (count($parts) > 1) {
-                            $endTime = trim($parts[1]);
-                            if (strlen($endTime) === 5) $endTime .= ':00';
+                            $end = trim($parts[1]);
+                            $endTime = (strlen($end) === 5) ? ($end . ':00') : $end;
+                        } else {
+                            // Jika format tunggal (misal 14:55), hitung estimasi selesai sesi bimbingan (+45 menit)
+                            try {
+                                $endTime = Carbon::createFromFormat('H:i:s', $startTime)->addMinutes(45)->format('H:i:s');
+                            } catch (\Throwable $e) {
+                                $endTime = $startTime;
+                            }
                         }
+                    } else {
+                        $endTime = '08:45:00';
                     }
 
                     $hasLiked = false;
