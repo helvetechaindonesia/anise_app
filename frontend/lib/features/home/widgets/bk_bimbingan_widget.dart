@@ -165,62 +165,28 @@ class BkBimbinganWidget extends ConsumerWidget {
                     subtitle: topic,
                     backgroundColor: AppColors.primaryContainer,
                     onTap: navigateToSchedule,
-                    topWidget: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Badge Jenis Bimbingan
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 4.h(context)),
-                          decoration: BoxDecoration(
-                            color: badgeBg,
-                            borderRadius: BorderRadius.circular(10.w(context)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(badgeIcon, size: 12.w(context), color: badgeText),
-                              SizedBox(width: 4.w(context)),
-                              Text(
-                                type,
-                                style: AppTextStyles.labelSmall(context, color: badgeText).copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 10.sp(context),
-                                ),
+                    topWidget: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10.w(context), vertical: 5.h(context)),
+                        decoration: BoxDecoration(
+                          color: badgeBg,
+                          borderRadius: BorderRadius.circular(12.w(context)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(badgeIcon, size: 13.w(context), color: badgeText),
+                            SizedBox(width: 4.w(context)),
+                            Text(
+                              type,
+                              style: AppTextStyles.labelSmall(context, color: badgeText).copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
-                            ],
-                          ),
-                        ),
-                        // Tombol Lihat Jadwal mini ikon
-                        GestureDetector(
-                          onTap: navigateToSchedule,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6.w(context), vertical: 3.h(context)),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8.w(context)),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Jadwal',
-                                  style: AppTextStyles.labelSmall(context, color: AppColors.primary).copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 9.sp(context),
-                                  ),
-                                ),
-                                SizedBox(width: 2.w(context)),
-                                Icon(
-                                  PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
-                                  size: 10.w(context),
-                                  color: AppColors.primary,
-                                ),
-                              ],
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   );
                 },

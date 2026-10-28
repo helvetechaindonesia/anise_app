@@ -7,7 +7,6 @@ import '../../../../core/utils/responsive.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
 import '../models/habit_model.dart';
-import '../services/habit_service.dart';
 
 // State provider lokal untuk centang habit harian
 final checkedHabitsProvider = StateProvider<Set<String>>((ref) => {});
@@ -30,8 +29,6 @@ class HarianTabWidget extends ConsumerStatefulWidget {
 }
 
 class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
-  bool _isInitializedFromRemote = false;
-
   IconData _getIconForCategory(String category) {
     switch (category.toLowerCase()) {
       case 'ibadah': return PhosphorIcons.handsPraying(PhosphorIconsStyle.fill);
@@ -55,24 +52,14 @@ class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
       data: (response) {
         final habits = response.habits;
 
-        // Inisialisasi / sinkronisasi state centang dari server saat data tiba
-        ref.listen<AsyncValue<MasterHabitsResponse>>(masterHabitsProvider, (prev, next) {
-          next.whenData((resp) {
-            ref.read(checkedHabitsProvider.notifier).state = {...resp.todayLoggedHabitIds};
-            ref.read(prayerLogStateProvider.notifier).state = {...resp.todayPrayerLog};
-          });
-        });
-
-        if (!_isInitializedFromRemote) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(checkedHabitsProvider.notifier).state = {...response.todayLoggedHabitIds};
-            ref.read(prayerLogStateProvider.notifier).state = {...response.todayPrayerLog};
-            _isInitializedFromRemote = true;
-          });
-        }
-
-        final checkedHabits = ref.watch(checkedHabitsProvider);
-        final prayerState = ref.watch(prayerLogStateProvider);
+        final checkedHabits = {
+          ...response.todayLoggedHabitIds,
+          ...ref.watch(checkedHabitsProvider),
+        };
+        final prayerState = {
+          ...response.todayPrayerLog,
+          ...ref.watch(prayerLogStateProvider),
+        };
 
         if (habits.isEmpty) {
           return const CustomScrollView(
@@ -130,6 +117,7 @@ class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
                           
                           final success = await ref.read(habitSubmitProvider.notifier).submitLog(habitId: habit.id);
                           if (success) {
+                            ref.invalidate(masterHabitsProvider);
                             ref.invalidate(personalHabitStatsProvider);
                             ref.invalidate(guruHabitStatsProvider);
                           } else {
@@ -328,6 +316,7 @@ class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
 
                 final success = await ref.read(habitSubmitProvider.notifier).submitPrayerLog({key: newValue});
                 if (success) {
+                  ref.invalidate(masterHabitsProvider);
                   ref.invalidate(personalHabitStatsProvider);
                   ref.invalidate(guruHabitStatsProvider);
                 } else {

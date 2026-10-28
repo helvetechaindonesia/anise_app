@@ -9,6 +9,7 @@ use App\Traits\ApiResponser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Helpers\AppTime;
 
 class HabitController extends Controller
 {
@@ -22,8 +23,8 @@ class HabitController extends Controller
         $user = $request->user();
         $habits = Habit::all();
         
-        // Cek log habit user hari ini
-        $today = Carbon::today()->format('Y-m-d');
+        // Cek log habit user hari ini (sinkron dengan AppTime untuk time travel)
+        $today = AppTime::now()->format('Y-m-d');
         $loggedHabitIds = DB::table('user_habit_logs')
             ->where('user_id', $user->id)
             ->whereDate('logged_date', $today)
@@ -75,7 +76,7 @@ class HabitController extends Controller
             $photoPath = $request->file('photo')->store('habits', 'public');
         }
 
-        $today = Carbon::today()->format('Y-m-d');
+        $today = AppTime::now()->format('Y-m-d');
 
         // Simpan / update log harian user
         $existing = DB::table('user_habit_logs')
@@ -90,7 +91,7 @@ class HabitController extends Controller
                 ->update([
                     'notes' => $request->notes ?? $existing->notes,
                     'attachment_url' => $photoPath ?? $existing->attachment_url,
-                    'updated_at' => now(),
+                    'updated_at' => AppTime::now(),
                 ]);
         } else {
             DB::table('user_habit_logs')->insert([
@@ -100,8 +101,8 @@ class HabitController extends Controller
                 'logged_date' => $today,
                 'notes' => $request->notes,
                 'attachment_url' => $photoPath,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'created_at' => AppTime::now(),
+                'updated_at' => AppTime::now(),
             ]);
         }
 
@@ -115,7 +116,7 @@ class HabitController extends Controller
     {
         $user = $request->user();
         $targetUserId = $request->query('user_id', $user->id);
-        $date = $request->query('date', Carbon::today()->format('Y-m-d'));
+        $date = $request->query('date', AppTime::now()->format('Y-m-d'));
 
         $prayerLog = DB::table('user_prayer_logs')
             ->where('user_id', $targetUserId)
@@ -139,7 +140,7 @@ class HabitController extends Controller
     public function submitPrayerLog(Request $request)
     {
         $user = $request->user();
-        $today = Carbon::today()->format('Y-m-d');
+        $today = AppTime::now()->format('Y-m-d');
 
         $request->validate([
             'is_subuh' => 'nullable|boolean',
@@ -161,7 +162,7 @@ class HabitController extends Controller
                 $updateData[$field] = $request->boolean($field);
             }
         }
-        $updateData['updated_at'] = now();
+        $updateData['updated_at'] = AppTime::now();
 
         if ($existing) {
             DB::table('user_prayer_logs')
@@ -178,7 +179,8 @@ class HabitController extends Controller
                 'is_maghrib' => false,
                 'is_isya' => false,
                 'is_quran' => false,
-                'created_at' => now(),
+                'created_at' => AppTime::now(),
+                'updated_at' => AppTime::now(),
             ], $updateData);
 
             DB::table('user_prayer_logs')->insert($insertData);
@@ -212,8 +214,8 @@ class HabitController extends Controller
                         'logged_date' => $today,
                         'notes' => 'Ibadah harian tercatat',
                         'attachment_url' => null,
-                        'created_at' => now(),
-                        'updated_at' => now(),
+                        'created_at' => AppTime::now(),
+                        'updated_at' => AppTime::now(),
                     ]);
                 }
             }
@@ -327,8 +329,8 @@ class HabitController extends Controller
             $targetUserId = $user->id;
         }
 
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentMonth = AppTime::now()->month;
+        $currentYear = AppTime::now()->year;
 
         // Ambil data log
         $logs = DB::table('user_habit_logs')
@@ -441,8 +443,8 @@ class HabitController extends Controller
             $targetUserIds = array_unique(array_merge($guruWaliStudentIds, $guruBkStudentIds));
         }
 
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
+        $currentMonth = AppTime::now()->month;
+        $currentYear = AppTime::now()->year;
 
         $logs = DB::table('user_habit_logs')
             ->whereIn('user_id', $targetUserIds)
