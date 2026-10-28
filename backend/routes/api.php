@@ -191,6 +191,7 @@ Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
     Route::prefix('complaints')->group(function () {
         Route::get('/', [ComplaintController::class, 'index']);
         Route::post('/', [ComplaintController::class, 'store']);
+        Route::get('/{id}/download', [ComplaintController::class, 'downloadAttachment']);
         Route::get('/{id}', [ComplaintController::class, 'show']);
         Route::put('/{id}/status', [ComplaintController::class, 'updateStatus'])->middleware('role:TATA_USAHA,KEPALA_SEKOLAH,GURU,GURU_BK,SUPER_ADMIN');
         Route::delete('/{id}', [ComplaintController::class, 'destroy']);

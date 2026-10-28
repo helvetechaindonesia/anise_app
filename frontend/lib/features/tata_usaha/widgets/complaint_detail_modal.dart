@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/file_download_helper.dart';
 import '../../lapor/models/complaint_model.dart';
 import '../../lapor/providers/report_provider.dart';
 
@@ -329,7 +330,43 @@ class _ComplaintDetailModalState extends ConsumerState<ComplaintDetailModal> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 20.h(context)),
+                    SizedBox(height: 10.h(context)),
+                    // Tombol Unduh / Download Lampiran
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: Icon(
+                          PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold),
+                          size: 16.w(context),
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          'Unduh Foto / Lampiran',
+                          style: AppTextStyles.labelMedium(context, color: AppColors.primary).copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4), width: 1.2),
+                          padding: EdgeInsets.symmetric(vertical: 12.h(context)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.w(context)),
+                          ),
+                          backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                        ),
+                        onPressed: () {
+                          final downloadUrl = '/complaints/${complaint.id}/download';
+                          final ext = complaint.attachmentUrl?.split('.').last.toLowerCase() ?? 'jpg';
+                          final filename = 'Lampiran_${complaint.category}_${complaint.id.substring(0, 8)}.$ext';
+                          FileDownloadHelper.downloadFile(
+                            context: context,
+                            fileUrl: downloadUrl,
+                            preferredFileName: filename,
+                          );
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 18.h(context)),
                   ],
 
                   const Divider(),

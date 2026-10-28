@@ -182,6 +182,30 @@ class ComplaintController extends Controller
     }
 
     /**
+     * Download lampiran berkas laporan/pengaduan.
+     */
+    public function downloadAttachment(string $id)
+    {
+        $complaint = Complaint::find($id);
+        if (!$complaint || empty($complaint->attachment_url)) {
+            return response()->json(['status' => 'error', 'message' => 'Lampiran tidak ditemukan.'], 404);
+        }
+
+        $relativePath = ltrim(str_replace('/storage/', '', $complaint->attachment_url), '/');
+        $relativePath = ltrim(str_replace('public/', '', $relativePath), '/');
+
+        if (!Storage::disk('public')->exists($relativePath)) {
+            $candidatePath = storage_path('app/public/' . $relativePath);
+            if (!file_exists($candidatePath)) {
+                return response()->json(['status' => 'error', 'message' => 'Berkas fisik tidak ditemukan di server.'], 404);
+            }
+            return response()->download($candidatePath, basename($candidatePath));
+        }
+
+        return Storage::disk('public')->download($relativePath, basename($relativePath));
+    }
+
+    /**
      * Format complaint object for client response, masking anonymous identity if necessary.
      */
     private function formatComplaint(Complaint $complaint, $viewer): array
