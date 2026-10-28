@@ -298,10 +298,11 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     final isLate = item['is_late'] == true;
     final minutesLate = item['minutes_late'] ?? 0;
 
-    // Evaluasi waktu sesi (menggunakan server_time jika ada time travel)
+    // Evaluasi waktu sesi (menggunakan server_time jika ada time travel, konversi ke local/WIB)
     final offDaysData = ref.watch(offDaysProvider).valueOrNull;
     final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
-    final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
+    final parsedServer = serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null;
+    final now = (parsedServer != null ? parsedServer.toLocal() : DateTime.now());
     final today = DateTime(now.year, now.month, now.day);
     
     // Ambil tanggal sesi dari item['schedule_date'], fallback ke widget.selectedDate
@@ -351,6 +352,14 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     } else {
       status = 'Belum';
     }
+
+    // DEBUG LOGGING UNTUK INVESTIGASI
+    debugPrint('[DEBUG BK CARD] ID: $id, topic: $topic, widget.isStudent: ${widget.isStudent}');
+    debugPrint('[DEBUG BK CARD] itemDate: $date, time: $time, targetDay: $targetDay');
+    debugPrint('[DEBUG BK CARD] now(server): $now, today: $today');
+    debugPrint('[DEBUG BK CARD] isToday: $isToday, isPastDay: $isPastDay');
+    debugPrint('[DEBUG BK CARD] currentMinutes: $currentMinutes, startMinutes: $startMinutes, isTimeStarted: $isTimeStarted');
+    debugPrint('[DEBUG BK CARD] isCheckedIn: $isCheckedIn, status: $status');
 
     final isLive = status == 'Aktif';
 
