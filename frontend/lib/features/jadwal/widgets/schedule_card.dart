@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/constants/colors.dart';
+import '../../../../core/constants/api_constants.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../tugas/screens/guru_input_tugas_screen.dart';
@@ -179,7 +180,9 @@ class _ScheduleCardState extends State<ScheduleCard> {
                   color: AppColors.primaryContainer,
                   child: widget.teacherImage != null && widget.teacherImage!.isNotEmpty
                       ? Image.network(
-                          widget.teacherImage!,
+                          widget.teacherImage!.startsWith('http')
+                              ? widget.teacherImage!
+                              : '${ApiConstants.baseUrl.replaceAll('/api', '')}${widget.teacherImage!}',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), color: AppColors.primary, size: 22.w(context)),
                         )
@@ -876,13 +879,23 @@ class _ScheduleCardState extends State<ScheduleCard> {
                               final item = commentsList[idx];
                               final canDelete = item['can_delete'] == true;
 
+                              final authorAvatar = item['avatar']?.toString() ?? '';
+                              final avatarUrl = authorAvatar.isNotEmpty
+                                  ? (authorAvatar.startsWith('http')
+                                      ? authorAvatar
+                                      : '${ApiConstants.baseUrl.replaceAll('/api', '')}$authorAvatar')
+                                  : '';
+
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   CircleAvatar(
                                     radius: 16.w(context),
                                     backgroundColor: AppColors.primaryContainer,
-                                    child: Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimaryContainer),
+                                    backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                                    child: avatarUrl.isEmpty
+                                        ? Icon(PhosphorIcons.user(PhosphorIconsStyle.bold), size: 16.w(context), color: AppColors.onPrimaryContainer)
+                                        : null,
                                   ),
                                   SizedBox(width: 12.w(context)),
                                   Expanded(

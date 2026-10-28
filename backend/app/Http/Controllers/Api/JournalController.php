@@ -846,7 +846,7 @@ class JournalController extends Controller
             }
 
             $teacherName = $user->full_name ?: ($user->username ?? 'Guru Pengajar');
-            $teacherImage = $user->profile_picture ?? null;
+            $teacherImage = $user->avatar ?? $user->profile_picture ?? null;
             $result = [];
 
             // A. Petakan data Jurnal yang sudah diterbitkan
@@ -1711,7 +1711,7 @@ class JournalController extends Controller
                     'author_name' => 'Saya',
                     'raw_author_name' => $rawName,
                     'author_role' => $role,
-                    'author_avatar' => $user->profile_picture ?? null,
+                    'author_avatar' => $user->avatar ?? $user->profile_picture ?? null,
                     'comment_text' => $comment->comment_text,
                     'created_at' => $comment->created_at ? $comment->created_at->toIso8601String() : now()->toIso8601String(),
                     'is_me' => true,
@@ -1760,7 +1760,7 @@ class JournalController extends Controller
                         'author_name' => $rawName,
                         'raw_author_name' => $rawName,
                         'author_role' => $role,
-                        'author_avatar' => $c->user?->profile_picture ?? null,
+                        'author_avatar' => $c->user?->avatar ?? $c->user?->profile_picture ?? null,
                         'comment_text' => $c->comment_text,
                         'created_at' => $c->created_at ? $c->created_at->toIso8601String() : null,
                         'is_me' => $isMe,

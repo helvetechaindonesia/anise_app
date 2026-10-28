@@ -5,6 +5,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/main_header.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/models/user_model.dart';
 import '../../kepala_sekolah/widgets/predikat_kinerja_card.dart';
@@ -144,27 +145,15 @@ class _PoinScreenState extends ConsumerState<PoinScreen> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(20.w(context)),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16.w(context)),
         border: Border.all(color: AppColors.outline.withValues(alpha: 0.2)),
       ),
-      child: Column(
-        children: [
-          Icon(Icons.pending_actions_rounded, size: 48.w(context), color: AppColors.primary.withValues(alpha: 0.6)),
-          SizedBox(height: 12.h(context)),
-          Text(
-            'Evaluasi Periode Ini Belum Diterbitkan',
-            style: AppTextStyles.titleSmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w800),
-          ),
-          SizedBox(height: 6.h(context)),
-          Text(
-            'Penilaian kualitatif untuk semester ($periodLabel) sedang dalam proses penilaian oleh Kepala Sekolah.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodySmall(context, color: AppColors.onSurface.withValues(alpha: 0.6)),
-          ),
-        ],
+      child: AniseEmptyState(
+        padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 24.h(context)),
+        title: 'Belum Ada Evaluasi Kinerja',
+        subtitle: 'Penilaian kualitatif untuk semester ($periodLabel) belum diterbitkan oleh Kepala Sekolah.',
       ),
     );
   }

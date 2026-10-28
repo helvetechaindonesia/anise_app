@@ -33,19 +33,31 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   File? _selectedImage;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefillData();
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isInit) {
-      final user = ref.read(authProvider).user;
-      if (user != null) {
-        _nameController.text = user.fullName;
-        _nisnController.text = user.uniqueId ?? '';
-        _emailController.text = user.email ?? '';
-        _phoneController.text = user.phone ?? '';
-        _parentController.text = user.parentName ?? '';
-        _addressController.text = user.address ?? '';
-      }
+      _prefillData();
       _isInit = true;
+    }
+  }
+
+  void _prefillData() {
+    final user = ref.read(authProvider).user;
+    if (user != null) {
+      if (_nameController.text.isEmpty) _nameController.text = user.fullName;
+      if (_nisnController.text.isEmpty) _nisnController.text = user.uniqueId ?? user.nisn ?? user.nip ?? '';
+      if (_emailController.text.isEmpty) _emailController.text = user.email ?? '';
+      if (_phoneController.text.isEmpty) _phoneController.text = user.phone ?? '';
+      if (_parentController.text.isEmpty) _parentController.text = user.parentName ?? '';
+      if (_addressController.text.isEmpty) _addressController.text = user.address ?? '';
     }
   }
 
@@ -258,10 +270,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               icon: PhosphorIcons.user(),
             ),
             SizedBox(height: 16.h(context)),
-            _buildFieldLabel(isSiswa ? 'NISN / NIS' : 'ID Pengguna'),
+            _buildFieldLabel(isSiswa ? 'NISN / NIS' : 'NIP / NUPTK'),
             AniseTextField(
               controller: _nisnController,
-              hintText: 'ID',
+              hintText: isSiswa ? 'NISN / NIS' : 'NIP / NUPTK',
               icon: PhosphorIcons.identificationCard(),
               enabled: false, 
             ),

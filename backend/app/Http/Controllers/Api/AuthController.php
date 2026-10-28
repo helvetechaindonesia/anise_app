@@ -164,6 +164,7 @@ class AuthController extends Controller
                     'nisn' => $user->siswaProfile?->nisn,
                     'nis' => $user->siswaProfile?->nis,
                     'nip' => $user->guruProfile?->nip_nuptk ?? $user->guruProfile?->nip,
+                    'parent_name' => $user->siswaProfile?->parent_name,
                 ]
             ]
         ]);

@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:math' as math;
 import '../constants/colors.dart';
+import '../constants/api_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/responsive.dart';
 import '../../features/auth/models/user_model.dart';
@@ -288,10 +289,27 @@ class _AniseIdentityCard3DState extends State<AniseIdentityCard3D> with TickerPr
                                 color: AppColors.onPrimary.withValues(alpha: 0.15),
                                 border: Border.all(color: AppColors.onPrimary.withValues(alpha: 0.35), width: 2),
                               ),
-                              child: Icon(
-                                PhosphorIcons.user(PhosphorIconsStyle.fill),
-                                color: AppColors.onPrimary,
-                                size: 36.w(context),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18.w(context)),
+                                child: (widget.user?.avatar != null && widget.user!.avatar!.isNotEmpty)
+                                    ? Image.network(
+                                        widget.user!.avatar!.startsWith('http')
+                                            ? widget.user!.avatar!
+                                            : '${ApiConstants.baseUrl.replaceAll('/api', '')}${widget.user!.avatar!}',
+                                        fit: BoxFit.cover,
+                                        width: 64.w(context),
+                                        height: 64.w(context),
+                                        errorBuilder: (_, __, ___) => Icon(
+                                          PhosphorIcons.user(PhosphorIconsStyle.fill),
+                                          color: AppColors.onPrimary,
+                                          size: 36.w(context),
+                                        ),
+                                      )
+                                    : Icon(
+                                        PhosphorIcons.user(PhosphorIconsStyle.fill),
+                                        color: AppColors.onPrimary,
+                                        size: 36.w(context),
+                                      ),
                               ),
                             ),
                             Container(

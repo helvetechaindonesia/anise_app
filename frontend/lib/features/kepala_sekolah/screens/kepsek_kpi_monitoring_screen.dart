@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/main_header.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../widgets/kepsek_pantau_kpi_widget.dart';
 
 class KepsekKpiMonitoringScreen extends ConsumerStatefulWidget {
@@ -142,12 +143,11 @@ class _KepsekKpiMonitoringScreenState extends ConsumerState<KepsekKpiMonitoringS
               }).toList();
 
               if (filtered.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.w(context)),
-                    child: Center(
-                      child: Text('Tidak ada tendik yang sesuai filter.', style: AppTextStyles.bodyMedium(context, color: AppColors.onSurfaceVariant)),
-                    ),
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: AniseEmptyState(
+                    title: 'Belum Ada Data Tendik',
+                    subtitle: 'Tidak ada tenaga pendidik yang sesuai dengan filter pencarian.',
                   ),
                 );
               }

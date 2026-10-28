@@ -303,6 +303,7 @@ class GuruJurnalCard extends ConsumerWidget {
                   return {
                     'id': item['id'],
                     'user': authorName,
+                    'avatar': item['author_avatar'],
                     'text': item['comment_text'] ?? '',
                     'time': timeStr,
                     'is_me': isMe,

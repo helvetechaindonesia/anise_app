@@ -6,6 +6,7 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/section_action_link.dart';
+import '../../../core/widgets/anise_empty_state.dart';
 import '../screens/kepsek_kpi_monitoring_screen.dart';
 
 final kepsekKpiLeaderboardProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -109,27 +110,16 @@ class KepsekPantauKpiWidget extends ConsumerWidget {
             if (lowestFive.isEmpty) {
               return Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(20.w(context)),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16.w(context)),
                   border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
                 ),
-                child: Column(
-                  children: [
-                    Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill), color: AppColors.success, size: 36.w(context)),
-                    SizedBox(height: 8.h(context)),
-                    Text(
-                      'Semua Tendik Berkinerja Baik',
-                      style: AppTextStyles.titleSmall(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 4.h(context)),
-                    Text(
-                      'Tidak ada tendik dengan catatan KPI kritis pada bulan ini.',
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.labelSmall(context, color: AppColors.onBackground.withValues(alpha: 0.6)),
-                    ),
-                  ],
+                child: AniseEmptyState(
+                  padding: EdgeInsets.symmetric(horizontal: 20.w(context), vertical: 24.h(context)),
+                  icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                  title: 'Semua Tendik Berkinerja Baik',
+                  subtitle: 'Tidak ada tendik dengan catatan KPI kritis pada bulan ini.',
                 ),
               );
             }

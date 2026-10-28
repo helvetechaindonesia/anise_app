@@ -159,6 +159,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final updatedNis = userData['nis']?.toString() ?? currentUser.nis;
         final updatedNip = userData['nip']?.toString() ?? currentUser.nip;
         final updatedUniqueId = userData['nisn']?.toString() ?? userData['unique_id']?.toString() ?? currentUser.uniqueId;
+        final updatedParentName = userData['parent_name']?.toString() ?? currentUser.parentName;
 
         if (currentUser.fullName != updatedName ||
             currentUser.email != updatedEmail ||
@@ -168,7 +169,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
             currentUser.className != updatedClassName ||
             currentUser.nis != updatedNis ||
             currentUser.nip != updatedNip ||
-            currentUser.uniqueId != updatedUniqueId) {
+            currentUser.uniqueId != updatedUniqueId ||
+            currentUser.parentName != updatedParentName) {
           state = state.copyWith(
             user: currentUser.copyWith(
               fullName: updatedName,
@@ -180,6 +182,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
               nis: updatedNis,
               nip: updatedNip,
               uniqueId: updatedUniqueId,
+              parentName: updatedParentName,
             ),
           );
         }

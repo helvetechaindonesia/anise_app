@@ -55,7 +55,7 @@ class BkLayananCepatWidget extends ConsumerWidget {
         label: 'KPI',
         onTap: () {
           if (onNavigateTab != null) {
-            onNavigateTab!(2);
+            onNavigateTab!(3);
           } else {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const PoinScreen()));
           }
