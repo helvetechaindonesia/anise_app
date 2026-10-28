@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../screens/keamanan_akun_screen.dart';
 import '../screens/bantuan_screen.dart';
+import '../screens/project_stats_screen.dart';
 
 class InfoItemWidget extends StatelessWidget {
   final IconData icon;
@@ -186,11 +187,24 @@ class SettingsSectionWidget extends StatelessWidget {
             title: 'Bantuan & Kebijakan',
             subtitle: 'FAQ, kontak support, & legalitas',
             trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
-            showDivider: false,
+            showDivider: true,
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const BantuanScreen()),
+              );
+            },
+          ),
+          InfoItemWidget(
+            icon: PhosphorIcons.chartLineUp(PhosphorIconsStyle.fill),
+            title: 'Tentang & Kilas Balik Proyek',
+            subtitle: 'Sprint 27 hari, metrik, & arsitektur',
+            trailing: Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold), color: AppColors.onSurface.withValues(alpha: 0.5), size: 16.w(context)),
+            showDivider: false,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProjectStatsScreen()),
               );
             },
           ),
