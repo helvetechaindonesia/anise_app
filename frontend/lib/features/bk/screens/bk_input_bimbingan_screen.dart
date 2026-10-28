@@ -6,6 +6,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 import '../providers/disiplin_provider.dart';
@@ -60,31 +61,55 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
   Future<void> _submit(Map<String, dynamic>? offDaysData) async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) {
-      _showSnackbar('Topik / Agenda bimbingan wajib diisi!', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Topik Wajib Diisi',
+        message: 'Topik / Agenda bimbingan konseling wajib diisi terlebih dahulu.',
+      );
       return;
     }
 
     if (_selectedType == 'KLASIKAL') {
       if (_selectedClassId == null) {
-        _showSnackbar('Pilih kelas terlebih dahulu!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Pilih Kelas',
+          message: 'Silakan pilih kelas pelaksanaan bimbingan klasikal terlebih dahulu.',
+        );
         return;
       }
       if (_selectedScheduleId == null) {
-        _showSnackbar('Pilih jadwal mapel/guru yang akan diganti!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Pilih Jadwal KBM',
+          message: 'Silakan pilih jadwal mata pelajaran atau guru yang akan digantikan.',
+        );
         return;
       }
     } else {
       // Individu atau Kelompok
       if (_selectedStudents.isEmpty) {
-        _showSnackbar('Pilih minimal 1 siswa!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Pilih Siswa',
+          message: 'Silakan pilih minimal 1 siswa yang akan mengikuti bimbingan.',
+        );
         return;
       }
       if (_selectedDate == null) {
-        _showSnackbar('Pilih tanggal pelaksanaan!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Pilih Tanggal',
+          message: 'Silakan tentukan tanggal pelaksanaan bimbingan.',
+        );
         return;
       }
       if (_selectedTime == null) {
-        _showSnackbar('Pilih jam pelaksanaan!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Pilih Jam',
+          message: 'Silakan tentukan jam pelaksanaan bimbingan.',
+        );
         return;
       }
 
@@ -99,7 +124,11 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
       );
 
       if (targetDateTime.isBefore(serverNow)) {
-        _showSnackbar('Waktu pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+        AniseFeedbackDialog.showWarning(
+          context,
+          title: 'Waktu Tidak Valid',
+          message: 'Waktu pelaksanaan bimbingan tidak boleh diatur pada waktu yang telah berlalu.',
+        );
         return;
       }
     }
@@ -121,22 +150,20 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
     if (!mounted) return;
 
     if (ok) {
-      _showSnackbar('Jadwal bimbingan berhasil dibuat dan disimpan!', Colors.green);
-      Navigator.pop(context);
+      await AniseFeedbackDialog.showSuccess(
+        context,
+        title: 'Jadwal Diterbitkan',
+        message: 'Jadwal bimbingan konseling berhasil dibuat dan disimpan ke agenda.',
+      );
+      if (mounted) Navigator.pop(context);
     } else {
       final errorMsg = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
-      _showSnackbar(errorMsg ?? 'Gagal menyimpan jadwal bimbingan, coba lagi.', AppColors.error);
+      AniseFeedbackDialog.showError(
+        context,
+        title: 'Gagal Menyimpan',
+        message: errorMsg ?? 'Gagal menyimpan jadwal bimbingan, silakan coba beberapa saat lagi.',
+      );
     }
-  }
-
-  void _showSnackbar(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
@@ -298,7 +325,11 @@ class _BkInputBimbinganScreenState extends ConsumerState<BkInputBimbinganScreen>
                     final checkDate = _selectedDate ?? serverToday;
                     final pickedDt = DateTime(checkDate.year, checkDate.month, checkDate.day, picked.hour, picked.minute);
                     if (pickedDt.isBefore(serverNow)) {
-                      _showSnackbar('Jam pelaksanaan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+                      AniseFeedbackDialog.showWarning(
+                        context,
+                        title: 'Waktu Tidak Valid',
+                        message: 'Jam pelaksanaan bimbingan tidak boleh dipilih pada waktu yang telah berlalu.',
+                      );
                       return;
                     }
                     setState(() => _selectedTime = '$h:$m');

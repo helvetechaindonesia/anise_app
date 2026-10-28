@@ -5,6 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/counseling_provider.dart';
 
 class BkIsiJurnalScreen extends ConsumerStatefulWidget {
@@ -43,11 +44,10 @@ class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
 
   Future<void> _submit() async {
     if (_resultController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Hasil bimbingan / kesimpulan wajib diisi.'),
-          backgroundColor: AppColors.error,
-        ),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Hasil Bimbingan Kosong',
+        message: 'Hasil bimbingan / ringkasan kesimpulan wajib diisi sebelum menyimpan jurnal.',
       );
       return;
     }
@@ -66,20 +66,18 @@ class _BkIsiJurnalScreenState extends ConsumerState<BkIsiJurnalScreen> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Jurnal bimbingan dan penilaian berhasil disimpan!'),
-            backgroundColor: Colors.green,
-          ),
+        await AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Jurnal Berhasil Disimpan',
+          message: 'Isi jurnal dan catatan evaluasi bimbingan konseling telah berhasil diperbarui.',
         );
-        Navigator.pop(context, true);
+        if (mounted) Navigator.pop(context, true);
       } else {
         final err = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(err ?? 'Gagal menyimpan jurnal bimbingan.'),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Menyimpan',
+          message: err ?? 'Gagal menyimpan jurnal bimbingan, silakan periksa koneksi internet Anda.',
         );
       }
     }

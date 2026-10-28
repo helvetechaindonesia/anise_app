@@ -9,6 +9,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 import '../screens/bk_isi_jurnal_screen.dart';
@@ -84,35 +85,20 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
   void _handlePresensi() async {
     final String id = widget.item['id']?.toString() ?? '';
     if (id.startsWith('journal-')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Presensi bimbingan klasikal dilakukan melalui halaman Agenda Jurnal Guru.'),
-          backgroundColor: AppColors.primary,
-        ),
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Presensi Klasikal',
+        message: 'Presensi bimbingan klasikal dilakukan secara terintegrasi melalui halaman Agenda Jurnal Guru.',
       );
       return;
     }
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Presensi Masuk Sesi'),
-        content: const Text('Mulai sesi bimbingan sekarang dan catat presensi masuk? Notifikasi WhatsApp akan dikirimkan ke Siswa dan Guru BK.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mulai Sesi'),
-          ),
-        ],
-      ),
+    final confirm = await AniseFeedbackDialog.showConfirm(
+      context,
+      title: 'Presensi Masuk Sesi',
+      message: 'Mulai sesi bimbingan sekarang dan catat presensi masuk? Notifikasi WhatsApp akan dikirimkan otomatis ke Siswa dan Guru BK.',
+      confirmText: 'Mulai Sesi',
+      cancelText: 'Batal',
     );
 
     if (confirm != true) return;
@@ -123,20 +109,18 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
 
     if (mounted) {
       if (ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Presensi sesi bimbingan berhasil dicatat! Notifikasi WhatsApp terkirim.'),
-            backgroundColor: Colors.green,
-          ),
+        AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Presensi Berhasil',
+          message: 'Presensi sesi bimbingan berhasil dicatat! Notifikasi WhatsApp telah terkirim.',
         );
         widget.onRefresh();
       } else {
         final err = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(err ?? 'Gagal mencatat presensi bimbingan.'),
-            backgroundColor: AppColors.error,
-          ),
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Presensi',
+          message: err ?? 'Gagal mencatat presensi bimbingan.',
         );
       }
     }
@@ -203,12 +187,19 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
                 setState(() {
                   _isSaved = !_isSaved;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_isSaved ? 'Sesi bimbingan berhasil disimpan!' : 'Sesi bimbingan dihapus dari simpanan.'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
+                if (_isSaved) {
+                  AniseFeedbackDialog.showSuccess(
+                    context,
+                    title: 'Tersimpan',
+                    message: 'Sesi bimbingan konseling berhasil disimpan ke daftar simpanan.',
+                  );
+                } else {
+                  AniseFeedbackDialog.showSuccess(
+                    context,
+                    title: 'Dihapus',
+                    message: 'Sesi bimbingan konseling dihapus dari daftar simpanan.',
+                  );
+                }
               },
             ),
             if (!widget.isStudent) ...[
@@ -245,47 +236,87 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Data Bimbingan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: topicCtrl,
-              decoration: const InputDecoration(labelText: 'Topik Bimbingan'),
-            ),
-            SizedBox(height: 12.h(context)),
-            TextField(
-              controller: descCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Deskripsi / Keterangan'),
-            ),
-          ],
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.w(context))),
+        backgroundColor: AppColors.surface,
+        child: Padding(
+          padding: EdgeInsets.all(20.w(context)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edit Data Bimbingan',
+                style: AppTextStyles.titleMedium(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16.h(context)),
+              TextField(
+                controller: topicCtrl,
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                decoration: InputDecoration(
+                  labelText: 'Topik Bimbingan',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                ),
+              ),
+              SizedBox(height: 12.h(context)),
+              TextField(
+                controller: descCtrl,
+                maxLines: 3,
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface),
+                decoration: InputDecoration(
+                  labelText: 'Deskripsi / Keterangan',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.w(context))),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 14.w(context), vertical: 12.h(context)),
+                ),
+              ),
+              SizedBox(height: 20.h(context)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text('Batal', style: AppTextStyles.labelLarge(context, color: AppColors.onSurfaceVariant)),
+                  ),
+                  SizedBox(width: 8.w(context)),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.w(context))),
+                      padding: EdgeInsets.symmetric(horizontal: 18.w(context), vertical: 10.h(context)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final ok = await ref.read(counselingNotifierProvider.notifier).updateCounseling(
+                            counselingId: id,
+                            topic: topicCtrl.text.trim(),
+                            description: descCtrl.text.trim(),
+                          );
+                      if (mounted) {
+                        if (ok) {
+                          AniseFeedbackDialog.showSuccess(
+                            context,
+                            title: 'Data Diperbarui',
+                            message: 'Topik dan keterangan bimbingan berhasil diperbarui.',
+                          );
+                          widget.onRefresh();
+                        } else {
+                          AniseFeedbackDialog.showError(
+                            context,
+                            title: 'Gagal Memperbarui',
+                            message: 'Gagal memperbarui data bimbingan, silakan coba lagi.',
+                          );
+                        }
+                      }
+                    },
+                    child: Text('Simpan Perubahan', style: AppTextStyles.labelLarge(context, color: Colors.white)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final ok = await ref.read(counselingNotifierProvider.notifier).updateCounseling(
-                    counselingId: id,
-                    topic: topicCtrl.text.trim(),
-                    description: descCtrl.text.trim(),
-                  );
-              if (ok) {
-                widget.onRefresh();
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
   }
@@ -785,10 +816,10 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
               borderRadius: BorderRadius.circular(10.w(context)),
               onTap: () {
                 if (id.startsWith('journal-')) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Komentar bimbingan klasikal dapat dilihat pada halaman Agenda Jurnal Guru.'),
-                    ),
+                  AniseFeedbackDialog.showWarning(
+                    context,
+                    title: 'Bimbingan Klasikal',
+                    message: 'Diskusi dan komentar untuk bimbingan klasikal dapat diakses secara langsung pada halaman Agenda Jurnal Guru.',
                   );
                 } else {
                   BkCommentModal.show(context, counselingId: id, ref: ref);

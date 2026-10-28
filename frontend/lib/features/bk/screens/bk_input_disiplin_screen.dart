@@ -4,6 +4,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../providers/disiplin_provider.dart';
 
 class BkInputDisiplinScreen extends ConsumerStatefulWidget {
@@ -30,11 +31,19 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
 
   void _submit() async {
     if (_selectedStudentId == null) {
-      _showSnackbar('Pilih siswa terlebih dahulu', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Pilih Siswa',
+        message: 'Silakan pilih siswa yang akan dilaporkan terlebih dahulu.',
+      );
       return;
     }
     if (_kategoriPelanggaran == null) {
-      _showSnackbar('Pilih kategori pelanggaran', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Pilih Kategori',
+        message: 'Silakan pilih kategori catatan kedisiplinan / pelanggaran.',
+      );
       return;
     }
 
@@ -45,23 +54,24 @@ class _BkInputDisiplinScreenState extends ConsumerState<BkInputDisiplinScreen> {
     );
 
     if (res['success'] == true) {
-      final msg = res['message']?.toString() ?? 'Laporan kedisiplinan berhasil dikirim';
-      _showSnackbar(msg, AppColors.success);
-      if (mounted) Navigator.pop(context);
+      final msg = res['message']?.toString() ?? 'Laporan kedisiplinan berhasil dikirim.';
+      if (mounted) {
+        await AniseFeedbackDialog.showSuccess(
+          context,
+          title: 'Laporan Terkirim',
+          message: msg,
+        );
+        if (mounted) Navigator.pop(context);
+      }
     } else {
-      _showSnackbar(res['message']?.toString() ?? 'Gagal mengirim laporan', AppColors.error);
+      if (mounted) {
+        AniseFeedbackDialog.showError(
+          context,
+          title: 'Gagal Mengirim',
+          message: res['message']?.toString() ?? 'Gagal mengirim laporan kedisiplinan siswa.',
+        );
+      }
     }
-  }
-
-  void _showSnackbar(String message, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: AppTextStyles.bodyMedium(context)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override

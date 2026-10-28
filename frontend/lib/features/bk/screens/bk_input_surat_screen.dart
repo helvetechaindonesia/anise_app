@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 
 class BkInputSuratScreen extends StatefulWidget {
   const BkInputSuratScreen({Key? key}) : super(key: key);
@@ -61,15 +62,13 @@ class _BkInputSuratScreenState extends State<BkInputSuratScreen> {
                     borderRadius: BorderRadius.circular(16.w(context)),
                   ),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Surat berhasil dibuat!', style: AppTextStyles.bodyMedium(context)),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                onPressed: () async {
+                  await AniseFeedbackDialog.showSuccess(
+                    context,
+                    title: 'Surat Diterbitkan',
+                    message: 'Surat peringatan / panggilan bimbingan konseling berhasil dibuat dan diterbitkan.',
                   );
-                  Navigator.pop(context);
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: Text(
                   'Keluarkan Surat',

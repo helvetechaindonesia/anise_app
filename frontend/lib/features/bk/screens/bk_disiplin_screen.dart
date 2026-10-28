@@ -9,6 +9,7 @@ import '../../../core/widgets/anise_app_bar.dart';
 import '../../../core/widgets/anise_card.dart';
 import '../../../core/widgets/anise_date_filter.dart';
 import '../../../core/widgets/anise_empty_state.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../../core/widgets/item_list_tile.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/disiplin_provider.dart';
@@ -353,14 +354,30 @@ class _BkDisiplinScreenState extends ConsumerState<BkDisiplinScreen> {
                   icon: Icon(PhosphorIcons.check(PhosphorIconsStyle.bold), size: 14.w(context)),
                   label: Text('Setujui', style: AppTextStyles.labelSmall(context, color: AppColors.onPrimary)),
                   onPressed: () async {
+                    final confirm = await AniseFeedbackDialog.showConfirm(
+                      context,
+                      title: 'Setujui Laporan',
+                      message: 'Apakah Anda yakin ingin menyetujui laporan kedisiplinan siswa ini?',
+                      confirmText: 'Ya, Setujui',
+                      cancelText: 'Batal',
+                    );
+                    if (confirm != true) return;
+
                     final ok = await ref.read(disiplinNotifierProvider.notifier).approveReport(reportId: report['id']);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(ok ? 'Laporan siswa berhasil disetujui!' : 'Gagal menyetujui laporan'),
-                          backgroundColor: ok ? AppColors.primary : AppColors.error,
-                        ),
-                      );
+                      if (ok) {
+                        AniseFeedbackDialog.showSuccess(
+                          context,
+                          title: 'Laporan Disetujui',
+                          message: 'Laporan kedisiplinan siswa berhasil disetujui.',
+                        );
+                      } else {
+                        AniseFeedbackDialog.showError(
+                          context,
+                          title: 'Gagal Menyetujui',
+                          message: 'Gagal memproses persetujuan laporan siswa, silakan coba lagi.',
+                        );
+                      }
                     }
                   },
                 );

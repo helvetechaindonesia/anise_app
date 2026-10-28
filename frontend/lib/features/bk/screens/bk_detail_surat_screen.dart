@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 
 class BkDetailSuratScreen extends StatelessWidget {
   final String subject;
@@ -127,12 +128,10 @@ class BkDetailSuratScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Surat sedang diunduh...', style: AppTextStyles.bodyMedium(context)),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  AniseFeedbackDialog.showSuccess(
+                    context,
+                    title: 'Unduh Surat',
+                    message: 'Surat panggilan / bimbingan sedang diproses dan diunduh ke perangkat Anda.',
                   );
                 },
                 icon: Icon(PhosphorIcons.downloadSimple(PhosphorIconsStyle.bold), color: AppColors.onPrimary, size: 20.w(context)),

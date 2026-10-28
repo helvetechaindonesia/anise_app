@@ -7,6 +7,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/anise_app_bar.dart';
+import '../../../core/widgets/anise_feedback_dialog.dart';
 import '../../jadwal/providers/jurnal_provider.dart';
 import '../providers/counseling_provider.dart';
 
@@ -50,11 +51,19 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
 
   Future<void> _submit(BuildContext context, Map<String, dynamic>? offDaysData) async {
     if (_selectedGuruBkId == null) {
-      _showSnackbar('Silakan pilih Guru BK terlebih dahulu!', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Pilih Guru BK',
+        message: 'Silakan tentukan Guru BK pembimbing terlebih dahulu.',
+      );
       return;
     }
     if (_selectedTopic == null || _selectedDate == null || _selectedTime == null) {
-      _showSnackbar('Lengkapi topik, tanggal, dan waktu bimbingan!', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Form Belum Lengkap',
+        message: 'Silakan lengkapi topik bimbingan, tanggal, dan waktu pelaksanaan sesi.',
+      );
       return;
     }
 
@@ -69,7 +78,11 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
     );
 
     if (targetDateTime.isBefore(serverNow)) {
-      _showSnackbar('Waktu bimbingan tidak boleh di waktu yang telah berlalu!', AppColors.error);
+      AniseFeedbackDialog.showWarning(
+        context,
+        title: 'Waktu Tidak Valid',
+        message: 'Waktu bimbingan tidak boleh ditentukan pada waktu yang telah berlalu.',
+      );
       return;
     }
 
@@ -84,22 +97,20 @@ class _SiswaFormAjukanBimbinganScreenState extends ConsumerState<SiswaFormAjukan
     if (!mounted) return;
 
     if (success) {
-      _showSnackbar('Pengajuan bimbingan berhasil dikirim ke Guru BK! ✅', Colors.green);
-      Navigator.pop(context);
+      await AniseFeedbackDialog.showSuccess(
+        context,
+        title: 'Pengajuan Terkirim',
+        message: 'Pengajuan bimbingan konseling berhasil dikirimkan ke Guru BK. Notifikasi jadwal telah diteruskan.',
+      );
+      if (mounted) Navigator.pop(context);
     } else {
       final errorMsg = ref.read(counselingNotifierProvider.notifier).lastErrorMessage;
-      _showSnackbar(errorMsg ?? 'Gagal mengajukan bimbingan, silakan coba lagi.', AppColors.error);
+      AniseFeedbackDialog.showError(
+        context,
+        title: 'Pengajuan Gagal',
+        message: errorMsg ?? 'Gagal mengajukan sesi bimbingan, silakan periksa koneksi atau coba beberapa saat lagi.',
+      );
     }
-  }
-
-  void _showSnackbar(String msg, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: AppTextStyles.bodyMedium(context, color: Colors.white)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override
