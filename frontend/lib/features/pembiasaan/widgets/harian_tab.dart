@@ -54,7 +54,14 @@ class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
       data: (response) {
         final habits = response.habits;
 
-        // Inisialisasi state centang dari server sekali saat data tiba
+        // Inisialisasi / sinkronisasi state centang dari server saat data tiba
+        ref.listen<AsyncValue<MasterHabitsResponse>>(masterHabitsProvider, (prev, next) {
+          next.whenData((resp) {
+            ref.read(checkedHabitsProvider.notifier).state = {...resp.todayLoggedHabitIds};
+            ref.read(prayerLogStateProvider.notifier).state = {...resp.todayPrayerLog};
+          });
+        });
+
         if (!_isInitializedFromRemote) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(checkedHabitsProvider.notifier).state = {...response.todayLoggedHabitIds};
@@ -117,20 +124,16 @@ class _HarianTabWidgetState extends ConsumerState<HarianTabWidget> {
                     return GestureDetector(
                       onTap: () async {
                         if (!isChecked) {
+                          // Optimistic UI checklist langsung aktif & tetap terchecklist
+                          ref.read(checkedHabitsProvider.notifier).update((state) => {...state, habit.id});
+                          
                           final success = await ref.read(habitSubmitProvider.notifier).submitLog(habitId: habit.id);
                           if (success) {
-                            ref.read(checkedHabitsProvider.notifier).update((state) => {...state, habit.id});
                             ref.invalidate(personalHabitStatsProvider);
                             ref.invalidate(guruHabitStatsProvider);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('✅ G7-KAIH berhasil dicatat!'),
-                                  backgroundColor: AppColors.success,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
+                          } else {
+                            // Revert jika gagal kirim ke server
+                            ref.read(checkedHabitsProvider.notifier).update((state) => state.where((id) => id != habit.id).toSet());
                           }
                         }
                       },

@@ -112,8 +112,62 @@ class GuruPemantauanWidget extends ConsumerWidget {
                           barGroups: barGroups,
                         ),
                       ),
-                    ),
-                    SizedBox(height: 8.h(context)),
+                    SizedBox(height: 16.h(context)),
+
+                    // Rincian Agregat Ibadah Anggota Pantauan
+                    if (stats['prayer_breakdown'] != null && (stats['prayer_breakdown'] as List).isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(PhosphorIcons.handsPraying(PhosphorIconsStyle.fill), color: AppColors.primary, size: 20.w(context)),
+                          SizedBox(width: 8.w(context)),
+                          Text(
+                            'Rincian Ibadah Kolektif',
+                            style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 6.h(context)),
+                      Text(
+                        'Total pemenuhan shalat & tadarus seluruh anggota pantauan bulan ini',
+                        style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                      ),
+                      SizedBox(height: 12.h(context)),
+                      Wrap(
+                        spacing: 8.w(context),
+                        runSpacing: 8.h(context),
+                        children: (stats['prayer_breakdown'] as List).map<Widget>((p) {
+                          final name = p['name'] ?? 'Ibadah';
+                          final total = p['total'] ?? 0;
+                          return Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 8.h(context)),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(12.w(context)),
+                              border: Border.all(color: AppColors.outline.withValues(alpha: 0.15)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(name, style: AppTextStyles.bodySmall(context, color: AppColors.onSurface).copyWith(fontWeight: FontWeight.w600)),
+                                SizedBox(width: 8.w(context)),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 8.w(context), vertical: 2.h(context)),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(8.w(context)),
+                                  ),
+                                  child: Text(
+                                    '$total x',
+                                    style: AppTextStyles.labelSmall(context, color: AppColors.onPrimaryContainer).copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24.h(context)),
+                    ],
 
                     Text(
                       'Daftar Anggota Pantauan',

@@ -337,6 +337,36 @@ class HabitController extends Controller
             ->whereYear('logged_date', $currentYear)
             ->get();
 
+        $targetUser = \App\Models\User::find($targetUserId);
+        $isMuslim = $targetUser && strtolower(trim($targetUser->religion ?? '')) === 'islam';
+
+        // Hitung rincian per jenis ibadah jika Muslim
+        $prayerBreakdown = null;
+        if ($isMuslim) {
+            $prayerStats = DB::table('user_prayer_logs')
+                ->where('user_id', $targetUserId)
+                ->whereMonth('logged_date', $currentMonth)
+                ->whereYear('logged_date', $currentYear)
+                ->select(
+                    DB::raw('SUM(is_subuh) as subuh'),
+                    DB::raw('SUM(is_dhuhur) as dhuhur'),
+                    DB::raw('SUM(is_asar) as asar'),
+                    DB::raw('SUM(is_maghrib) as maghrib'),
+                    DB::raw('SUM(is_isya) as isya'),
+                    DB::raw('SUM(is_quran) as quran')
+                )
+                ->first();
+
+            $prayerBreakdown = [
+                ['name' => 'Shalat Subuh', 'key' => 'subuh', 'total' => (int) ($prayerStats->subuh ?? 0)],
+                ['name' => 'Shalat Dzuhur', 'key' => 'dhuhur', 'total' => (int) ($prayerStats->dhuhur ?? 0)],
+                ['name' => 'Shalat Asar', 'key' => 'asar', 'total' => (int) ($prayerStats->asar ?? 0)],
+                ['name' => 'Shalat Maghrib', 'key' => 'maghrib', 'total' => (int) ($prayerStats->maghrib ?? 0)],
+                ['name' => 'Shalat Isya', 'key' => 'isya', 'total' => (int) ($prayerStats->isya ?? 0)],
+                ['name' => 'Membaca Al-Qur\'an', 'key' => 'quran', 'total' => (int) ($prayerStats->quran ?? 0)],
+            ];
+        }
+
         $prayerLogsSum = DB::table('user_prayer_logs')
             ->where('user_id', $targetUserId)
             ->whereMonth('logged_date', $currentMonth)
@@ -371,13 +401,20 @@ class HabitController extends Controller
         }
 
         return $this->success([
+            'is_muslim' => $isMuslim,
+            'target_user' => $targetUser ? [
+                'id' => $targetUser->id,
+                'name' => $targetUser->name,
+                'religion' => $targetUser->religion,
+            ] : null,
             'summary' => [
                 'total_submissions' => $totalSubmissions,
                 'approved' => $totalApproved,
                 'pending' => $totalPending,
                 'rejected' => $totalRejected,
             ],
-            'habits' => $habitStats
+            'habits' => $habitStats,
+            'prayer_breakdown' => $prayerBreakdown,
         ]);
     }
 
@@ -443,11 +480,36 @@ class HabitController extends Controller
             ];
         }
 
+        // Rincian agregat ibadah (Shalat & Al-Quran) seluruh anggota yang dipantau
+        $prayerAggregates = DB::table('user_prayer_logs')
+            ->whereIn('user_id', $targetUserIds)
+            ->whereMonth('logged_date', $currentMonth)
+            ->whereYear('logged_date', $currentYear)
+            ->select(
+                DB::raw('SUM(is_subuh) as subuh'),
+                DB::raw('SUM(is_dhuhur) as dhuhur'),
+                DB::raw('SUM(is_asar) as asar'),
+                DB::raw('SUM(is_maghrib) as maghrib'),
+                DB::raw('SUM(is_isya) as isya'),
+                DB::raw('SUM(is_quran) as quran')
+            )
+            ->first();
+
+        $prayerBreakdown = [
+            ['name' => 'Shalat Subuh', 'key' => 'subuh', 'total' => (int) ($prayerAggregates->subuh ?? 0)],
+            ['name' => 'Shalat Dzuhur', 'key' => 'dhuhur', 'total' => (int) ($prayerAggregates->dhuhur ?? 0)],
+            ['name' => 'Shalat Asar', 'key' => 'asar', 'total' => (int) ($prayerAggregates->asar ?? 0)],
+            ['name' => 'Shalat Maghrib', 'key' => 'maghrib', 'total' => (int) ($prayerAggregates->maghrib ?? 0)],
+            ['name' => 'Shalat Isya', 'key' => 'isya', 'total' => (int) ($prayerAggregates->isya ?? 0)],
+            ['name' => 'Membaca Al-Qur\'an', 'key' => 'quran', 'total' => (int) ($prayerAggregates->quran ?? 0)],
+        ];
+
         return $this->success([
             'total_students' => count($targetUserIds),
             'total_approved' => $totalApproved,
             'total_pending' => $totalPending,
             'categories' => $categoryStats,
+            'prayer_breakdown' => $prayerBreakdown,
         ]);
     }
 }

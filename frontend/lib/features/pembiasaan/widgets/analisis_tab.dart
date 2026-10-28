@@ -36,6 +36,8 @@ class _AnalisisTabWidgetState extends ConsumerState<AnalisisTabWidget> {
       data: (data) {
         final summary = data['summary'];
         final List habits = data['habits'];
+        final List? prayerBreakdown = data['prayer_breakdown'] as List?;
+        final isMuslim = data['is_muslim'] == true || (prayerBreakdown != null && prayerBreakdown.isNotEmpty);
         
         return CustomScrollView(
           key: const PageStorageKey('analisis_tab'),
@@ -53,6 +55,29 @@ class _AnalisisTabWidgetState extends ConsumerState<AnalisisTabWidget> {
                   ),
                   SizedBox(height: 24.h(context)),
                   _buildRadarChart(context, habits),
+                  
+                  // Rincian Beribadah Khusus Muslim (Shalat 5 Waktu & Al-Qur'an)
+                  if (isMuslim && prayerBreakdown != null && prayerBreakdown.isNotEmpty) ...[
+                    SizedBox(height: 32.h(context)),
+                    Row(
+                      children: [
+                        Icon(PhosphorIcons.handsPraying(PhosphorIconsStyle.fill), color: AppColors.primary, size: 20.w(context)),
+                        SizedBox(width: 8.w(context)),
+                        Text(
+                          'Rincian Ibadah (Muslim)',
+                          style: AppTextStyles.titleMedium(context, color: AppColors.onBackground).copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6.h(context)),
+                    Text(
+                      'Statistik pemenuhan shalat 5 waktu dan tadarus Al-Qur\'an bulan ini',
+                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                    ),
+                    SizedBox(height: 16.h(context)),
+                    ...prayerBreakdown.map((p) => _buildPrayerBreakdownCard(context, p)).toList(),
+                  ],
+
                   SizedBox(height: 32.h(context)),
                   Text(
                     'Detail Kategori G7-KAIH',
@@ -192,6 +217,69 @@ class _AnalisisTabWidgetState extends ConsumerState<AnalisisTabWidget> {
             child: Text(
               '$total Kali',
               style: AppTextStyles.labelMedium(context, color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrayerBreakdownCard(BuildContext context, dynamic prayer) {
+    final name = prayer['name']?.toString() ?? 'Ibadah';
+    final total = prayer['total'] ?? 0;
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h(context)),
+      padding: EdgeInsets.symmetric(horizontal: 16.w(context), vertical: 14.h(context)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16.w(context)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.w(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+                  color: AppColors.primary,
+                  size: 18.w(context),
+                ),
+              ),
+              SizedBox(width: 12.w(context)),
+              Text(
+                name,
+                style: AppTextStyles.bodyMedium(context, color: AppColors.onSurface).copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w(context), vertical: 4.h(context)),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(10.w(context)),
+            ),
+            child: Text(
+              '$total Hari',
+              style: AppTextStyles.labelMedium(context, color: AppColors.onPrimaryContainer).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
