@@ -180,12 +180,25 @@ class CounselingController extends Controller
 
         $appNow = AppTime::now();
 
+        // Ambil batas tanggal rilis resmi aplikasi dari school_settings
+        $releaseDateSetting = DB::table('school_settings')
+            ->where('setting_key', 'app_release_date')
+            ->value('setting_value') ?: '2026-11-02';
+        $appReleaseDate = Carbon::parse($releaseDateSetting)->startOfDay();
+
         // Jika tipe Individu / Kelompok, schedule_date dan schedule_time wajib ada dan dicek
         if ($request->type !== 'KLASIKAL') {
             if (!$request->filled('schedule_date') || !$request->filled('schedule_time')) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Tanggal dan jam pelaksanaan wajib diisi!'
+                ], 422);
+            }
+            $targetDate = Carbon::parse($request->schedule_date)->startOfDay();
+            if ($targetDate->lt($appReleaseDate)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Jadwal pelaksanaan tidak boleh sebelum tanggal rilis resmi (' . $appReleaseDate->format('d/m/Y') . ')!'
                 ], 422);
             }
             $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
@@ -228,9 +241,17 @@ class CounselingController extends Controller
                         if ($checkDateTime->lt($appNow)) {
                             $computedDate->addWeek();
                         }
+                        if ($computedDate->lt($appReleaseDate)) {
+                            // Hitung hari jadwal pada pekan tanggal rilis
+                            $releaseMonday = $appReleaseDate->copy()->startOfWeek();
+                            $computedDate = $releaseMonday->copy()->addDays($targetIso - 1);
+                            if ($computedDate->lt($appReleaseDate)) {
+                                $computedDate->addWeek();
+                            }
+                        }
                         $scheduleDate = $computedDate->format('Y-m-d');
                     } else {
-                        $scheduleDate = $appNow->format('Y-m-d');
+                        $scheduleDate = $appNow->lt($appReleaseDate) ? $appReleaseDate->format('Y-m-d') : $appNow->format('Y-m-d');
                     }
                 }
 
@@ -330,6 +351,21 @@ class CounselingController extends Controller
         ]);
 
         $appNow = AppTime::now();
+
+        // Batas tanggal rilis resmi aplikasi
+        $releaseDateSetting = DB::table('school_settings')
+            ->where('setting_key', 'app_release_date')
+            ->value('setting_value') ?: '2026-11-02';
+        $appReleaseDate = Carbon::parse($releaseDateSetting)->startOfDay();
+
+        $targetDate = Carbon::parse($request->schedule_date)->startOfDay();
+        if ($targetDate->lt($appReleaseDate)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Jadwal konsultasi tidak boleh sebelum tanggal rilis resmi (' . $appReleaseDate->format('d/m/Y') . ')!'
+            ], 422);
+        }
+
         $targetDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time);
         if ($targetDateTime->lt($appNow)) {
             return response()->json([

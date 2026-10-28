@@ -181,7 +181,10 @@ class AniseDatePickerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        final minDate = firstDate ?? ApiConstants.appReleaseDate;
+        final defaultMin = ApiConstants.appReleaseDate;
+        final baseMin = firstDate ?? defaultMin;
+        // Tanggal minimum tidak boleh lebih awal dari tanggal rilis resmi aplikasi
+        final minDate = baseMin.isBefore(defaultMin) ? defaultMin : baseMin;
         final maxDate = lastDate ?? DateTime(2030, 12, 31);
         final initial = selectedDate.isBefore(minDate)
             ? minDate
@@ -192,6 +195,7 @@ class AniseDatePickerButton extends StatelessWidget {
           initialDate: initial,
           firstDate: minDate,
           lastDate: maxDate,
+          selectableDayPredicate: (day) => !day.isBefore(minDate),
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(
@@ -207,7 +211,7 @@ class AniseDatePickerButton extends StatelessWidget {
           },
         );
         if (picked != null) {
-          onDateSelected(picked);
+          onDateSelected(picked.isBefore(minDate) ? minDate : picked);
         }
       },
       child: Container(

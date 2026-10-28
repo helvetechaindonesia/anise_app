@@ -44,7 +44,9 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
   void initState() {
     super.initState();
     if (widget.initialDate != null) {
-      _selectedDate = DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day);
+      final inputDate = DateTime(widget.initialDate!.year, widget.initialDate!.month, widget.initialDate!.day);
+      // Batasi agar tidak boleh sebelum tanggal rilis resmi (02 November 2026)
+      _selectedDate = inputDate.isBefore(ApiConstants.appReleaseDate) ? ApiConstants.appReleaseDate : inputDate;
       _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
       _isCustomDateSelected = true;
     } else {
@@ -165,10 +167,10 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
                               d.month == _selectedDate.month &&
                               d.day == _selectedDate.day);
                           if (!isSelectedInActive) {
-                            final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
+                            final serverTimeStr = offDaysData['server_time_iso'] ?? offDaysData['server_time'];
                             final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
                             final today = DateTime(now.year, now.month, now.day);
-                            final releaseDateStr = offDaysData?['app_release_date']?.toString();
+                            final releaseDateStr = offDaysData['app_release_date']?.toString();
                             final releaseDate = (releaseDateStr != null ? DateTime.tryParse(releaseDateStr) : null) ?? ApiConstants.appReleaseDate;
 
                             if (today.isBefore(releaseDate)) {
@@ -295,8 +297,9 @@ class _BkBimbinganScreenState extends ConsumerState<BkBimbinganScreen> {
           isCustomDateSelected: _isCustomDateSelected,
           firstDate: releaseDate,
           onDateSelected: (picked) {
+            final validPicked = picked.isBefore(releaseDate) ? releaseDate : picked;
             setState(() {
-              _selectedDate = DateTime(picked.year, picked.month, picked.day);
+              _selectedDate = DateTime(validPicked.year, validPicked.month, validPicked.day);
               _currentWeekStart = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
               _isCustomDateSelected = true;
             });
