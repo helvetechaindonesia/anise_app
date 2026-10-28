@@ -303,7 +303,13 @@ class _BkCounselingCardState extends ConsumerState<BkCounselingCard> {
     final serverTimeStr = offDaysData?['server_time_iso'] ?? offDaysData?['server_time'];
     final now = (serverTimeStr != null ? DateTime.tryParse(serverTimeStr.toString()) : null) ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final targetDay = DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day);
+    
+    // Ambil tanggal sesi dari item['schedule_date'], fallback ke widget.selectedDate
+    final itemDateParsed = date.isNotEmpty ? DateTime.tryParse(date) : null;
+    final targetDay = itemDateParsed != null 
+        ? DateTime(itemDateParsed.year, itemDateParsed.month, itemDateParsed.day)
+        : DateTime(widget.selectedDate.year, widget.selectedDate.month, widget.selectedDate.day);
+    
     final isPastDay = targetDay.isBefore(today);
     final isToday = targetDay.isAtSameMomentAs(today);
 
