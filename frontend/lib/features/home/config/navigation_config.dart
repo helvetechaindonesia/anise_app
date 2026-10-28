@@ -17,7 +17,7 @@ import '../screens/role_dashboards.dart';
 
 class NavigationConfig {
   static List<Widget> getScreensForRole(UserModel? user, Function(int) onNavigateTab) {
-    if (user == null) return [const Center(child: Text("Unauthorized"))];
+    if (user == null) return const [SizedBox.shrink()];
 
     if (user.role == UserRole.siswa) {
       return [

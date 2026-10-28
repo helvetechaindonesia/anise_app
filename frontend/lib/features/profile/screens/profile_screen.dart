@@ -313,14 +313,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (Route<dynamic> route) => false,
-                );
-              }
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (Route<dynamic> route) => false,
+              );
+              ref.read(authProvider.notifier).logout();
             },
             icon: Icon(PhosphorIcons.signOut(), color: AppColors.error),
             label: Text('Keluar Akun', style: AppTextStyles.labelLarge(context, color: AppColors.error)),

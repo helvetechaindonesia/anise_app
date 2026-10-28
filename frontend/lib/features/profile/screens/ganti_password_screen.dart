@@ -8,6 +8,8 @@ import 'package:frontend/core/utils/responsive.dart';
 import 'package:frontend/core/widgets/anise_app_bar.dart';
 import 'package:frontend/core/widgets/anise_feedback_dialog.dart';
 import 'package:frontend/core/network/dio_client.dart';
+import 'package:frontend/features/auth/providers/auth_provider.dart';
+import 'package:frontend/features/auth/screens/login_screen.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class GantiPasswordScreen extends ConsumerStatefulWidget {
@@ -55,14 +57,21 @@ class _GantiPasswordScreenState extends ConsumerState<GantiPasswordScreen> {
       setState(() => _isLoading = false);
 
       if (response.data['status'] == 'success') {
+        // Hentikan heartbeat sesaat sebelum state direset agar tidak memicu interceptor sesi kedaluwarsa
+        await ref.read(authProvider.notifier).logout();
+        if (!mounted) return;
+        
         await AniseFeedbackDialog.showSuccess(
           context,
           title: 'Kata Sandi Diperbarui',
-          message: 'Kata sandi akun Anda berhasil diperbarui dengan aman!',
-          buttonText: 'Selesai',
+          message: 'Kata sandi akun Anda berhasil diperbarui. Silakan masuk kembali menggunakan kata sandi baru.',
+          buttonText: 'Masuk Kembali',
         );
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
         }
       } else {
         final msg = response.data['message'] ?? 'Gagal memperbarui kata sandi.';
