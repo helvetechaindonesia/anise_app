@@ -67,10 +67,43 @@ class _GuruIsiJurnalScreenState extends ConsumerState<GuruIsiJurnalScreen> {
       final response = await dio.get('/journals/${widget.journalId}/class-students');
       if (response.data['status'] == 'success') {
         final list = (response.data['data'] as List<dynamic>?) ?? [];
+        final existing = response.data['existing'] as Map<String, dynamic>?;
+
         if (mounted) {
           setState(() {
             _students = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
             _isLoadingStudents = false;
+
+            if (existing != null) {
+              if (existing['teaching_condition'] != null && existing['teaching_condition'].toString().isNotEmpty) {
+                _teachingConditionController.text = existing['teaching_condition'].toString();
+              }
+              if (existing['overall_notes'] != null && existing['overall_notes'].toString().isNotEmpty) {
+                _overallNotesController.text = existing['overall_notes'].toString();
+              } else if (existing['class_notes'] != null && existing['class_notes'].toString().isNotEmpty && _teachingConditionController.text.isEmpty) {
+                _overallNotesController.text = existing['class_notes'].toString();
+              }
+
+              if (existing['absent_student_ids'] is List) {
+                _absentStudentIds.clear();
+                for (var id in existing['absent_student_ids']) {
+                  _absentStudentIds.add(id.toString());
+                }
+              }
+
+              if (existing['student_records'] is List) {
+                _studentDisciplineRecords.clear();
+                for (var rec in existing['student_records']) {
+                  if (rec is Map) {
+                    _studentDisciplineRecords.add({
+                      'student_id': rec['student_id']?.toString(),
+                      'category': rec['category']?.toString() ?? 'Lainnya',
+                      'keterangan': rec['keterangan']?.toString() ?? '',
+                    });
+                  }
+                }
+              }
+            }
           });
         }
       } else {
@@ -228,7 +261,7 @@ class _GuruIsiJurnalScreenState extends ConsumerState<GuruIsiJurnalScreen> {
                                   ),
                                 ),
                                 SizedBox(height: 4.h(context)),
-                                // Nama Kelas tepat di bawah nama mapel
+                                // Nama Kelas di baris kedua
                                 Row(
                                   children: [
                                     Icon(
@@ -236,28 +269,30 @@ class _GuruIsiJurnalScreenState extends ConsumerState<GuruIsiJurnalScreen> {
                                       size: 14.w(context),
                                       color: AppColors.primary,
                                     ),
-                                    SizedBox(width: 4.w(context)),
+                                    SizedBox(width: 5.w(context)),
                                     Text(
                                       widget.className,
                                       style: AppTextStyles.bodyMedium(context, color: AppColors.primary).copyWith(
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
-                                    SizedBox(width: 8.w(context)),
-                                    Text(
-                                      '•',
-                                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
-                                    ),
-                                    SizedBox(width: 8.w(context)),
+                                  ],
+                                ),
+                                SizedBox(height: 4.h(context)),
+                                // Jam Pelajaran di baris ketiga (tepat di bawah nama kelas)
+                                Row(
+                                  children: [
                                     Icon(
                                       PhosphorIcons.clock(PhosphorIconsStyle.regular),
-                                      size: 14.w(context),
+                                      size: 13.w(context),
                                       color: AppColors.onSurfaceVariant,
                                     ),
-                                    SizedBox(width: 4.w(context)),
+                                    SizedBox(width: 5.w(context)),
                                     Text(
                                       widget.timeRange,
-                                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant),
+                                      style: AppTextStyles.bodySmall(context, color: AppColors.onSurfaceVariant).copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ],
                                 ),

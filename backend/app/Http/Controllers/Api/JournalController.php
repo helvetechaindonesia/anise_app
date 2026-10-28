@@ -585,9 +585,51 @@ class JournalController extends Controller
                     ];
                 });
 
+            // Ambil data catatan pengisian sebelumnya jika sudah pernah diisi
+            $existingRecords = \App\Models\JournalStudentRecord::where('journal_id', $journal->id)->get();
+            $existingAbsentStudentIds = $existingRecords->where('record_type', 'ABSENCE')->pluck('student_id')->values()->all();
+
+            $existingStudentRecords = $existingRecords->where('record_type', '!=', 'ABSENCE')->map(function ($rec) {
+                $category = 'Lainnya';
+                $keterangan = $rec->keterangan;
+                if (preg_match('/^\[(.*?)\]\s*(.*)$/', $rec->keterangan, $matches)) {
+                    $category = $matches[1];
+                    $keterangan = $matches[2];
+                }
+                return [
+                    'student_id' => $rec->student_id,
+                    'category' => $category,
+                    'keterangan' => $keterangan,
+                ];
+            })->values()->all();
+
+            // Ekstrak pengisian catatan kelas
+            $teachingCondition = '';
+            $overallNotes = '';
+            if (!empty($journal->class_notes)) {
+                $rawNotes = $journal->class_notes;
+                if (str_contains($rawNotes, 'Kondisi Mengajar:') || str_contains($rawNotes, 'Catatan Menyeluruh:')) {
+                    if (preg_match('/Kondisi Mengajar:\s*(.*?)(?=\n\nCatatan Menyeluruh:|$)/s', $rawNotes, $m1)) {
+                        $teachingCondition = trim($m1[1]);
+                    }
+                    if (preg_match('/Catatan Menyeluruh:\s*(.*)$/s', $rawNotes, $m2)) {
+                        $overallNotes = trim($m2[1]);
+                    }
+                } else {
+                    $overallNotes = $rawNotes;
+                }
+            }
+
             return response()->json([
                 'status' => 'success',
-                'data' => $students
+                'data' => $students,
+                'existing' => [
+                    'class_notes' => $journal->class_notes,
+                    'teaching_condition' => $teachingCondition,
+                    'overall_notes' => $overallNotes,
+                    'absent_student_ids' => $existingAbsentStudentIds,
+                    'student_records' => $existingStudentRecords,
+                ]
             ]);
         } catch (\Throwable $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
@@ -642,6 +684,9 @@ class JournalController extends Controller
             $journal->class_notes = $combinedNotes;
             $journal->status = 'Selesai';
             $journal->save();
+
+            // Hapus record lama agar proses edit bersih dan tidak duplikat
+            \App\Models\JournalStudentRecord::where('journal_id', $journal->id)->delete();
 
             // 1. Simpan daftar siswa yang TIDAK HADIR dalam kelas
             if ($request->has('absent_student_ids') && is_array($request->absent_student_ids)) {
