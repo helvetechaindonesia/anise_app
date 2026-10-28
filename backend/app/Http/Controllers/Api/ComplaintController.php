@@ -131,27 +131,39 @@ class ComplaintController extends Controller
      */
     public function updateStatus(Request $request, string $id): JsonResponse
     {
-        $validated = $request->validate([
-            'status' => ['required', 'string', Rule::in(['PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'])],
-            'response_note' => ['nullable', 'string', 'max:2000'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'status' => ['required', 'string', Rule::in(['PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'])],
+                'response_note' => ['nullable', 'string', 'max:2000'],
+            ]);
 
-        $complaint = Complaint::find($id);
-        if (!$complaint) {
-            return $this->error('Laporan tidak ditemukan', 404);
+            $complaint = Complaint::find($id);
+            if (!$complaint) {
+                return $this->error('Laporan tidak ditemukan', 404);
+            }
+
+            $complaint->status = $validated['status'];
+            if (array_key_exists('response_note', $validated)) {
+                $complaint->response_note = $validated['response_note'];
+            }
+            if ($request->user()) {
+                $complaint->handled_by = $request->user()->id;
+            }
+            $complaint->save();
+
+            return $this->success(
+                $this->formatComplaint($complaint->load(['user', 'handler']), $request->user()),
+                'Status laporan berhasil diperbarui'
+            );
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return $this->error($ve->validator->errors()->first() ?? 'Validasi gagal', 422, $ve->errors());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error updateStatus complaint: ' . $e->getMessage(), [
+                'id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return $this->error('Gagal memperbarui status: ' . $e->getMessage(), 500);
         }
-
-        $complaint->status = $validated['status'];
-        if (array_key_exists('response_note', $validated)) {
-            $complaint->response_note = $validated['response_note'];
-        }
-        $complaint->handled_by = $request->user()->id;
-        $complaint->save();
-
-        return $this->success(
-            $this->formatComplaint($complaint->load(['user', 'handler']), $request->user()),
-            'Status laporan berhasil diperbarui'
-        );
     }
 
     /**

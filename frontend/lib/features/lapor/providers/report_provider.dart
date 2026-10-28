@@ -104,18 +104,26 @@ class ComplaintService {
     required String status,
     String? responseNote,
   }) async {
-    final dio = _ref.read(dioProvider);
-    final response = await dio.put(
-      '/complaints/$complaintId/status',
-      data: {
-        'status': status,
-        if (responseNote != null) 'response_note': responseNote,
-      },
-    );
-    if (response.data['status'] == 'success') {
-      _ref.invalidate(studentReportsProvider);
-    } else {
-      throw Exception(response.data['message'] ?? 'Gagal memperbarui status laporan');
+    try {
+      final dio = _ref.read(dioProvider);
+      final response = await dio.put(
+        '/complaints/$complaintId/status',
+        data: {
+          'status': status,
+          if (responseNote != null) 'response_note': responseNote,
+        },
+      );
+      if (response.data['status'] == 'success') {
+        _ref.invalidate(studentReportsProvider);
+      } else {
+        throw Exception(response.data['message'] ?? 'Gagal memperbarui status laporan');
+      }
+    } on DioException catch (dioErr) {
+      final resData = dioErr.response?.data;
+      if (resData is Map && resData['message'] != null) {
+        throw Exception(resData['message'].toString());
+      }
+      throw Exception('Server error (${dioErr.response?.statusCode}): ${dioErr.message}');
     }
   }
 }
