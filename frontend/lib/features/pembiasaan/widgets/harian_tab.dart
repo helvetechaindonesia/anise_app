@@ -7,6 +7,7 @@ import '../../../../core/utils/responsive.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/habit_provider.dart';
 import '../models/habit_model.dart';
+import '../services/habit_service.dart';
 
 // State provider lokal untuk centang habit harian
 final checkedHabitsProvider = StateProvider<Set<String>>((ref) => {});

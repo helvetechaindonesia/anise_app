@@ -112,6 +112,7 @@ class GuruPemantauanWidget extends ConsumerWidget {
                           barGroups: barGroups,
                         ),
                       ),
+                    ),
                     SizedBox(height: 16.h(context)),
 
                     // Rincian Agregat Ibadah Anggota Pantauan
