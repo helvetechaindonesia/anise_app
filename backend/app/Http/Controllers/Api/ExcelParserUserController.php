@@ -444,18 +444,21 @@ class ExcelParserUserController extends Controller
                         $nis = isset($values[$colMap['nis']]) ? trim((string)$values[$colMap['nis']]) : null;
                         $nisn = isset($values[$colMap['nisn']]) ? trim((string)$values[$colMap['nisn']]) : null;
                         $genderRaw = $values[$colMap['gender']] ?? 'L';
+                        $targetUsername = !empty($nisn) ? $nisn : (!empty($nis) ? $nis : Str::slug($fullName));
                     } else {
                         $nuptk = isset($values[$colMap['nuptk']]) ? trim((string)$values[$colMap['nuptk']]) : null;
                         $genderRaw = $values[$colMap['gender']] ?? 'L';
+                        $targetUsername = !empty($nuptk) ? $nuptk : Str::slug($fullName);
                     }
 
                     $gender = (strtoupper(trim((string)$genderRaw)) == 'PEREMPUAN' || strtoupper(trim((string)$genderRaw)) == 'P') ? 'P' : 'L';
 
-                    // One-Door System: Cari user jika ada, atau buat instansi baru jika belum ada
-                    $user = User::firstOrNew(['username' => $kredensial]);
+                    // Cari akun berdasarkan email, atau berdasarkan username (NISN/NUPTK)
+                    $user = User::where('email', $email)->first() 
+                        ?? User::where('username', $targetUsername)->first();
                     
-                    if (!$user->exists) {
-                        $user->password_hash = Hash::make((string)$kredensial, ['rounds' => 4]);
+                    if (!$user) {
+                        $user = new User();
                     } else {
                         // Jika email berubah pada user yang sudah ada, cabut semua token aktifnya
                         if ($user->email && $user->email !== $email) {
@@ -463,6 +466,8 @@ class ExcelParserUserController extends Controller
                         }
                     }
                     
+                    $user->username = $targetUsername;
+                    $user->password_hash = Hash::make((string)$kredensial, ['rounds' => 4]);
                     $user->full_name = $fullName;
                     $user->email = $email;
                     $user->role_id = $roleId;

@@ -291,7 +291,7 @@ class ExcelParserKurikulumController extends Controller
             }
 
             // Validasi Relasi: User Guru/Tendik berdasarkan NUPTK/NIP
-            $teacher = User::where('username', $nuptk)->first();
+            $teacher = $this->findTeacherByNuptk($nuptk, $namaTendik);
             if (!$teacher) {
                 $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
                 continue;
@@ -398,7 +398,7 @@ class ExcelParserKurikulumController extends Controller
                 }
 
                 // Cek Master User Guru
-                $teacher = User::where('username', $nuptk)->first();
+                $teacher = $this->findTeacherByNuptk($nuptk, $namaTendik);
                 if (!$teacher) {
                     $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
                     continue;
@@ -552,7 +552,7 @@ class ExcelParserKurikulumController extends Controller
             }
 
             // Validasi Relasi: User Guru
-            $user = User::where('username', $nuptk)->first();
+            $user = $this->findTeacherByNuptk($nuptk, $namaWali);
             if (!$user) {
                 $errors[] = "Baris $rowNum: Guru dengan NUPTK/NIP '$nuptk' tidak ditemukan di Master User.";
                 continue;
@@ -608,7 +608,7 @@ class ExcelParserKurikulumController extends Controller
             }
 
             // Validasi Relasi: Siswa di Master User
-            $student = User::where('username', $nisn)->first();
+            $student = $this->findStudentByNisn($nisn, $namaSiswa);
             if (!$student) {
                 $errors[] = "Baris $rowNum: Siswa dengan NISN '$nisn' tidak ditemukan di Master User.";
                 continue;
@@ -926,6 +926,46 @@ class ExcelParserKurikulumController extends Controller
 
         // 3. Coba cari berdasarkan nama kelas saja
         return SchoolClass::where('name', $namaKelas)->first();
+    }
+
+    private function findTeacherByNuptk($nuptk, $nama = null)
+    {
+        $cleanNuptk = trim((string)$nuptk);
+        $ltrimNuptk = ltrim($cleanNuptk, '0');
+
+        $teacher = User::where('username', $cleanNuptk)->first();
+        if (!$teacher && $ltrimNuptk !== '') {
+            $teacher = User::where('username', $ltrimNuptk)->first();
+        }
+        if (!$teacher) {
+            $teacher = GuruProfile::where('nip_nuptk', $cleanNuptk)
+                ->orWhere('nip_nuptk', $ltrimNuptk)
+                ->first()?->user;
+        }
+        if (!$teacher && !empty($nama)) {
+            $teacher = User::whereRaw('LOWER(TRIM(full_name)) = ?', [mb_strtolower(trim($nama))])->first();
+        }
+        return $teacher;
+    }
+
+    private function findStudentByNisn($nisn, $nama = null)
+    {
+        $cleanNisn = trim((string)$nisn);
+        $ltrimNisn = ltrim($cleanNisn, '0');
+
+        $student = User::where('username', $cleanNisn)->first();
+        if (!$student && $ltrimNisn !== '') {
+            $student = User::where('username', $ltrimNisn)->first();
+        }
+        if (!$student) {
+            $student = SiswaProfile::where('nisn', $cleanNisn)
+                ->orWhere('nisn', $ltrimNisn)
+                ->first()?->user;
+        }
+        if (!$student && !empty($nama)) {
+            $student = User::whereRaw('LOWER(TRIM(full_name)) = ?', [mb_strtolower(trim($nama))])->first();
+        }
+        return $student;
     }
 
     private function formatDate($val)
