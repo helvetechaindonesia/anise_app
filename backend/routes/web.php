@@ -17,12 +17,16 @@ Route::get('/stats', function () {
     return view('retrospective');
 });
 
-// Google Play Reviewer / Publisher Live Demo (No Login Required)
+// Google Play Reviewer / Publisher Live Demo (Pure Flutter Web - No Login Required)
 Route::get('/demo', function () {
+    $indexPath = public_path('demo/index.html');
+    if (file_exists($indexPath)) {
+        return response()->file($indexPath);
+    }
     return view('demo');
 });
 Route::get('/live-demo', function () {
-    return view('demo');
+    return redirect('/demo');
 });
 
 // Fallback direct storage file serving (jika symlink public/storage belum di-generate di server)

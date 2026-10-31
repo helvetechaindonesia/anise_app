@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_text_styles.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -152,7 +153,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       if (!mounted) return;
 
       Widget targetScreen;
-      if (!hasSeenOnboarding) {
+      if (kIsWeb) {
+        // Mode Demo Web (Sesuai Syarat Google Play: Live Web Demo Tanpa Login)
+        ref.read(authProvider.notifier).loginAsDemo();
+        targetScreen = const MainNavigationScreen();
+      } else if (!hasSeenOnboarding) {
         targetScreen = OnboardingScreen(isAuthenticated: isAuthenticated);
       } else if (isAuthenticated) {
         targetScreen = const MainNavigationScreen();

@@ -230,6 +230,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  void loginAsDemo({UserRole role = UserRole.siswa}) {
+    final demoUser = UserModel(
+      id: 'demo-user-id',
+      fullName: role == UserRole.siswa ? 'Andi Wijaya (Demo)' : 'Bpk. Guru Rahmat (Demo)',
+      username: role == UserRole.siswa ? '0088497665' : '1987111202211003',
+      email: role == UserRole.siswa ? 'siswa.demo@sekolah.sch.id' : 'guru.demo@sekolah.sch.id',
+      role: role,
+      className: 'X RPL 1',
+      gender: 'L',
+      religion: 'Islam',
+      isWaliKelas: role == UserRole.pengajar,
+    );
+    state = AuthState(status: AuthStatus.authenticated, user: demoUser);
+  }
+
   Future<void> logout() async {
     _stopHeartbeat();
     try {
