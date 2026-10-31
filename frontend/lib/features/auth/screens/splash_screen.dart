@@ -176,13 +176,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       );
     });
     
-    // Mainkan sound effects sesuai timing fase animasi
-    _swooshPlayer.play(AssetSource('sounds/swoosh.wav')).catchError((_) {}); // Phase 1 mulai
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        _cringPlayer.play(AssetSource('sounds/cring.wav')).catchError((_) {}); // Phase 2 (Morphing) mulai
-      }
-    });
+    // Mainkan sound effects sesuai timing fase animasi (hanya di native mobile, bukan web)
+    if (!kIsWeb) {
+      _swooshPlayer.play(AssetSource('sounds/swoosh.wav')).catchError((_) {}); // Phase 1 mulai
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) {
+          _cringPlayer.play(AssetSource('sounds/cring.wav')).catchError((_) {}); // Phase 2 (Morphing) mulai
+        }
+      });
+    }
   }
 
   @override
