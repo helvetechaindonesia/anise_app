@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
@@ -111,25 +110,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
   Timer? _heartbeatTimer;
 
-  AuthNotifier(this._authService)
-      : super(kIsWeb
-            ? AuthState(
-                status: AuthStatus.authenticated,
-                user: UserModel(
-                  id: 'demo-siswa-id',
-                  fullName: 'Andi Wijaya (Demo)',
-                  username: '0088497665',
-                  email: 'siswa.demo@sekolah.sch.id',
-                  role: UserRole.siswa,
-                  className: 'X RPL 1',
-                  gender: 'L',
-                  religion: 'Islam',
-                ),
-              )
-            : AuthState(status: AuthStatus.initial)) {
-    if (!kIsWeb) {
-      checkAuth();
-    }
+  AuthNotifier(this._authService) : super(AuthState(status: AuthStatus.initial)) {
+    checkAuth();
   }
 
   void _startHeartbeat() {
@@ -246,21 +228,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.unauthenticated, errorMessage: cleanMessage);
       return false;
     }
-  }
-
-  void loginAsDemo({UserRole role = UserRole.siswa}) {
-    final demoUser = UserModel(
-      id: 'demo-user-id',
-      fullName: role == UserRole.siswa ? 'Andi Wijaya (Demo)' : 'Bpk. Guru Rahmat (Demo)',
-      username: role == UserRole.siswa ? '0088497665' : '1987111202211003',
-      email: role == UserRole.siswa ? 'siswa.demo@sekolah.sch.id' : 'guru.demo@sekolah.sch.id',
-      role: role,
-      className: 'X RPL 1',
-      gender: 'L',
-      religion: 'Islam',
-      isWaliKelas: role == UserRole.pengajar,
-    );
-    state = AuthState(status: AuthStatus.authenticated, user: demoUser);
   }
 
   Future<void> logout() async {
