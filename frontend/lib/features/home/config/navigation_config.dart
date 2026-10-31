@@ -17,9 +17,7 @@ import '../screens/role_dashboards.dart';
 
 class NavigationConfig {
   static List<Widget> getScreensForRole(UserModel? user, Function(int) onNavigateTab) {
-    if (user == null) return const [SizedBox.shrink()];
-
-    if (user.role == UserRole.siswa) {
+    if (user == null || user.role == UserRole.siswa) {
       return [
         SiswaHomeScreen(onNavigateTab: onNavigateTab),
         const JadwalScreen(),
@@ -75,34 +73,27 @@ class NavigationConfig {
   }
 
   static List<BottomNavigationBarItem> getNavItemsForRole(UserModel? user) {
-    if (user == null) {
-      return [
-        BottomNavigationBarItem(icon: Icon(PhosphorIcons.house()), label: ''),
-        BottomNavigationBarItem(icon: Icon(PhosphorIcons.house()), label: ''),
-      ];
-    }
-
-    if (user.role == UserRole.siswa) {
+    if (user == null || user.role == UserRole.siswa) {
       return [
         BottomNavigationBarItem(
-          icon: Icon(PhosphorIcons.house()),
+          icon: Icon(PhosphorIcons.house(PhosphorIconsStyle.regular)),
           activeIcon: Icon(PhosphorIcons.house(PhosphorIconsStyle.fill)),
-          label: 'Home',
+          label: 'Beranda',
         ),
         BottomNavigationBarItem(
-          icon: Icon(PhosphorIcons.calendarBlank()),
-          activeIcon: Icon(PhosphorIcons.calendarBlank(PhosphorIconsStyle.fill)),
+          icon: Icon(PhosphorIcons.calendar(PhosphorIconsStyle.regular)),
+          activeIcon: Icon(PhosphorIcons.calendar(PhosphorIconsStyle.fill)),
           label: 'Jadwal',
         ),
         BottomNavigationBarItem(
-          icon: Icon(PhosphorIcons.star()),
-          activeIcon: Icon(PhosphorIcons.star(PhosphorIconsStyle.fill)),
-          label: 'Poin',
+          icon: Icon(PhosphorIcons.checkSquare(PhosphorIconsStyle.regular)),
+          activeIcon: Icon(PhosphorIcons.checkSquare(PhosphorIconsStyle.fill)),
+          label: 'Pembiasaan',
         ),
         BottomNavigationBarItem(
-          icon: Icon(PhosphorIcons.user()),
+          icon: Icon(PhosphorIcons.user(PhosphorIconsStyle.regular)),
           activeIcon: Icon(PhosphorIcons.user(PhosphorIconsStyle.fill)),
-          label: 'Profile',
+          label: 'Profil',
         ),
       ];
     }

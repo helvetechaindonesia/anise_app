@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
@@ -110,8 +111,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
   Timer? _heartbeatTimer;
 
-  AuthNotifier(this._authService) : super(AuthState(status: AuthStatus.initial)) {
-    checkAuth();
+  AuthNotifier(this._authService)
+      : super(kIsWeb
+            ? AuthState(
+                status: AuthStatus.authenticated,
+                user: UserModel(
+                  id: 'demo-siswa-id',
+                  fullName: 'Andi Wijaya (Demo)',
+                  username: '0088497665',
+                  email: 'siswa.demo@sekolah.sch.id',
+                  role: UserRole.siswa,
+                  className: 'X RPL 1',
+                  gender: 'L',
+                  religion: 'Islam',
+                ),
+              )
+            : AuthState(status: AuthStatus.initial)) {
+    if (!kIsWeb) {
+      checkAuth();
+    }
   }
 
   void _startHeartbeat() {
