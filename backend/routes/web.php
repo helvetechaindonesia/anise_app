@@ -17,6 +17,14 @@ Route::get('/stats', function () {
     return view('retrospective');
 });
 
+// Google Play Reviewer / Publisher Live Demo (No Login Required)
+Route::get('/demo', function () {
+    return view('demo');
+});
+Route::get('/live-demo', function () {
+    return view('demo');
+});
+
 // Fallback direct storage file serving (jika symlink public/storage belum di-generate di server)
 Route::get('/storage/{path}', function ($path) {
     $filePath = storage_path('app/public/' . $path);
