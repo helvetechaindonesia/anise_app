@@ -488,8 +488,17 @@ class ExcelParserKurikulumController extends Controller
                 continue;
             }
 
-            // Validasi Relasi: Jabatan
-            $jabatan = Jabatan::whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($tugasTambahan)])->first();
+            // Validasi Relasi: Jabatan (fleksibel terhadap spasi, underscore, dan huruf besar/kecil)
+            $normalizedInput = mb_strtolower(trim($tugasTambahan));
+            $normalizedUnderscore = str_replace(' ', '_', $normalizedInput);
+            $normalizedSpace = str_replace('_', ' ', $normalizedInput);
+
+            $jabatan = Jabatan::whereRaw('LOWER(TRIM(name)) = ?', [$normalizedInput])
+                ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedUnderscore])
+                ->orWhereRaw('LOWER(TRIM(name)) = ?', [$normalizedSpace])
+                ->orWhereRaw("REPLACE(LOWER(TRIM(name)), '_', ' ') = ?", [$normalizedSpace])
+                ->first();
+
             if (!$jabatan) {
                 $errors[] = "Baris $rowNum: Tugas Tambahan / Jabatan '$tugasTambahan' tidak ditemukan di Master Jabatan.";
                 continue;
