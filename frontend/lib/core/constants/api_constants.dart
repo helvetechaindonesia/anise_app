@@ -1,6 +1,9 @@
 class ApiConstants {
-  // Gunakan 'https://api.helvetecha.tech/api' untuk server production
-  static const String baseUrl = 'https://api.helvetecha.tech/api';
+  // Default tetap Production jika parameter --dart-define tidak diisi
+  static const String baseUrl = String.fromEnvironment(
+    'BASE_URL',
+    defaultValue: 'https://api.helvetecha.tech/api',
+  );
   
   /// Base host URL tanpa path endpoint /api (Contoh: https://api.helvetecha.tech)
   static String get baseHost {
